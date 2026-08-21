@@ -5,8 +5,8 @@ plugins {
 }
 
 android {
-    namespace = "com.nodetologic.starelectricerp.star_electric_erp"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.nodetologic.starelectricerp.starelectricerp"
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.nodetologic.starelectricerp.star_electric_erp"
+        applicationId = "com.nodetologic.starelectricerp.starelectricerp"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

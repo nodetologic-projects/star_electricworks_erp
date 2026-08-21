@@ -1,0 +1,27 @@
+import 'package:drift/drift.dart';
+import 'package:starelectricerp/data/tables/customers.dart';
+import 'package:starelectricerp/data/tables/enums.dart';
+
+class Invoices extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get invoiceNo => text().unique()();
+  TextColumn get invoiceType => textEnum<InvoiceType>()();
+  IntColumn get customerId => integer().references(Customers, #id)();
+  DateTimeColumn get invoiceDate => dateTime()();
+  DateTimeColumn get dueDate => dateTime().nullable()();
+  RealColumn get subtotal => real()();
+  RealColumn get cgstAmount => real()();
+  RealColumn get sgstAmount => real()();
+  RealColumn get discountAmount => real()();
+  RealColumn get deliveryCharge => real().nullable()();
+  RealColumn get grandTotal => real()();
+  TextColumn get amountInWords => text()();
+  TextColumn get status => textEnum<InvoiceStatus>()();
+  BoolColumn get requiresEWayBill => boolean().withDefault(const Constant(false))();
+  BoolColumn get requiresEInvoice => boolean().withDefault(const Constant(false))();
+  TextColumn get irnNumber => text().nullable()();
+  TextColumn get signedPdfPath => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get reminderSentDate => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}

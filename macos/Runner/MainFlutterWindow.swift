@@ -10,6 +10,7 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    self.title = "Star Electric ERP"
     super.awakeFromNib()
   }
 }
