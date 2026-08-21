@@ -1,16 +1,20 @@
-name: Build Windows
+name: Build Windows Desktop Release
 
 on:
   push:
-    branches: [ "main" ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write # Needed for creating GitHub Releases
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -23,8 +27,55 @@ jobs:
       - name: Build Windows release
         run: flutter build windows --release
 
-      - name: Upload build output
+      - name: Build C# PDF Signer Helper
+        run: |
+          cd windows/helpers/pdf_signer
+          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+          mkdir -p ../../../build/windows/x64/runner/Release/data/flutter_assets/pdf_signer
+          cp publish/pdf_signer.exe ../../../build/windows/x64/runner/Release/data/flutter_assets/pdf_signer/
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if ("${{ github.ref }}" -match "^refs/tags/v(.*)$") {
+            echo "VERSION=$($matches[1])" >> $env:GITHUB_ENV
+          } else {
+            echo "VERSION=0.0.0" >> $env:GITHUB_ENV
+          }
+
+      - name: Compile Inno Setup Installer
+        run: |
+          cd windows
+          & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DMyAppVersion=${{ env.VERSION }}" installer.iss
+
+      - name: Upload Build Artifact (Raw)
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
+          name: StarElectricERP-Windows-Raw
           path: build/windows/x64/runner/Release/
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/windows/installer/StarElectricERP-Setup-${{ env.VERSION }}.exe
+          generate_release_notes: true
+
+      - name: Generate version.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          $repo = $env:GITHUB_REPOSITORY
+          $version = $env:VERSION
+          $json = @{
+            latestVersion = $version
+            downloadUrl = "https://github.com/$repo/releases/download/v$version/StarElectricERP-Setup-$version.exe"
+            releaseNotes = "View release notes on GitHub."
+          }
+          $json | ConvertTo-Json | Out-File version.json
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          git add version.json
+          git commit -m "chore: bump version to $version [skip ci]"
+          git push origin main

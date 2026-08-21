@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.nodetologic.starelectricerp" "\0"
-            VALUE "FileDescription", "star_electric_erp" "\0"
+            VALUE "FileDescription", "starelectricerp" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "star_electric_erp" "\0"
+            VALUE "InternalName", "starelectricerp" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.nodetologic.starelectricerp. All rights reserved." "\0"
-            VALUE "OriginalFilename", "star_electric_erp.exe" "\0"
-            VALUE "ProductName", "star_electric_erp" "\0"
+            VALUE "OriginalFilename", "starelectricerp.exe" "\0"
+            VALUE "ProductName", "starelectricerp" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

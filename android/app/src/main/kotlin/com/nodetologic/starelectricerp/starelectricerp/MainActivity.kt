@@ -1,4 +1,4 @@
-package com.nodetologic.starelectricerp.star_electric_erp
+package com.nodetologic.starelectricerp.starelectricerp
 
 import io.flutter.embedding.android.FlutterActivity
 
