@@ -15,12 +15,16 @@ class InvoicePdfGenerator {
   }) async {
     final fontRegular = await PdfGoogleFonts.manropeRegular();
     final fontBold = await PdfGoogleFonts.manropeSemiBold();
+    final fontItalic = await PdfGoogleFonts.manropeLight();
+    final fontBoldItalic = await PdfGoogleFonts.manropeMedium();
     final monoFont = await PdfGoogleFonts.iBMPlexMonoRegular();
     final monoFontBold = await PdfGoogleFonts.iBMPlexMonoSemiBold();
 
     final theme = pw.ThemeData.withFont(
       base: fontRegular,
       bold: fontBold,
+      italic: fontItalic,
+      boldItalic: fontBoldItalic,
     );
     final pdf = pw.Document(theme: theme);
     
