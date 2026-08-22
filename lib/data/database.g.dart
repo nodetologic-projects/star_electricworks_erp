@@ -2913,6 +2913,26 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _poNumberMeta = const VerificationMeta(
+    'poNumber',
+  );
+  @override
+  late final GeneratedColumn<String> poNumber = GeneratedColumn<String>(
+    'po_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _poDateMeta = const VerificationMeta('poDate');
+  @override
+  late final GeneratedColumn<DateTime> poDate = GeneratedColumn<DateTime>(
+    'po_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2947,6 +2967,8 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     signedPdfPath,
     notes,
     reminderSentDate,
+    poNumber,
+    poDate,
     createdAt,
   ];
   @override
@@ -3108,6 +3130,18 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         ),
       );
     }
+    if (data.containsKey('po_number')) {
+      context.handle(
+        _poNumberMeta,
+        poNumber.isAcceptableOrUnknown(data['po_number']!, _poNumberMeta),
+      );
+    }
+    if (data.containsKey('po_date')) {
+      context.handle(
+        _poDateMeta,
+        poDate.isAcceptableOrUnknown(data['po_date']!, _poDateMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3207,6 +3241,14 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}reminder_sent_date'],
       ),
+      poNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}po_number'],
+      ),
+      poDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}po_date'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3246,6 +3288,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   final String? signedPdfPath;
   final String? notes;
   final DateTime? reminderSentDate;
+  final String? poNumber;
+  final DateTime? poDate;
   final DateTime createdAt;
   const Invoice({
     required this.id,
@@ -3268,6 +3312,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     this.signedPdfPath,
     this.notes,
     this.reminderSentDate,
+    this.poNumber,
+    this.poDate,
     required this.createdAt,
   });
   @override
@@ -3313,6 +3359,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     if (!nullToAbsent || reminderSentDate != null) {
       map['reminder_sent_date'] = Variable<DateTime>(reminderSentDate);
     }
+    if (!nullToAbsent || poNumber != null) {
+      map['po_number'] = Variable<String>(poNumber);
+    }
+    if (!nullToAbsent || poDate != null) {
+      map['po_date'] = Variable<DateTime>(poDate);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -3351,6 +3403,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       reminderSentDate: reminderSentDate == null && nullToAbsent
           ? const Value.absent()
           : Value(reminderSentDate),
+      poNumber: poNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(poNumber),
+      poDate: poDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(poDate),
       createdAt: Value(createdAt),
     );
   }
@@ -3387,6 +3445,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       reminderSentDate: serializer.fromJson<DateTime?>(
         json['reminderSentDate'],
       ),
+      poNumber: serializer.fromJson<String?>(json['poNumber']),
+      poDate: serializer.fromJson<DateTime?>(json['poDate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -3418,6 +3478,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'signedPdfPath': serializer.toJson<String?>(signedPdfPath),
       'notes': serializer.toJson<String?>(notes),
       'reminderSentDate': serializer.toJson<DateTime?>(reminderSentDate),
+      'poNumber': serializer.toJson<String?>(poNumber),
+      'poDate': serializer.toJson<DateTime?>(poDate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -3443,6 +3505,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     Value<String?> signedPdfPath = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     Value<DateTime?> reminderSentDate = const Value.absent(),
+    Value<String?> poNumber = const Value.absent(),
+    Value<DateTime?> poDate = const Value.absent(),
     DateTime? createdAt,
   }) => Invoice(
     id: id ?? this.id,
@@ -3471,6 +3535,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     reminderSentDate: reminderSentDate.present
         ? reminderSentDate.value
         : this.reminderSentDate,
+    poNumber: poNumber.present ? poNumber.value : this.poNumber,
+    poDate: poDate.present ? poDate.value : this.poDate,
     createdAt: createdAt ?? this.createdAt,
   );
   Invoice copyWithCompanion(InvoicesCompanion data) {
@@ -3521,6 +3587,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       reminderSentDate: data.reminderSentDate.present
           ? data.reminderSentDate.value
           : this.reminderSentDate,
+      poNumber: data.poNumber.present ? data.poNumber.value : this.poNumber,
+      poDate: data.poDate.present ? data.poDate.value : this.poDate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -3548,6 +3616,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('signedPdfPath: $signedPdfPath, ')
           ..write('notes: $notes, ')
           ..write('reminderSentDate: $reminderSentDate, ')
+          ..write('poNumber: $poNumber, ')
+          ..write('poDate: $poDate, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -3575,6 +3645,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     signedPdfPath,
     notes,
     reminderSentDate,
+    poNumber,
+    poDate,
     createdAt,
   ]);
   @override
@@ -3601,6 +3673,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.signedPdfPath == this.signedPdfPath &&
           other.notes == this.notes &&
           other.reminderSentDate == this.reminderSentDate &&
+          other.poNumber == this.poNumber &&
+          other.poDate == this.poDate &&
           other.createdAt == this.createdAt);
 }
 
@@ -3625,6 +3699,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<String?> signedPdfPath;
   final Value<String?> notes;
   final Value<DateTime?> reminderSentDate;
+  final Value<String?> poNumber;
+  final Value<DateTime?> poDate;
   final Value<DateTime> createdAt;
   const InvoicesCompanion({
     this.id = const Value.absent(),
@@ -3647,6 +3723,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.signedPdfPath = const Value.absent(),
     this.notes = const Value.absent(),
     this.reminderSentDate = const Value.absent(),
+    this.poNumber = const Value.absent(),
+    this.poDate = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   InvoicesCompanion.insert({
@@ -3670,6 +3748,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.signedPdfPath = const Value.absent(),
     this.notes = const Value.absent(),
     this.reminderSentDate = const Value.absent(),
+    this.poNumber = const Value.absent(),
+    this.poDate = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : invoiceNo = Value(invoiceNo),
        invoiceType = Value(invoiceType),
@@ -3703,6 +3783,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<String>? signedPdfPath,
     Expression<String>? notes,
     Expression<DateTime>? reminderSentDate,
+    Expression<String>? poNumber,
+    Expression<DateTime>? poDate,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -3726,6 +3808,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (signedPdfPath != null) 'signed_pdf_path': signedPdfPath,
       if (notes != null) 'notes': notes,
       if (reminderSentDate != null) 'reminder_sent_date': reminderSentDate,
+      if (poNumber != null) 'po_number': poNumber,
+      if (poDate != null) 'po_date': poDate,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -3751,6 +3835,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<String?>? signedPdfPath,
     Value<String?>? notes,
     Value<DateTime?>? reminderSentDate,
+    Value<String?>? poNumber,
+    Value<DateTime?>? poDate,
     Value<DateTime>? createdAt,
   }) {
     return InvoicesCompanion(
@@ -3774,6 +3860,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       signedPdfPath: signedPdfPath ?? this.signedPdfPath,
       notes: notes ?? this.notes,
       reminderSentDate: reminderSentDate ?? this.reminderSentDate,
+      poNumber: poNumber ?? this.poNumber,
+      poDate: poDate ?? this.poDate,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -3845,6 +3933,12 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     if (reminderSentDate.present) {
       map['reminder_sent_date'] = Variable<DateTime>(reminderSentDate.value);
     }
+    if (poNumber.present) {
+      map['po_number'] = Variable<String>(poNumber.value);
+    }
+    if (poDate.present) {
+      map['po_date'] = Variable<DateTime>(poDate.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3874,6 +3968,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('signedPdfPath: $signedPdfPath, ')
           ..write('notes: $notes, ')
           ..write('reminderSentDate: $reminderSentDate, ')
+          ..write('poNumber: $poNumber, ')
+          ..write('poDate: $poDate, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -11237,6 +11333,8 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       Value<String?> signedPdfPath,
       Value<String?> notes,
       Value<DateTime?> reminderSentDate,
+      Value<String?> poNumber,
+      Value<DateTime?> poDate,
       Value<DateTime> createdAt,
     });
 typedef $$InvoicesTableUpdateCompanionBuilder =
@@ -11261,6 +11359,8 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<String?> signedPdfPath,
       Value<String?> notes,
       Value<DateTime?> reminderSentDate,
+      Value<String?> poNumber,
+      Value<DateTime?> poDate,
       Value<DateTime> createdAt,
     });
 
@@ -11461,6 +11561,16 @@ class $$InvoicesTableFilterComposer
 
   ColumnFilters<DateTime> get reminderSentDate => $composableBuilder(
     column: $table.reminderSentDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get poNumber => $composableBuilder(
+    column: $table.poNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get poDate => $composableBuilder(
+    column: $table.poDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11697,6 +11807,16 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get poNumber => $composableBuilder(
+    column: $table.poNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get poDate => $composableBuilder(
+    column: $table.poDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -11816,6 +11936,12 @@ class $$InvoicesTableAnnotationComposer
     column: $table.reminderSentDate,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get poNumber =>
+      $composableBuilder(column: $table.poNumber, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get poDate =>
+      $composableBuilder(column: $table.poDate, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -11998,6 +12124,8 @@ class $$InvoicesTableTableManager
                 Value<String?> signedPdfPath = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime?> reminderSentDate = const Value.absent(),
+                Value<String?> poNumber = const Value.absent(),
+                Value<DateTime?> poDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicesCompanion(
                 id: id,
@@ -12020,6 +12148,8 @@ class $$InvoicesTableTableManager
                 signedPdfPath: signedPdfPath,
                 notes: notes,
                 reminderSentDate: reminderSentDate,
+                poNumber: poNumber,
+                poDate: poDate,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -12044,6 +12174,8 @@ class $$InvoicesTableTableManager
                 Value<String?> signedPdfPath = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime?> reminderSentDate = const Value.absent(),
+                Value<String?> poNumber = const Value.absent(),
+                Value<DateTime?> poDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicesCompanion.insert(
                 id: id,
@@ -12066,6 +12198,8 @@ class $$InvoicesTableTableManager
                 signedPdfPath: signedPdfPath,
                 notes: notes,
                 reminderSentDate: reminderSentDate,
+                poNumber: poNumber,
+                poDate: poDate,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0

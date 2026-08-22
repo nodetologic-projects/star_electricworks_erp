@@ -44,6 +44,28 @@ class InvoicePdfGenerator {
             _buildHeader(company, logoImage, invoice.invoiceType),
             pw.SizedBox(height: 24),
             _buildMetaRow(invoice, isDeliveryChallan, items, monoFont, monoFontBold),
+            if (invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ...[
+              pw.SizedBox(height: 8),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                ),
+                child: pw.Row(
+                  mainAxisSize: pw.MainAxisSize.min,
+                  children: [
+                    pw.Text('PO No: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                    pw.Text(invoice.poNumber!, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    if (invoice.poDate != null) ...[
+                      pw.SizedBox(width: 16),
+                      pw.Text('PO Date: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                      pw.Text(DateFormat('dd/MM/yyyy').format(invoice.poDate!), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    ]
+                  ],
+                ),
+              ),
+            ],
             pw.SizedBox(height: 16),
             _buildBillTo(customer, isPurchase: isPurchase),
             
