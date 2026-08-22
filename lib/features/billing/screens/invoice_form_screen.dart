@@ -14,6 +14,7 @@ import 'package:starelectricerp/features/motor_jobs/providers/motor_jobs_provide
 import 'package:starelectricerp/core/widgets/app_button.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/app_select.dart';
+import 'package:starelectricerp/core/widgets/app_text_field.dart';
 import 'package:starelectricerp/core/tax_calculator.dart';
 import 'package:starelectricerp/core/number_to_words.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
@@ -72,6 +73,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   final TextEditingController _customerPhoneController = TextEditingController();
   final TextEditingController _customerEmailController = TextEditingController();
 
+  final TextEditingController _poNumberController = TextEditingController();
+  DateTime? _poDate;
   final List<_LineItem> _items = [];
   String _notes = '';
   
@@ -114,6 +117,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _customerGstinController.dispose();
     _customerPhoneController.dispose();
     _customerEmailController.dispose();
+    _poNumberController.dispose();
     super.dispose();
   }
 
@@ -237,6 +241,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         amountInWords: NumberToWords.convert(totals.grandTotal),
         status: InvoiceStatus.draft,
         notes: drift.Value(_notes.trim()),
+        poNumber: drift.Value(_poNumberController.text.trim().isEmpty ? null : _poNumberController.text.trim()),
+        poDate: drift.Value(_poDate),
+
         requiresEWayBill: drift.Value(reqEway),
         requiresEInvoice: drift.Value(reqEinvoice),
       );
@@ -558,7 +565,46 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           ],
         ),
         const SizedBox(height: 24),
-        const Text('Line Items', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        
+                    const SizedBox(height: 24),
+                    const Text('Purchase Order Details (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            label: 'PO Number',
+                            controller: _poNumberController,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _poDate ?? DateTime.now(),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setState(() => _poDate = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'PO Date',
+                                border: OutlineInputBorder(),
+                              ),
+                              child: Text(
+                                _poDate != null ? "${_poDate!.day}/${_poDate!.month}/${_poDate!.year}" : 'Select Date',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Text('Line Items', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         copperStockAsync.when(
           data: (copperStock) => motorJobsAsync.when(

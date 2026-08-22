@@ -23,5 +23,8 @@ class Invoices extends Table {
   TextColumn get signedPdfPath => text().nullable()();
   TextColumn get notes => text().nullable()();
   DateTimeColumn get reminderSentDate => dateTime().nullable()();
+
+  TextColumn get poNumber => text().nullable()();
+  DateTimeColumn get poDate => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
