@@ -34,8 +34,17 @@ class InvoicePdfGenerator {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          buildBackground: (context) => pw.FullPage(
+            ignoreMargins: true,
+            child: pw.Container(
+              margin: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.black, width: 0.5)),
+            ),
+          ),
+        ),
         build: (context) {
           final isPurchase = invoice.invoiceType == InvoiceType.purchaseVoucher;
           final isDeliveryChallan = invoice.invoiceType == InvoiceType.deliveryChallan;
@@ -49,17 +58,16 @@ class InvoicePdfGenerator {
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
                 ),
                 child: pw.Row(
                   mainAxisSize: pw.MainAxisSize.min,
                   children: [
-                    pw.Text('PO No: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                    pw.Text('PO No: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
                     pw.Text(invoice.poNumber!, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                     if (invoice.poDate != null) ...[
                       pw.SizedBox(width: 16),
-                      pw.Text('PO Date: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                      pw.Text('PO Date: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
                       pw.Text(PdfDateFormatter.formatDate(invoice.poDate!), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                     ]
                   ],
@@ -92,7 +100,7 @@ class InvoicePdfGenerator {
               pw.SizedBox(height: 12),
               pw.Text(
                 'Payment Terms: Pay within ${invoice.paymentTermDays} days of bill generation',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColor.fromHex('#501817')),
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColors.black),
               ),
             ],
 
@@ -101,15 +109,14 @@ class InvoicePdfGenerator {
               pw.Container(
                 padding: const pw.EdgeInsets.all(12),
                 decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  border: pw.Border(left: pw.BorderSide(color: PdfColor.fromHex('#501817'), width: 4)),
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Notes:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#501817'))),
+                    pw.Text('Notes:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
                     pw.SizedBox(height: 4),
-                    pw.Text(invoice.notes!, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey900)),
+                    pw.Text(invoice.notes!, style: const pw.TextStyle(fontSize: 10, color: PdfColors.black)),
                   ],
                 ),
               ),
@@ -147,10 +154,6 @@ class InvoicePdfGenerator {
 
     return pw.Container(
       padding: const pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(
-        color: PdfColor.fromHex('#501817'),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-      ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
@@ -163,18 +166,18 @@ class InvoicePdfGenerator {
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(company.companyName, style: pw.TextStyle(color: PdfColors.white, fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(company.companyName, style: pw.TextStyle(color: PdfColors.black, fontSize: 20, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 4),
-                  pw.Text(company.address, style: const pw.TextStyle(color: PdfColors.white, fontSize: 10)),
-                  pw.Text('Phone: ${company.phone}', style: const pw.TextStyle(color: PdfColors.white, fontSize: 10)),
-                  pw.Text('GSTIN: ${company.gstin}', style: pw.TextStyle(color: PdfColors.white, fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(company.address, style: const pw.TextStyle(color: PdfColors.black, fontSize: 10)),
+                  pw.Text('Phone: ${company.phone}', style: const pw.TextStyle(color: PdfColors.black, fontSize: 10)),
+                  pw.Text('GSTIN: ${company.gstin}', style: pw.TextStyle(color: PdfColors.black, fontSize: 10, fontWeight: pw.FontWeight.bold)),
                 ],
               ),
             ],
           ),
           pw.Text(
             typeLabel,
-            style: pw.TextStyle(color: PdfColors.white, fontSize: 16, fontWeight: pw.FontWeight.bold, letterSpacing: 1.5),
+            style: pw.TextStyle(color: PdfColor.fromHex('#501817'), fontSize: 16, fontWeight: pw.FontWeight.bold, letterSpacing: 1.5),
           ),
         ],
       ),
@@ -192,7 +195,7 @@ class InvoicePdfGenerator {
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(label, style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 10)),
+          pw.Text(label, style: const pw.TextStyle(color: PdfColors.black, fontSize: 10)),
           pw.SizedBox(height: 2),
           pw.Text(value, style: pw.TextStyle(fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal, fontSize: 14, font: bold ? monoFontBold : monoFont)),
         ],
@@ -213,7 +216,7 @@ class InvoicePdfGenerator {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
-                  pw.Text('Motor Job Reference', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                  pw.Text('Motor Job Reference', style: const pw.TextStyle(fontSize: 10, color: PdfColors.black)),
                   pw.Text(motorJobSummary, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), maxLines: 2, textAlign: pw.TextAlign.right),
                 ],
               ),
@@ -227,7 +230,7 @@ class InvoicePdfGenerator {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(isPurchase ? 'Purchased From:' : 'Bill To:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+        pw.Text(isPurchase ? 'Purchased From:' : 'Bill To:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
         pw.SizedBox(height: 4),
         pw.Text(customer.name, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
         pw.Text(customer.address, style: const pw.TextStyle(fontSize: 10)),
@@ -241,7 +244,7 @@ class InvoicePdfGenerator {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300),
+        border: pw.Border.all(color: PdfColors.black),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
       ),
       child: pw.Row(
@@ -250,21 +253,21 @@ class InvoicePdfGenerator {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Dispatch Date:', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+              pw.Text('Dispatch Date:', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
               pw.Text(PdfDateFormatter.formatDate(invoice.invoiceDate), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
             ],
           ),
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Delivery Address:', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+              pw.Text('Delivery Address:', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
               pw.Text(customer.address, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
             ],
           ),
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Delivery Charge:', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+              pw.Text('Delivery Charge:', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
               pw.Text(invoice.deliveryCharge != null ? '₹${invoice.deliveryCharge?.toStringAsFixed(2)}' : 'N/A', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
             ],
           ),
@@ -301,8 +304,9 @@ class InvoicePdfGenerator {
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: data,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.black),
+      headerDecoration: null,
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
       cellHeight: 30,
       cellAlignments: {
         0: pw.Alignment.centerLeft,
@@ -362,8 +366,9 @@ class InvoicePdfGenerator {
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: data,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-      headerDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#7A1F33')),
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.black),
+      headerDecoration: null,
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
       cellHeight: 30,
       cellAlignments: alignments,
     );
@@ -434,18 +439,18 @@ class InvoicePdfGenerator {
                 pw.SizedBox(height: 16),
               ],
               if (isBillOfSupply)
-                pw.Text('This is a Bill of Supply — no GST is charged on this transaction.', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.red700)),
+                pw.Text('This is a Bill of Supply — no GST is charged on this transaction.', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
               
               if (!isDeliveryChallan && !isPurchase)
-                pw.Text('Thank you for your business.', style: const pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700)),
+                pw.Text('Thank you for your business.', style: const pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic, color: PdfColors.black)),
 
               if (isDeliveryChallan) ...[
                 // E-way bill placeholder area
                 pw.Container(
                   width: 100,
                   height: 100,
-                  decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey300, style: pw.BorderStyle.dashed)),
-                  child: pw.Center(child: pw.Text('e-Way Bill QR\n(Placeholder)', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500))),
+                  decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.black, style: pw.BorderStyle.dashed)),
+                  child: pw.Center(child: pw.Text('e-Way Bill QR\n(Placeholder)', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8, color: PdfColors.black))),
                 )
               ]
             ],
@@ -457,8 +462,8 @@ class InvoicePdfGenerator {
             width: 80,
             height: 80,
             margin: const pw.EdgeInsets.only(right: 16),
-            decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey300, style: pw.BorderStyle.dashed)),
-            child: pw.Center(child: pw.Text('IRN QR\n(Placeholder)', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500))),
+            decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.black, style: pw.BorderStyle.dashed)),
+            child: pw.Center(child: pw.Text('IRN QR\n(Placeholder)', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8, color: PdfColors.black))),
           ),
 
         if (isDeliveryChallan)
@@ -471,7 +476,7 @@ class InvoicePdfGenerator {
                 pw.SizedBox(height: 40),
                 pw.Divider(thickness: 1),
                 pw.Text('Received in good condition', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                pw.Text('(Customer Sign)', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                pw.Text('(Customer Sign)', style: const pw.TextStyle(fontSize: 8, color: PdfColors.black)),
               ],
             ),
           ),
