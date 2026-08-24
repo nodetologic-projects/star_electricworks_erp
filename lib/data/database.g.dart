@@ -1255,6 +1255,17 @@ class $MotorJobsTable extends MotorJobs
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sacCodeMeta = const VerificationMeta(
+    'sacCode',
+  );
+  @override
+  late final GeneratedColumn<String> sacCode = GeneratedColumn<String>(
+    'sac_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _dispatchDateMeta = const VerificationMeta(
     'dispatchDate',
   );
@@ -1303,6 +1314,7 @@ class $MotorJobsTable extends MotorJobs
     jobDescription,
     status,
     serviceCharge,
+    sacCode,
     dispatchDate,
     createdAt,
     updatedAt,
@@ -1389,6 +1401,12 @@ class $MotorJobsTable extends MotorJobs
         ),
       );
     }
+    if (data.containsKey('sac_code')) {
+      context.handle(
+        _sacCodeMeta,
+        sacCode.isAcceptableOrUnknown(data['sac_code']!, _sacCodeMeta),
+      );
+    }
     if (data.containsKey('dispatch_date')) {
       context.handle(
         _dispatchDateMeta,
@@ -1467,6 +1485,10 @@ class $MotorJobsTable extends MotorJobs
         DriftSqlType.double,
         data['${effectivePrefix}service_charge'],
       ),
+      sacCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sac_code'],
+      ),
       dispatchDate: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}dispatch_date'],
@@ -1507,6 +1529,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
   final String jobDescription;
   final MotorJobStatus status;
   final double? serviceCharge;
+  final String? sacCode;
   final DateTime? dispatchDate;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -1522,6 +1545,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     required this.jobDescription,
     required this.status,
     this.serviceCharge,
+    this.sacCode,
     this.dispatchDate,
     required this.createdAt,
     required this.updatedAt,
@@ -1554,6 +1578,9 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     if (!nullToAbsent || serviceCharge != null) {
       map['service_charge'] = Variable<double>(serviceCharge);
     }
+    if (!nullToAbsent || sacCode != null) {
+      map['sac_code'] = Variable<String>(sacCode);
+    }
     if (!nullToAbsent || dispatchDate != null) {
       map['dispatch_date'] = Variable<DateTime>(dispatchDate);
     }
@@ -1581,6 +1608,9 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
       serviceCharge: serviceCharge == null && nullToAbsent
           ? const Value.absent()
           : Value(serviceCharge),
+      sacCode: sacCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sacCode),
       dispatchDate: dispatchDate == null && nullToAbsent
           ? const Value.absent()
           : Value(dispatchDate),
@@ -1610,6 +1640,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
         serializer.fromJson<String>(json['status']),
       ),
       serviceCharge: serializer.fromJson<double?>(json['serviceCharge']),
+      sacCode: serializer.fromJson<String?>(json['sacCode']),
       dispatchDate: serializer.fromJson<DateTime?>(json['dispatchDate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1634,6 +1665,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
         $MotorJobsTable.$converterstatus.toJson(status),
       ),
       'serviceCharge': serializer.toJson<double?>(serviceCharge),
+      'sacCode': serializer.toJson<String?>(sacCode),
       'dispatchDate': serializer.toJson<DateTime?>(dispatchDate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1652,6 +1684,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     String? jobDescription,
     MotorJobStatus? status,
     Value<double?> serviceCharge = const Value.absent(),
+    Value<String?> sacCode = const Value.absent(),
     Value<DateTime?> dispatchDate = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1669,6 +1702,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     serviceCharge: serviceCharge.present
         ? serviceCharge.value
         : this.serviceCharge,
+    sacCode: sacCode.present ? sacCode.value : this.sacCode,
     dispatchDate: dispatchDate.present ? dispatchDate.value : this.dispatchDate,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1696,6 +1730,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
       serviceCharge: data.serviceCharge.present
           ? data.serviceCharge.value
           : this.serviceCharge,
+      sacCode: data.sacCode.present ? data.sacCode.value : this.sacCode,
       dispatchDate: data.dispatchDate.present
           ? data.dispatchDate.value
           : this.dispatchDate,
@@ -1718,6 +1753,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
           ..write('jobDescription: $jobDescription, ')
           ..write('status: $status, ')
           ..write('serviceCharge: $serviceCharge, ')
+          ..write('sacCode: $sacCode, ')
           ..write('dispatchDate: $dispatchDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1738,6 +1774,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     jobDescription,
     status,
     serviceCharge,
+    sacCode,
     dispatchDate,
     createdAt,
     updatedAt,
@@ -1757,6 +1794,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
           other.jobDescription == this.jobDescription &&
           other.status == this.status &&
           other.serviceCharge == this.serviceCharge &&
+          other.sacCode == this.sacCode &&
           other.dispatchDate == this.dispatchDate &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1774,6 +1812,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
   final Value<String> jobDescription;
   final Value<MotorJobStatus> status;
   final Value<double?> serviceCharge;
+  final Value<String?> sacCode;
   final Value<DateTime?> dispatchDate;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1789,6 +1828,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     this.jobDescription = const Value.absent(),
     this.status = const Value.absent(),
     this.serviceCharge = const Value.absent(),
+    this.sacCode = const Value.absent(),
     this.dispatchDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1805,6 +1845,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     required String jobDescription,
     required MotorJobStatus status,
     this.serviceCharge = const Value.absent(),
+    this.sacCode = const Value.absent(),
     this.dispatchDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1826,6 +1867,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     Expression<String>? jobDescription,
     Expression<String>? status,
     Expression<double>? serviceCharge,
+    Expression<String>? sacCode,
     Expression<DateTime>? dispatchDate,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1842,6 +1884,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
       if (jobDescription != null) 'job_description': jobDescription,
       if (status != null) 'status': status,
       if (serviceCharge != null) 'service_charge': serviceCharge,
+      if (sacCode != null) 'sac_code': sacCode,
       if (dispatchDate != null) 'dispatch_date': dispatchDate,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1860,6 +1903,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     Value<String>? jobDescription,
     Value<MotorJobStatus>? status,
     Value<double?>? serviceCharge,
+    Value<String?>? sacCode,
     Value<DateTime?>? dispatchDate,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1876,6 +1920,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
       jobDescription: jobDescription ?? this.jobDescription,
       status: status ?? this.status,
       serviceCharge: serviceCharge ?? this.serviceCharge,
+      sacCode: sacCode ?? this.sacCode,
       dispatchDate: dispatchDate ?? this.dispatchDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1922,6 +1967,9 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     if (serviceCharge.present) {
       map['service_charge'] = Variable<double>(serviceCharge.value);
     }
+    if (sacCode.present) {
+      map['sac_code'] = Variable<String>(sacCode.value);
+    }
     if (dispatchDate.present) {
       map['dispatch_date'] = Variable<DateTime>(dispatchDate.value);
     }
@@ -1948,6 +1996,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
           ..write('jobDescription: $jobDescription, ')
           ..write('status: $status, ')
           ..write('serviceCharge: $serviceCharge, ')
+          ..write('sacCode: $sacCode, ')
           ..write('dispatchDate: $dispatchDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -4057,6 +4106,17 @@ class $InvoiceItemsTable extends InvoiceItems
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _hsnCodeMeta = const VerificationMeta(
+    'hsnCode',
+  );
+  @override
+  late final GeneratedColumn<String> hsnCode = GeneratedColumn<String>(
+    'hsn_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _qtyMeta = const VerificationMeta('qty');
   @override
   late final GeneratedColumn<double> qty = GeneratedColumn<double>(
@@ -4107,6 +4167,7 @@ class $InvoiceItemsTable extends InvoiceItems
     motorJobId,
     copperStockId,
     description,
+    hsnCode,
     qty,
     unitPrice,
     gstRate,
@@ -4163,6 +4224,12 @@ class $InvoiceItemsTable extends InvoiceItems
       );
     } else if (isInserting) {
       context.missing(_descriptionMeta);
+    }
+    if (data.containsKey('hsn_code')) {
+      context.handle(
+        _hsnCodeMeta,
+        hsnCode.isAcceptableOrUnknown(data['hsn_code']!, _hsnCodeMeta),
+      );
     }
     if (data.containsKey('qty')) {
       context.handle(
@@ -4227,6 +4294,10 @@ class $InvoiceItemsTable extends InvoiceItems
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       )!,
+      hsnCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hsn_code'],
+      ),
       qty: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}qty'],
@@ -4264,6 +4335,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
   final int? motorJobId;
   final int? copperStockId;
   final String description;
+  final String? hsnCode;
   final double? qty;
   final double unitPrice;
   final double? gstRate;
@@ -4275,6 +4347,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
     this.motorJobId,
     this.copperStockId,
     required this.description,
+    this.hsnCode,
     this.qty,
     required this.unitPrice,
     this.gstRate,
@@ -4297,6 +4370,9 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
       map['copper_stock_id'] = Variable<int>(copperStockId);
     }
     map['description'] = Variable<String>(description);
+    if (!nullToAbsent || hsnCode != null) {
+      map['hsn_code'] = Variable<String>(hsnCode);
+    }
     if (!nullToAbsent || qty != null) {
       map['qty'] = Variable<double>(qty);
     }
@@ -4320,6 +4396,9 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
           ? const Value.absent()
           : Value(copperStockId),
       description: Value(description),
+      hsnCode: hsnCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hsnCode),
       qty: qty == null && nullToAbsent ? const Value.absent() : Value(qty),
       unitPrice: Value(unitPrice),
       gstRate: gstRate == null && nullToAbsent
@@ -4343,6 +4422,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
       motorJobId: serializer.fromJson<int?>(json['motorJobId']),
       copperStockId: serializer.fromJson<int?>(json['copperStockId']),
       description: serializer.fromJson<String>(json['description']),
+      hsnCode: serializer.fromJson<String?>(json['hsnCode']),
       qty: serializer.fromJson<double?>(json['qty']),
       unitPrice: serializer.fromJson<double>(json['unitPrice']),
       gstRate: serializer.fromJson<double?>(json['gstRate']),
@@ -4361,6 +4441,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
       'motorJobId': serializer.toJson<int?>(motorJobId),
       'copperStockId': serializer.toJson<int?>(copperStockId),
       'description': serializer.toJson<String>(description),
+      'hsnCode': serializer.toJson<String?>(hsnCode),
       'qty': serializer.toJson<double?>(qty),
       'unitPrice': serializer.toJson<double>(unitPrice),
       'gstRate': serializer.toJson<double?>(gstRate),
@@ -4375,6 +4456,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
     Value<int?> motorJobId = const Value.absent(),
     Value<int?> copperStockId = const Value.absent(),
     String? description,
+    Value<String?> hsnCode = const Value.absent(),
     Value<double?> qty = const Value.absent(),
     double? unitPrice,
     Value<double?> gstRate = const Value.absent(),
@@ -4388,6 +4470,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
         ? copperStockId.value
         : this.copperStockId,
     description: description ?? this.description,
+    hsnCode: hsnCode.present ? hsnCode.value : this.hsnCode,
     qty: qty.present ? qty.value : this.qty,
     unitPrice: unitPrice ?? this.unitPrice,
     gstRate: gstRate.present ? gstRate.value : this.gstRate,
@@ -4409,6 +4492,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
       description: data.description.present
           ? data.description.value
           : this.description,
+      hsnCode: data.hsnCode.present ? data.hsnCode.value : this.hsnCode,
       qty: data.qty.present ? data.qty.value : this.qty,
       unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
       gstRate: data.gstRate.present ? data.gstRate.value : this.gstRate,
@@ -4425,6 +4509,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
           ..write('motorJobId: $motorJobId, ')
           ..write('copperStockId: $copperStockId, ')
           ..write('description: $description, ')
+          ..write('hsnCode: $hsnCode, ')
           ..write('qty: $qty, ')
           ..write('unitPrice: $unitPrice, ')
           ..write('gstRate: $gstRate, ')
@@ -4441,6 +4526,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
     motorJobId,
     copperStockId,
     description,
+    hsnCode,
     qty,
     unitPrice,
     gstRate,
@@ -4456,6 +4542,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
           other.motorJobId == this.motorJobId &&
           other.copperStockId == this.copperStockId &&
           other.description == this.description &&
+          other.hsnCode == this.hsnCode &&
           other.qty == this.qty &&
           other.unitPrice == this.unitPrice &&
           other.gstRate == this.gstRate &&
@@ -4469,6 +4556,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
   final Value<int?> motorJobId;
   final Value<int?> copperStockId;
   final Value<String> description;
+  final Value<String?> hsnCode;
   final Value<double?> qty;
   final Value<double> unitPrice;
   final Value<double?> gstRate;
@@ -4480,6 +4568,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     this.motorJobId = const Value.absent(),
     this.copperStockId = const Value.absent(),
     this.description = const Value.absent(),
+    this.hsnCode = const Value.absent(),
     this.qty = const Value.absent(),
     this.unitPrice = const Value.absent(),
     this.gstRate = const Value.absent(),
@@ -4492,6 +4581,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     this.motorJobId = const Value.absent(),
     this.copperStockId = const Value.absent(),
     required String description,
+    this.hsnCode = const Value.absent(),
     this.qty = const Value.absent(),
     required double unitPrice,
     this.gstRate = const Value.absent(),
@@ -4508,6 +4598,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     Expression<int>? motorJobId,
     Expression<int>? copperStockId,
     Expression<String>? description,
+    Expression<String>? hsnCode,
     Expression<double>? qty,
     Expression<double>? unitPrice,
     Expression<double>? gstRate,
@@ -4520,6 +4611,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
       if (motorJobId != null) 'motor_job_id': motorJobId,
       if (copperStockId != null) 'copper_stock_id': copperStockId,
       if (description != null) 'description': description,
+      if (hsnCode != null) 'hsn_code': hsnCode,
       if (qty != null) 'qty': qty,
       if (unitPrice != null) 'unit_price': unitPrice,
       if (gstRate != null) 'gst_rate': gstRate,
@@ -4534,6 +4626,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     Value<int?>? motorJobId,
     Value<int?>? copperStockId,
     Value<String>? description,
+    Value<String?>? hsnCode,
     Value<double?>? qty,
     Value<double>? unitPrice,
     Value<double?>? gstRate,
@@ -4546,6 +4639,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
       motorJobId: motorJobId ?? this.motorJobId,
       copperStockId: copperStockId ?? this.copperStockId,
       description: description ?? this.description,
+      hsnCode: hsnCode ?? this.hsnCode,
       qty: qty ?? this.qty,
       unitPrice: unitPrice ?? this.unitPrice,
       gstRate: gstRate ?? this.gstRate,
@@ -4576,6 +4670,9 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (hsnCode.present) {
+      map['hsn_code'] = Variable<String>(hsnCode.value);
+    }
     if (qty.present) {
       map['qty'] = Variable<double>(qty.value);
     }
@@ -4600,6 +4697,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
           ..write('motorJobId: $motorJobId, ')
           ..write('copperStockId: $copperStockId, ')
           ..write('description: $description, ')
+          ..write('hsnCode: $hsnCode, ')
           ..write('qty: $qty, ')
           ..write('unitPrice: $unitPrice, ')
           ..write('gstRate: $gstRate, ')
@@ -10097,6 +10195,7 @@ typedef $$MotorJobsTableCreateCompanionBuilder =
       required String jobDescription,
       required MotorJobStatus status,
       Value<double?> serviceCharge,
+      Value<String?> sacCode,
       Value<DateTime?> dispatchDate,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -10114,6 +10213,7 @@ typedef $$MotorJobsTableUpdateCompanionBuilder =
       Value<String> jobDescription,
       Value<MotorJobStatus> status,
       Value<double?> serviceCharge,
+      Value<String?> sacCode,
       Value<DateTime?> dispatchDate,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -10235,6 +10335,11 @@ class $$MotorJobsTableFilterComposer
 
   ColumnFilters<double> get serviceCharge => $composableBuilder(
     column: $table.serviceCharge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sacCode => $composableBuilder(
+    column: $table.sacCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10386,6 +10491,11 @@ class $$MotorJobsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sacCode => $composableBuilder(
+    column: $table.sacCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get dispatchDate => $composableBuilder(
     column: $table.dispatchDate,
     builder: (column) => ColumnOrderings(column),
@@ -10471,6 +10581,9 @@ class $$MotorJobsTableAnnotationComposer
     column: $table.serviceCharge,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get sacCode =>
+      $composableBuilder(column: $table.sacCode, builder: (column) => column);
 
   GeneratedColumn<DateTime> get dispatchDate => $composableBuilder(
     column: $table.dispatchDate,
@@ -10600,6 +10713,7 @@ class $$MotorJobsTableTableManager
                 Value<String> jobDescription = const Value.absent(),
                 Value<MotorJobStatus> status = const Value.absent(),
                 Value<double?> serviceCharge = const Value.absent(),
+                Value<String?> sacCode = const Value.absent(),
                 Value<DateTime?> dispatchDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -10615,6 +10729,7 @@ class $$MotorJobsTableTableManager
                 jobDescription: jobDescription,
                 status: status,
                 serviceCharge: serviceCharge,
+                sacCode: sacCode,
                 dispatchDate: dispatchDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -10632,6 +10747,7 @@ class $$MotorJobsTableTableManager
                 required String jobDescription,
                 required MotorJobStatus status,
                 Value<double?> serviceCharge = const Value.absent(),
+                Value<String?> sacCode = const Value.absent(),
                 Value<DateTime?> dispatchDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -10647,6 +10763,7 @@ class $$MotorJobsTableTableManager
                 jobDescription: jobDescription,
                 status: status,
                 serviceCharge: serviceCharge,
+                sacCode: sacCode,
                 dispatchDate: dispatchDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -12380,6 +12497,7 @@ typedef $$InvoiceItemsTableCreateCompanionBuilder =
       Value<int?> motorJobId,
       Value<int?> copperStockId,
       required String description,
+      Value<String?> hsnCode,
       Value<double?> qty,
       required double unitPrice,
       Value<double?> gstRate,
@@ -12393,6 +12511,7 @@ typedef $$InvoiceItemsTableUpdateCompanionBuilder =
       Value<int?> motorJobId,
       Value<int?> copperStockId,
       Value<String> description,
+      Value<String?> hsnCode,
       Value<double?> qty,
       Value<double> unitPrice,
       Value<double?> gstRate,
@@ -12478,6 +12597,11 @@ class $$InvoiceItemsTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hsnCode => $composableBuilder(
+    column: $table.hsnCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12595,6 +12719,11 @@ class $$InvoiceItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get hsnCode => $composableBuilder(
+    column: $table.hsnCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get qty => $composableBuilder(
     column: $table.qty,
     builder: (column) => ColumnOrderings(column),
@@ -12707,6 +12836,9 @@ class $$InvoiceItemsTableAnnotationComposer
     column: $table.description,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get hsnCode =>
+      $composableBuilder(column: $table.hsnCode, builder: (column) => column);
 
   GeneratedColumn<double> get qty =>
       $composableBuilder(column: $table.qty, builder: (column) => column);
@@ -12828,6 +12960,7 @@ class $$InvoiceItemsTableTableManager
                 Value<int?> motorJobId = const Value.absent(),
                 Value<int?> copperStockId = const Value.absent(),
                 Value<String> description = const Value.absent(),
+                Value<String?> hsnCode = const Value.absent(),
                 Value<double?> qty = const Value.absent(),
                 Value<double> unitPrice = const Value.absent(),
                 Value<double?> gstRate = const Value.absent(),
@@ -12839,6 +12972,7 @@ class $$InvoiceItemsTableTableManager
                 motorJobId: motorJobId,
                 copperStockId: copperStockId,
                 description: description,
+                hsnCode: hsnCode,
                 qty: qty,
                 unitPrice: unitPrice,
                 gstRate: gstRate,
@@ -12852,6 +12986,7 @@ class $$InvoiceItemsTableTableManager
                 Value<int?> motorJobId = const Value.absent(),
                 Value<int?> copperStockId = const Value.absent(),
                 required String description,
+                Value<String?> hsnCode = const Value.absent(),
                 Value<double?> qty = const Value.absent(),
                 required double unitPrice,
                 Value<double?> gstRate = const Value.absent(),
@@ -12863,6 +12998,7 @@ class $$InvoiceItemsTableTableManager
                 motorJobId: motorJobId,
                 copperStockId: copperStockId,
                 description: description,
+                hsnCode: hsnCode,
                 qty: qty,
                 unitPrice: unitPrice,
                 gstRate: gstRate,

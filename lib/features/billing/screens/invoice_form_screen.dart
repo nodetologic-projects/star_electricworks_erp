@@ -24,6 +24,7 @@ class _LineItem {
   ItemSourceType type;
   int? linkedId;
   String description = '';
+  String? hsnCode;
   double qty = 1;
   double unitPrice = 0;
   double? gstRate;
@@ -255,6 +256,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           motorJobId: drift.Value(i.type == ItemSourceType.motorJob ? i.linkedId : null),
           copperStockId: drift.Value(i.type == ItemSourceType.copperStock ? i.linkedId : null),
           description: i.description,
+          hsnCode: drift.Value(i.hsnCode != null && i.hsnCode!.trim().isNotEmpty ? i.hsnCode!.trim() : null),
           qty: drift.Value(i.qty),
           unitPrice: i.unitPrice,
           gstRate: drift.Value(i.gstRate),
@@ -302,6 +304,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     item.linkedId = job.id;
                     item.description = '${job.motorDescription} - ${job.jobDescription}';
                     item.unitPrice = job.serviceCharge ?? 0;
+                    item.hsnCode = job.sacCode;
                     item.qty = 1;
                   });
                   _recalculate();
@@ -319,6 +322,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       item.description = stock.description;
                       item.unitPrice = stock.pricePerKg;
                       item.gstRate = stock.gstRate;
+                      item.hsnCode = stock.hsnCode;
                     });
                     _recalculate();
                   },

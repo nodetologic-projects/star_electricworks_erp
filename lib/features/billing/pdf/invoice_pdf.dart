@@ -282,10 +282,11 @@ class InvoicePdfGenerator {
   }
 
   static pw.Widget _buildServiceTable(List<InvoiceItem> items, pw.Font monoFont) {
-    final headers = ['Service Description', 'Amount'];
+    final headers = ['Service Description', 'SAC', 'Amount'];
     final data = items.map((item) {
       return [
         item.description,
+        item.hsnCode ?? '',
         pw.Text(item.lineTotal.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
       ];
     }).toList();
@@ -298,7 +299,8 @@ class InvoicePdfGenerator {
       cellHeight: 30,
       cellAlignments: {
         0: pw.Alignment.centerLeft,
-        1: pw.Alignment.centerRight,
+        1: pw.Alignment.center,
+        2: pw.Alignment.centerRight,
       },
     );
   }
@@ -306,7 +308,7 @@ class InvoicePdfGenerator {
   static pw.Widget _buildStandardTable(List<InvoiceItem> items, {required bool showGst, bool isPurchase = false, bool isDeliveryChallan = false, required pw.Font monoFont}) {
     final headers = [
       'Description',
-      if (!isDeliveryChallan) 'HSN',
+      if (!isDeliveryChallan) 'HSN/SAC',
       'Qty',
       'Rate',
       if (showGst) 'GST%',
@@ -316,7 +318,7 @@ class InvoicePdfGenerator {
     final data = items.map((item) {
       return [
         item.description,
-        if (!isDeliveryChallan) '-', // HSN placeholder
+        if (!isDeliveryChallan) item.hsnCode ?? '',
         pw.Text(item.qty?.toString() ?? '1', style: pw.TextStyle(font: monoFont)),
         pw.Text(item.unitPrice.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
         if (showGst) pw.Text('${item.gstRate ?? 0}%', style: pw.TextStyle(font: monoFont)),

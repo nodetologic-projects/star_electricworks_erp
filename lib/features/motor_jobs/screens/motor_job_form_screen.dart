@@ -31,6 +31,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
   final _hpController = TextEditingController();
   Phase? _selectedPhase;
   final _jobDescController = TextEditingController();
+  final _sacCodeController = TextEditingController();
 
   bool _isSaving = false;
 
@@ -40,6 +41,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
     _motorMakeController.dispose();
     _hpController.dispose();
     _jobDescController.dispose();
+    _sacCodeController.dispose();
     super.dispose();
   }
 
@@ -66,6 +68,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
         phase: _selectedPhase != null ? drift.Value(_selectedPhase!) : const drift.Value.absent(),
         dateReceived: DateTime.now(),
         jobDescription: _jobDescController.text,
+        sacCode: _sacCodeController.text.isNotEmpty ? drift.Value(_sacCodeController.text.trim()) : const drift.Value.absent(),
         status: MotorJobStatus.received,
       );
 
@@ -234,6 +237,12 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
                       controller: _jobDescController,
                       maxLines: 4,
                       validator: (val) => val == null || val.isEmpty ? 'Job description is required' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'SAC Code (Optional)',
+                      hintText: 'Service Accounting Code',
+                      controller: _sacCodeController,
                     ),
                   ],
                 ),
