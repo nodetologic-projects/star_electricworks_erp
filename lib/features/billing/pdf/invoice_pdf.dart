@@ -400,7 +400,8 @@ class InvoicePdfGenerator {
               if (invoice.invoiceType != InvoiceType.deliveryChallan && invoice.deliveryCharge != null && invoice.deliveryCharge! > 0)
                 _buildTotalsLine('Delivery Charge:', invoice.deliveryCharge!, monoFont, monoFontBold),
               
-              if (!isBillOfSupply && (invoice.cgstAmount > 0 || invoice.sgstAmount > 0)) ...[
+              if (!isBillOfSupply && (invoice.cgstAmount > 0 || invoice.sgstAmount > 0 || invoice.igstAmount > 0)) ...[
+                _buildTotalsLine('IGST:', invoice.igstAmount, monoFont, monoFontBold),
                 _buildTotalsLine('CGST:', invoice.cgstAmount, monoFont, monoFontBold),
                 _buildTotalsLine('SGST:', invoice.sgstAmount, monoFont, monoFontBold),
               ],

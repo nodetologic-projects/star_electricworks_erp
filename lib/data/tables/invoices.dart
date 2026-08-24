@@ -12,6 +12,11 @@ class Invoices extends Table {
   RealColumn get subtotal => real()();
   RealColumn get cgstAmount => real()();
   RealColumn get sgstAmount => real()();
+  
+  /// Added for standard GST format completeness.
+  /// Remains 0.0 for this business since all trade is intra-state (Gujarat),
+  /// but required for the 3-column GST breakup on PDFs.
+  RealColumn get igstAmount => real().withDefault(const Constant(0.0))();
   RealColumn get discountAmount => real()();
   RealColumn get deliveryCharge => real().nullable()();
   RealColumn get grandTotal => real()();

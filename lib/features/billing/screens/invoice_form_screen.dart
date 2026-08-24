@@ -244,6 +244,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         discountAmount: totals.discountAmount,
         cgstAmount: totals.cgstAmount,
         sgstAmount: totals.sgstAmount,
+        igstAmount: drift.Value(totals.igstAmount),
         deliveryCharge: drift.Value(_deliveryCharge),
         grandTotal: totals.grandTotal,
         amountInWords: NumberToWords.convert(totals.grandTotal),
@@ -808,8 +809,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               ),
             ],
             
-            if (showGst && (totals.cgstAmount > 0 || totals.sgstAmount > 0)) ...[
+            if (showGst && (totals.cgstAmount > 0 || totals.sgstAmount > 0 || totals.igstAmount > 0)) ...[
               const Divider(),
+              _buildSummaryRow('IGST:', totals.igstAmount),
               _buildSummaryRow('CGST:', totals.cgstAmount),
               _buildSummaryRow('SGST:', totals.sgstAmount),
             ],
