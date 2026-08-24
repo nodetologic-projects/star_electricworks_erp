@@ -86,11 +86,14 @@ class BackupService {
       encoder.addFile(logoFile);
     }
 
-    // Add all signed PDFs
-    final dirList = docsDir.listSync();
-    for (var entity in dirList) {
-      if (entity is File && entity.path.endsWith('_signed.pdf')) {
-        encoder.addFile(entity);
+    // Add all PDFs from the new directory
+    final invoicesDir = Directory(p.join(docsDir.path, 'Star Electric Works Invoices'));
+    if (await invoicesDir.exists()) {
+      final dirList = invoicesDir.listSync();
+      for (var entity in dirList) {
+        if (entity is File && entity.path.endsWith('.pdf')) {
+          encoder.addFile(entity);
+        }
       }
     }
 
@@ -125,9 +128,19 @@ class BackupService {
       await dbFile.copy(safetyPath);
     }
 
+    final invoicesDir = Directory(p.join(docsDir.path, 'Star Electric Works Invoices'));
+    if (!await invoicesDir.exists()) {
+      await invoicesDir.create(recursive: true);
+    }
+
     for (final file in archive) {
       if (file.isFile) {
-        final outPath = p.join(docsDir.path, file.name);
+        String outPath;
+        if (file.name.endsWith('.pdf')) {
+          outPath = p.join(invoicesDir.path, file.name);
+        } else {
+          outPath = p.join(docsDir.path, file.name);
+        }
         final outFile = File(outPath);
         await outFile.writeAsBytes(file.content as List<int>);
       }
