@@ -3,7 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/quotations_repository.dart';
-import 'package:intl/intl.dart';
+import 'package:starelectricerp/core/date_formatting.dart';
 
 class QuotationPdfGenerator {
   static Future<Uint8List> generate({
@@ -38,9 +38,9 @@ class QuotationPdfGenerator {
                     children: [
                       pw.Text('QUOTATION', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
                       pw.Text('Quote No: ${data.quotation.quoteNo}'),
-                      pw.Text('Date: ${DateFormat('dd/MM/yyyy').format(data.quotation.createdAt)}'),
+                      pw.Text('Date: ${PdfDateFormatter.formatDate(data.quotation.createdAt)}'),
                       if (data.quotation.validUntil != null)
-                        pw.Text('Valid Until: ${DateFormat('dd/MM/yyyy').format(data.quotation.validUntil!)}',
+                        pw.Text('Valid Until: ${PdfDateFormatter.formatDate(data.quotation.validUntil!)}',
                           style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.red700)),
                     ],
                   ),

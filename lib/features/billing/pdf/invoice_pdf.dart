@@ -1,10 +1,10 @@
+import 'package:starelectricerp/core/date_formatting.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
-import 'package:intl/intl.dart';
 
 class InvoicePdfGenerator {
   static Future<Uint8List> generate({
@@ -60,7 +60,7 @@ class InvoicePdfGenerator {
                     if (invoice.poDate != null) ...[
                       pw.SizedBox(width: 16),
                       pw.Text('PO Date: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-                      pw.Text(DateFormat('dd/MM/yyyy').format(invoice.poDate!), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                      pw.Text(PdfDateFormatter.formatDate(invoice.poDate!), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                     ]
                   ],
                 ),
@@ -182,7 +182,6 @@ class InvoicePdfGenerator {
   }
 
   static pw.Widget _buildMetaRow(Invoice invoice, bool isDeliveryChallan, List<InvoiceItem> items, pw.Font monoFont, pw.Font monoFontBold) {
-    final format = DateFormat('dd MMM yyyy');
     
     String? motorJobSummary;
     if (isDeliveryChallan && items.isNotEmpty) {
@@ -204,9 +203,9 @@ class InvoicePdfGenerator {
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         buildMetaCol(isDeliveryChallan ? 'Challan Number' : 'Invoice Number', invoice.invoiceNo, bold: true),
-        buildMetaCol('Date', format.format(invoice.invoiceDate), bold: true),
+        buildMetaCol('Date', PdfDateFormatter.formatDate(invoice.invoiceDate), bold: true),
         if (!isDeliveryChallan)
-          buildMetaCol('Due Date', invoice.dueDate != null ? format.format(invoice.dueDate!) : 'N/A', bold: true),
+          buildMetaCol('Due Date', invoice.dueDate != null ? PdfDateFormatter.formatDate(invoice.dueDate!) : 'N/A', bold: true),
         if (isDeliveryChallan && motorJobSummary != null)
           pw.Expanded(
             child: pw.Padding(
@@ -239,7 +238,6 @@ class InvoicePdfGenerator {
   }
 
   static pw.Widget _buildDeliveryDetails(Invoice invoice, Customer customer) {
-    final format = DateFormat('dd MMM yyyy');
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
@@ -253,7 +251,7 @@ class InvoicePdfGenerator {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text('Dispatch Date:', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-              pw.Text(format.format(invoice.invoiceDate), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text(PdfDateFormatter.formatDate(invoice.invoiceDate), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
             ],
           ),
           pw.Column(
