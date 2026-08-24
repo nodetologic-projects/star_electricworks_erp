@@ -87,6 +87,15 @@ class InvoicePdfGenerator {
               ),
             ],
 
+
+            if (invoice.paymentTermDays != null) ...[
+              pw.SizedBox(height: 12),
+              pw.Text(
+                'Payment Terms: Pay within ${invoice.paymentTermDays} days of bill generation',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColor.fromHex('#501817')),
+              ),
+            ],
+
             if (invoice.notes != null && invoice.notes!.isNotEmpty) ...[
               pw.SizedBox(height: 24),
               pw.Container(
