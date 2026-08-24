@@ -32,6 +32,8 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
   Phase? _selectedPhase;
   final _jobDescController = TextEditingController();
   final _sacCodeController = TextEditingController();
+  final _gpNumberController = TextEditingController();
+  DateTime? _gpDate;
 
   bool _isSaving = false;
 
@@ -42,6 +44,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
     _hpController.dispose();
     _jobDescController.dispose();
     _sacCodeController.dispose();
+    _gpNumberController.dispose();
     super.dispose();
   }
 
@@ -69,6 +72,8 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
         dateReceived: DateTime.now(),
         jobDescription: _jobDescController.text,
         sacCode: _sacCodeController.text.isNotEmpty ? drift.Value(_sacCodeController.text.trim()) : const drift.Value.absent(),
+        gpNumber: _gpNumberController.text.isNotEmpty ? drift.Value(_gpNumberController.text.trim()) : const drift.Value.absent(),
+        gpDate: drift.Value(_gpDate),
         status: MotorJobStatus.received,
       );
 
@@ -243,6 +248,42 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
                       label: 'SAC Code (Optional)',
                       hintText: 'Service Accounting Code',
                       controller: _sacCodeController,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            label: 'Gate Pass Number',
+                            controller: _gpNumberController,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _gpDate ?? DateTime.now(),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setState(() => _gpDate = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Gate Pass Date',
+                                border: OutlineInputBorder(),
+                              ),
+                              child: Text(
+                                _gpDate != null ? "${_gpDate!.day}/${_gpDate!.month}/${_gpDate!.year}" : 'Select Date',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

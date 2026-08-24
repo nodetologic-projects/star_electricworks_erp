@@ -722,6 +722,17 @@ class $CustomersTable extends Customers
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _vendorCodeMeta = const VerificationMeta(
+    'vendorCode',
+  );
+  @override
+  late final GeneratedColumn<String> vendorCode = GeneratedColumn<String>(
+    'vendor_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -743,6 +754,7 @@ class $CustomersTable extends Customers
     gstin,
     phone,
     email,
+    vendorCode,
     createdAt,
   ];
   @override
@@ -806,6 +818,12 @@ class $CustomersTable extends Customers
     } else if (isInserting) {
       context.missing(_emailMeta);
     }
+    if (data.containsKey('vendor_code')) {
+      context.handle(
+        _vendorCodeMeta,
+        vendorCode.isAcceptableOrUnknown(data['vendor_code']!, _vendorCodeMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -849,6 +867,10 @@ class $CustomersTable extends Customers
         DriftSqlType.string,
         data['${effectivePrefix}email'],
       )!,
+      vendorCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vendor_code'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -870,6 +892,7 @@ class Customer extends DataClass implements Insertable<Customer> {
   final String? gstin;
   final String phone;
   final String email;
+  final String? vendorCode;
   final DateTime createdAt;
   const Customer({
     required this.id,
@@ -879,6 +902,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     this.gstin,
     required this.phone,
     required this.email,
+    this.vendorCode,
     required this.createdAt,
   });
   @override
@@ -893,6 +917,9 @@ class Customer extends DataClass implements Insertable<Customer> {
     }
     map['phone'] = Variable<String>(phone);
     map['email'] = Variable<String>(email);
+    if (!nullToAbsent || vendorCode != null) {
+      map['vendor_code'] = Variable<String>(vendorCode);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -908,6 +935,9 @@ class Customer extends DataClass implements Insertable<Customer> {
           : Value(gstin),
       phone: Value(phone),
       email: Value(email),
+      vendorCode: vendorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vendorCode),
       createdAt: Value(createdAt),
     );
   }
@@ -925,6 +955,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       gstin: serializer.fromJson<String?>(json['gstin']),
       phone: serializer.fromJson<String>(json['phone']),
       email: serializer.fromJson<String>(json['email']),
+      vendorCode: serializer.fromJson<String?>(json['vendorCode']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -939,6 +970,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       'gstin': serializer.toJson<String?>(gstin),
       'phone': serializer.toJson<String>(phone),
       'email': serializer.toJson<String>(email),
+      'vendorCode': serializer.toJson<String?>(vendorCode),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -951,6 +983,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     Value<String?> gstin = const Value.absent(),
     String? phone,
     String? email,
+    Value<String?> vendorCode = const Value.absent(),
     DateTime? createdAt,
   }) => Customer(
     id: id ?? this.id,
@@ -960,6 +993,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     gstin: gstin.present ? gstin.value : this.gstin,
     phone: phone ?? this.phone,
     email: email ?? this.email,
+    vendorCode: vendorCode.present ? vendorCode.value : this.vendorCode,
     createdAt: createdAt ?? this.createdAt,
   );
   Customer copyWithCompanion(CustomersCompanion data) {
@@ -971,6 +1005,9 @@ class Customer extends DataClass implements Insertable<Customer> {
       gstin: data.gstin.present ? data.gstin.value : this.gstin,
       phone: data.phone.present ? data.phone.value : this.phone,
       email: data.email.present ? data.email.value : this.email,
+      vendorCode: data.vendorCode.present
+          ? data.vendorCode.value
+          : this.vendorCode,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -985,14 +1022,24 @@ class Customer extends DataClass implements Insertable<Customer> {
           ..write('gstin: $gstin, ')
           ..write('phone: $phone, ')
           ..write('email: $email, ')
+          ..write('vendorCode: $vendorCode, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, address, state, gstin, phone, email, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    address,
+    state,
+    gstin,
+    phone,
+    email,
+    vendorCode,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1004,6 +1051,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           other.gstin == this.gstin &&
           other.phone == this.phone &&
           other.email == this.email &&
+          other.vendorCode == this.vendorCode &&
           other.createdAt == this.createdAt);
 }
 
@@ -1015,6 +1063,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
   final Value<String?> gstin;
   final Value<String> phone;
   final Value<String> email;
+  final Value<String?> vendorCode;
   final Value<DateTime> createdAt;
   const CustomersCompanion({
     this.id = const Value.absent(),
@@ -1024,6 +1073,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.gstin = const Value.absent(),
     this.phone = const Value.absent(),
     this.email = const Value.absent(),
+    this.vendorCode = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   CustomersCompanion.insert({
@@ -1034,6 +1084,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.gstin = const Value.absent(),
     required String phone,
     required String email,
+    this.vendorCode = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : name = Value(name),
        address = Value(address),
@@ -1048,6 +1099,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Expression<String>? gstin,
     Expression<String>? phone,
     Expression<String>? email,
+    Expression<String>? vendorCode,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -1058,6 +1110,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       if (gstin != null) 'gstin': gstin,
       if (phone != null) 'phone': phone,
       if (email != null) 'email': email,
+      if (vendorCode != null) 'vendor_code': vendorCode,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -1070,6 +1123,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Value<String?>? gstin,
     Value<String>? phone,
     Value<String>? email,
+    Value<String?>? vendorCode,
     Value<DateTime>? createdAt,
   }) {
     return CustomersCompanion(
@@ -1080,6 +1134,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       gstin: gstin ?? this.gstin,
       phone: phone ?? this.phone,
       email: email ?? this.email,
+      vendorCode: vendorCode ?? this.vendorCode,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -1108,6 +1163,9 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     if (email.present) {
       map['email'] = Variable<String>(email.value);
     }
+    if (vendorCode.present) {
+      map['vendor_code'] = Variable<String>(vendorCode.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1124,6 +1182,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
           ..write('gstin: $gstin, ')
           ..write('phone: $phone, ')
           ..write('email: $email, ')
+          ..write('vendorCode: $vendorCode, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -1266,6 +1325,26 @@ class $MotorJobsTable extends MotorJobs
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gpNumberMeta = const VerificationMeta(
+    'gpNumber',
+  );
+  @override
+  late final GeneratedColumn<String> gpNumber = GeneratedColumn<String>(
+    'gp_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _gpDateMeta = const VerificationMeta('gpDate');
+  @override
+  late final GeneratedColumn<DateTime> gpDate = GeneratedColumn<DateTime>(
+    'gp_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _dispatchDateMeta = const VerificationMeta(
     'dispatchDate',
   );
@@ -1315,6 +1394,8 @@ class $MotorJobsTable extends MotorJobs
     status,
     serviceCharge,
     sacCode,
+    gpNumber,
+    gpDate,
     dispatchDate,
     createdAt,
     updatedAt,
@@ -1407,6 +1488,18 @@ class $MotorJobsTable extends MotorJobs
         sacCode.isAcceptableOrUnknown(data['sac_code']!, _sacCodeMeta),
       );
     }
+    if (data.containsKey('gp_number')) {
+      context.handle(
+        _gpNumberMeta,
+        gpNumber.isAcceptableOrUnknown(data['gp_number']!, _gpNumberMeta),
+      );
+    }
+    if (data.containsKey('gp_date')) {
+      context.handle(
+        _gpDateMeta,
+        gpDate.isAcceptableOrUnknown(data['gp_date']!, _gpDateMeta),
+      );
+    }
     if (data.containsKey('dispatch_date')) {
       context.handle(
         _dispatchDateMeta,
@@ -1489,6 +1582,14 @@ class $MotorJobsTable extends MotorJobs
         DriftSqlType.string,
         data['${effectivePrefix}sac_code'],
       ),
+      gpNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gp_number'],
+      ),
+      gpDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}gp_date'],
+      ),
       dispatchDate: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}dispatch_date'],
@@ -1530,6 +1631,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
   final MotorJobStatus status;
   final double? serviceCharge;
   final String? sacCode;
+  final String? gpNumber;
+  final DateTime? gpDate;
   final DateTime? dispatchDate;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -1546,6 +1649,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     required this.status,
     this.serviceCharge,
     this.sacCode,
+    this.gpNumber,
+    this.gpDate,
     this.dispatchDate,
     required this.createdAt,
     required this.updatedAt,
@@ -1581,6 +1686,12 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     if (!nullToAbsent || sacCode != null) {
       map['sac_code'] = Variable<String>(sacCode);
     }
+    if (!nullToAbsent || gpNumber != null) {
+      map['gp_number'] = Variable<String>(gpNumber);
+    }
+    if (!nullToAbsent || gpDate != null) {
+      map['gp_date'] = Variable<DateTime>(gpDate);
+    }
     if (!nullToAbsent || dispatchDate != null) {
       map['dispatch_date'] = Variable<DateTime>(dispatchDate);
     }
@@ -1611,6 +1722,12 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
       sacCode: sacCode == null && nullToAbsent
           ? const Value.absent()
           : Value(sacCode),
+      gpNumber: gpNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gpNumber),
+      gpDate: gpDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gpDate),
       dispatchDate: dispatchDate == null && nullToAbsent
           ? const Value.absent()
           : Value(dispatchDate),
@@ -1641,6 +1758,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
       ),
       serviceCharge: serializer.fromJson<double?>(json['serviceCharge']),
       sacCode: serializer.fromJson<String?>(json['sacCode']),
+      gpNumber: serializer.fromJson<String?>(json['gpNumber']),
+      gpDate: serializer.fromJson<DateTime?>(json['gpDate']),
       dispatchDate: serializer.fromJson<DateTime?>(json['dispatchDate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1666,6 +1785,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
       ),
       'serviceCharge': serializer.toJson<double?>(serviceCharge),
       'sacCode': serializer.toJson<String?>(sacCode),
+      'gpNumber': serializer.toJson<String?>(gpNumber),
+      'gpDate': serializer.toJson<DateTime?>(gpDate),
       'dispatchDate': serializer.toJson<DateTime?>(dispatchDate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1685,6 +1806,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     MotorJobStatus? status,
     Value<double?> serviceCharge = const Value.absent(),
     Value<String?> sacCode = const Value.absent(),
+    Value<String?> gpNumber = const Value.absent(),
+    Value<DateTime?> gpDate = const Value.absent(),
     Value<DateTime?> dispatchDate = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1703,6 +1826,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
         ? serviceCharge.value
         : this.serviceCharge,
     sacCode: sacCode.present ? sacCode.value : this.sacCode,
+    gpNumber: gpNumber.present ? gpNumber.value : this.gpNumber,
+    gpDate: gpDate.present ? gpDate.value : this.gpDate,
     dispatchDate: dispatchDate.present ? dispatchDate.value : this.dispatchDate,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1731,6 +1856,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
           ? data.serviceCharge.value
           : this.serviceCharge,
       sacCode: data.sacCode.present ? data.sacCode.value : this.sacCode,
+      gpNumber: data.gpNumber.present ? data.gpNumber.value : this.gpNumber,
+      gpDate: data.gpDate.present ? data.gpDate.value : this.gpDate,
       dispatchDate: data.dispatchDate.present
           ? data.dispatchDate.value
           : this.dispatchDate,
@@ -1754,6 +1881,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
           ..write('status: $status, ')
           ..write('serviceCharge: $serviceCharge, ')
           ..write('sacCode: $sacCode, ')
+          ..write('gpNumber: $gpNumber, ')
+          ..write('gpDate: $gpDate, ')
           ..write('dispatchDate: $dispatchDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1775,6 +1904,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     status,
     serviceCharge,
     sacCode,
+    gpNumber,
+    gpDate,
     dispatchDate,
     createdAt,
     updatedAt,
@@ -1795,6 +1926,8 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
           other.status == this.status &&
           other.serviceCharge == this.serviceCharge &&
           other.sacCode == this.sacCode &&
+          other.gpNumber == this.gpNumber &&
+          other.gpDate == this.gpDate &&
           other.dispatchDate == this.dispatchDate &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1813,6 +1946,8 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
   final Value<MotorJobStatus> status;
   final Value<double?> serviceCharge;
   final Value<String?> sacCode;
+  final Value<String?> gpNumber;
+  final Value<DateTime?> gpDate;
   final Value<DateTime?> dispatchDate;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1829,6 +1964,8 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     this.status = const Value.absent(),
     this.serviceCharge = const Value.absent(),
     this.sacCode = const Value.absent(),
+    this.gpNumber = const Value.absent(),
+    this.gpDate = const Value.absent(),
     this.dispatchDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1846,6 +1983,8 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     required MotorJobStatus status,
     this.serviceCharge = const Value.absent(),
     this.sacCode = const Value.absent(),
+    this.gpNumber = const Value.absent(),
+    this.gpDate = const Value.absent(),
     this.dispatchDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1868,6 +2007,8 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     Expression<String>? status,
     Expression<double>? serviceCharge,
     Expression<String>? sacCode,
+    Expression<String>? gpNumber,
+    Expression<DateTime>? gpDate,
     Expression<DateTime>? dispatchDate,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1885,6 +2026,8 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
       if (status != null) 'status': status,
       if (serviceCharge != null) 'service_charge': serviceCharge,
       if (sacCode != null) 'sac_code': sacCode,
+      if (gpNumber != null) 'gp_number': gpNumber,
+      if (gpDate != null) 'gp_date': gpDate,
       if (dispatchDate != null) 'dispatch_date': dispatchDate,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1904,6 +2047,8 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     Value<MotorJobStatus>? status,
     Value<double?>? serviceCharge,
     Value<String?>? sacCode,
+    Value<String?>? gpNumber,
+    Value<DateTime?>? gpDate,
     Value<DateTime?>? dispatchDate,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1921,6 +2066,8 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
       status: status ?? this.status,
       serviceCharge: serviceCharge ?? this.serviceCharge,
       sacCode: sacCode ?? this.sacCode,
+      gpNumber: gpNumber ?? this.gpNumber,
+      gpDate: gpDate ?? this.gpDate,
       dispatchDate: dispatchDate ?? this.dispatchDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1970,6 +2117,12 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     if (sacCode.present) {
       map['sac_code'] = Variable<String>(sacCode.value);
     }
+    if (gpNumber.present) {
+      map['gp_number'] = Variable<String>(gpNumber.value);
+    }
+    if (gpDate.present) {
+      map['gp_date'] = Variable<DateTime>(gpDate.value);
+    }
     if (dispatchDate.present) {
       map['dispatch_date'] = Variable<DateTime>(dispatchDate.value);
     }
@@ -1997,6 +2150,8 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
           ..write('status: $status, ')
           ..write('serviceCharge: $serviceCharge, ')
           ..write('sacCode: $sacCode, ')
+          ..write('gpNumber: $gpNumber, ')
+          ..write('gpDate: $gpDate, ')
           ..write('dispatchDate: $dispatchDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -2974,6 +3129,39 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _shipToNameMeta = const VerificationMeta(
+    'shipToName',
+  );
+  @override
+  late final GeneratedColumn<String> shipToName = GeneratedColumn<String>(
+    'ship_to_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _shipToAddressMeta = const VerificationMeta(
+    'shipToAddress',
+  );
+  @override
+  late final GeneratedColumn<String> shipToAddress = GeneratedColumn<String>(
+    'ship_to_address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _placeOfSupplyMeta = const VerificationMeta(
+    'placeOfSupply',
+  );
+  @override
+  late final GeneratedColumn<String> placeOfSupply = GeneratedColumn<String>(
+    'place_of_supply',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _poNumberMeta = const VerificationMeta(
     'poNumber',
   );
@@ -3051,6 +3239,9 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     signedPdfPath,
     notes,
     reminderSentDate,
+    shipToName,
+    shipToAddress,
+    placeOfSupply,
     poNumber,
     poDate,
     gpNumber,
@@ -3222,6 +3413,33 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         ),
       );
     }
+    if (data.containsKey('ship_to_name')) {
+      context.handle(
+        _shipToNameMeta,
+        shipToName.isAcceptableOrUnknown(
+          data['ship_to_name']!,
+          _shipToNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ship_to_address')) {
+      context.handle(
+        _shipToAddressMeta,
+        shipToAddress.isAcceptableOrUnknown(
+          data['ship_to_address']!,
+          _shipToAddressMeta,
+        ),
+      );
+    }
+    if (data.containsKey('place_of_supply')) {
+      context.handle(
+        _placeOfSupplyMeta,
+        placeOfSupply.isAcceptableOrUnknown(
+          data['place_of_supply']!,
+          _placeOfSupplyMeta,
+        ),
+      );
+    }
     if (data.containsKey('po_number')) {
       context.handle(
         _poNumberMeta,
@@ -3352,6 +3570,18 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}reminder_sent_date'],
       ),
+      shipToName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ship_to_name'],
+      ),
+      shipToAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ship_to_address'],
+      ),
+      placeOfSupply: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}place_of_supply'],
+      ),
       poNumber: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}po_number'],
@@ -3412,6 +3642,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   final String? signedPdfPath;
   final String? notes;
   final DateTime? reminderSentDate;
+  final String? shipToName;
+  final String? shipToAddress;
+  final String? placeOfSupply;
   final String? poNumber;
   final DateTime? poDate;
   final String? gpNumber;
@@ -3439,6 +3672,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     this.signedPdfPath,
     this.notes,
     this.reminderSentDate,
+    this.shipToName,
+    this.shipToAddress,
+    this.placeOfSupply,
     this.poNumber,
     this.poDate,
     this.gpNumber,
@@ -3488,6 +3724,15 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     }
     if (!nullToAbsent || reminderSentDate != null) {
       map['reminder_sent_date'] = Variable<DateTime>(reminderSentDate);
+    }
+    if (!nullToAbsent || shipToName != null) {
+      map['ship_to_name'] = Variable<String>(shipToName);
+    }
+    if (!nullToAbsent || shipToAddress != null) {
+      map['ship_to_address'] = Variable<String>(shipToAddress);
+    }
+    if (!nullToAbsent || placeOfSupply != null) {
+      map['place_of_supply'] = Variable<String>(placeOfSupply);
     }
     if (!nullToAbsent || poNumber != null) {
       map['po_number'] = Variable<String>(poNumber);
@@ -3540,6 +3785,15 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       reminderSentDate: reminderSentDate == null && nullToAbsent
           ? const Value.absent()
           : Value(reminderSentDate),
+      shipToName: shipToName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shipToName),
+      shipToAddress: shipToAddress == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shipToAddress),
+      placeOfSupply: placeOfSupply == null && nullToAbsent
+          ? const Value.absent()
+          : Value(placeOfSupply),
       poNumber: poNumber == null && nullToAbsent
           ? const Value.absent()
           : Value(poNumber),
@@ -3589,6 +3843,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       reminderSentDate: serializer.fromJson<DateTime?>(
         json['reminderSentDate'],
       ),
+      shipToName: serializer.fromJson<String?>(json['shipToName']),
+      shipToAddress: serializer.fromJson<String?>(json['shipToAddress']),
+      placeOfSupply: serializer.fromJson<String?>(json['placeOfSupply']),
       poNumber: serializer.fromJson<String?>(json['poNumber']),
       poDate: serializer.fromJson<DateTime?>(json['poDate']),
       gpNumber: serializer.fromJson<String?>(json['gpNumber']),
@@ -3625,6 +3882,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'signedPdfPath': serializer.toJson<String?>(signedPdfPath),
       'notes': serializer.toJson<String?>(notes),
       'reminderSentDate': serializer.toJson<DateTime?>(reminderSentDate),
+      'shipToName': serializer.toJson<String?>(shipToName),
+      'shipToAddress': serializer.toJson<String?>(shipToAddress),
+      'placeOfSupply': serializer.toJson<String?>(placeOfSupply),
       'poNumber': serializer.toJson<String?>(poNumber),
       'poDate': serializer.toJson<DateTime?>(poDate),
       'gpNumber': serializer.toJson<String?>(gpNumber),
@@ -3655,6 +3915,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     Value<String?> signedPdfPath = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     Value<DateTime?> reminderSentDate = const Value.absent(),
+    Value<String?> shipToName = const Value.absent(),
+    Value<String?> shipToAddress = const Value.absent(),
+    Value<String?> placeOfSupply = const Value.absent(),
     Value<String?> poNumber = const Value.absent(),
     Value<DateTime?> poDate = const Value.absent(),
     Value<String?> gpNumber = const Value.absent(),
@@ -3688,6 +3951,13 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     reminderSentDate: reminderSentDate.present
         ? reminderSentDate.value
         : this.reminderSentDate,
+    shipToName: shipToName.present ? shipToName.value : this.shipToName,
+    shipToAddress: shipToAddress.present
+        ? shipToAddress.value
+        : this.shipToAddress,
+    placeOfSupply: placeOfSupply.present
+        ? placeOfSupply.value
+        : this.placeOfSupply,
     poNumber: poNumber.present ? poNumber.value : this.poNumber,
     poDate: poDate.present ? poDate.value : this.poDate,
     gpNumber: gpNumber.present ? gpNumber.value : this.gpNumber,
@@ -3747,6 +4017,15 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       reminderSentDate: data.reminderSentDate.present
           ? data.reminderSentDate.value
           : this.reminderSentDate,
+      shipToName: data.shipToName.present
+          ? data.shipToName.value
+          : this.shipToName,
+      shipToAddress: data.shipToAddress.present
+          ? data.shipToAddress.value
+          : this.shipToAddress,
+      placeOfSupply: data.placeOfSupply.present
+          ? data.placeOfSupply.value
+          : this.placeOfSupply,
       poNumber: data.poNumber.present ? data.poNumber.value : this.poNumber,
       poDate: data.poDate.present ? data.poDate.value : this.poDate,
       gpNumber: data.gpNumber.present ? data.gpNumber.value : this.gpNumber,
@@ -3781,6 +4060,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('signedPdfPath: $signedPdfPath, ')
           ..write('notes: $notes, ')
           ..write('reminderSentDate: $reminderSentDate, ')
+          ..write('shipToName: $shipToName, ')
+          ..write('shipToAddress: $shipToAddress, ')
+          ..write('placeOfSupply: $placeOfSupply, ')
           ..write('poNumber: $poNumber, ')
           ..write('poDate: $poDate, ')
           ..write('gpNumber: $gpNumber, ')
@@ -3813,6 +4095,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     signedPdfPath,
     notes,
     reminderSentDate,
+    shipToName,
+    shipToAddress,
+    placeOfSupply,
     poNumber,
     poDate,
     gpNumber,
@@ -3844,6 +4129,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.signedPdfPath == this.signedPdfPath &&
           other.notes == this.notes &&
           other.reminderSentDate == this.reminderSentDate &&
+          other.shipToName == this.shipToName &&
+          other.shipToAddress == this.shipToAddress &&
+          other.placeOfSupply == this.placeOfSupply &&
           other.poNumber == this.poNumber &&
           other.poDate == this.poDate &&
           other.gpNumber == this.gpNumber &&
@@ -3873,6 +4161,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<String?> signedPdfPath;
   final Value<String?> notes;
   final Value<DateTime?> reminderSentDate;
+  final Value<String?> shipToName;
+  final Value<String?> shipToAddress;
+  final Value<String?> placeOfSupply;
   final Value<String?> poNumber;
   final Value<DateTime?> poDate;
   final Value<String?> gpNumber;
@@ -3900,6 +4191,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.signedPdfPath = const Value.absent(),
     this.notes = const Value.absent(),
     this.reminderSentDate = const Value.absent(),
+    this.shipToName = const Value.absent(),
+    this.shipToAddress = const Value.absent(),
+    this.placeOfSupply = const Value.absent(),
     this.poNumber = const Value.absent(),
     this.poDate = const Value.absent(),
     this.gpNumber = const Value.absent(),
@@ -3928,6 +4222,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.signedPdfPath = const Value.absent(),
     this.notes = const Value.absent(),
     this.reminderSentDate = const Value.absent(),
+    this.shipToName = const Value.absent(),
+    this.shipToAddress = const Value.absent(),
+    this.placeOfSupply = const Value.absent(),
     this.poNumber = const Value.absent(),
     this.poDate = const Value.absent(),
     this.gpNumber = const Value.absent(),
@@ -3966,6 +4263,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<String>? signedPdfPath,
     Expression<String>? notes,
     Expression<DateTime>? reminderSentDate,
+    Expression<String>? shipToName,
+    Expression<String>? shipToAddress,
+    Expression<String>? placeOfSupply,
     Expression<String>? poNumber,
     Expression<DateTime>? poDate,
     Expression<String>? gpNumber,
@@ -3994,6 +4294,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (signedPdfPath != null) 'signed_pdf_path': signedPdfPath,
       if (notes != null) 'notes': notes,
       if (reminderSentDate != null) 'reminder_sent_date': reminderSentDate,
+      if (shipToName != null) 'ship_to_name': shipToName,
+      if (shipToAddress != null) 'ship_to_address': shipToAddress,
+      if (placeOfSupply != null) 'place_of_supply': placeOfSupply,
       if (poNumber != null) 'po_number': poNumber,
       if (poDate != null) 'po_date': poDate,
       if (gpNumber != null) 'gp_number': gpNumber,
@@ -4024,6 +4327,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<String?>? signedPdfPath,
     Value<String?>? notes,
     Value<DateTime?>? reminderSentDate,
+    Value<String?>? shipToName,
+    Value<String?>? shipToAddress,
+    Value<String?>? placeOfSupply,
     Value<String?>? poNumber,
     Value<DateTime?>? poDate,
     Value<String?>? gpNumber,
@@ -4052,6 +4358,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       signedPdfPath: signedPdfPath ?? this.signedPdfPath,
       notes: notes ?? this.notes,
       reminderSentDate: reminderSentDate ?? this.reminderSentDate,
+      shipToName: shipToName ?? this.shipToName,
+      shipToAddress: shipToAddress ?? this.shipToAddress,
+      placeOfSupply: placeOfSupply ?? this.placeOfSupply,
       poNumber: poNumber ?? this.poNumber,
       poDate: poDate ?? this.poDate,
       gpNumber: gpNumber ?? this.gpNumber,
@@ -4130,6 +4439,15 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     if (reminderSentDate.present) {
       map['reminder_sent_date'] = Variable<DateTime>(reminderSentDate.value);
     }
+    if (shipToName.present) {
+      map['ship_to_name'] = Variable<String>(shipToName.value);
+    }
+    if (shipToAddress.present) {
+      map['ship_to_address'] = Variable<String>(shipToAddress.value);
+    }
+    if (placeOfSupply.present) {
+      map['place_of_supply'] = Variable<String>(placeOfSupply.value);
+    }
     if (poNumber.present) {
       map['po_number'] = Variable<String>(poNumber.value);
     }
@@ -4172,6 +4490,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('signedPdfPath: $signedPdfPath, ')
           ..write('notes: $notes, ')
           ..write('reminderSentDate: $reminderSentDate, ')
+          ..write('shipToName: $shipToName, ')
+          ..write('shipToAddress: $shipToAddress, ')
+          ..write('placeOfSupply: $placeOfSupply, ')
           ..write('poNumber: $poNumber, ')
           ..write('poDate: $poDate, ')
           ..write('gpNumber: $gpNumber, ')
@@ -9798,6 +10119,7 @@ typedef $$CustomersTableCreateCompanionBuilder =
       Value<String?> gstin,
       required String phone,
       required String email,
+      Value<String?> vendorCode,
       Value<DateTime> createdAt,
     });
 typedef $$CustomersTableUpdateCompanionBuilder =
@@ -9809,6 +10131,7 @@ typedef $$CustomersTableUpdateCompanionBuilder =
       Value<String?> gstin,
       Value<String> phone,
       Value<String> email,
+      Value<String?> vendorCode,
       Value<DateTime> createdAt,
     });
 
@@ -9913,6 +10236,11 @@ class $$CustomersTableFilterComposer
 
   ColumnFilters<String> get email => $composableBuilder(
     column: $table.email,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vendorCode => $composableBuilder(
+    column: $table.vendorCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10041,6 +10369,11 @@ class $$CustomersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get vendorCode => $composableBuilder(
+    column: $table.vendorCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10076,6 +10409,11 @@ class $$CustomersTableAnnotationComposer
 
   GeneratedColumn<String> get email =>
       $composableBuilder(column: $table.email, builder: (column) => column);
+
+  GeneratedColumn<String> get vendorCode => $composableBuilder(
+    column: $table.vendorCode,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -10195,6 +10533,7 @@ class $$CustomersTableTableManager
                 Value<String?> gstin = const Value.absent(),
                 Value<String> phone = const Value.absent(),
                 Value<String> email = const Value.absent(),
+                Value<String?> vendorCode = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => CustomersCompanion(
                 id: id,
@@ -10204,6 +10543,7 @@ class $$CustomersTableTableManager
                 gstin: gstin,
                 phone: phone,
                 email: email,
+                vendorCode: vendorCode,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -10215,6 +10555,7 @@ class $$CustomersTableTableManager
                 Value<String?> gstin = const Value.absent(),
                 required String phone,
                 required String email,
+                Value<String?> vendorCode = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => CustomersCompanion.insert(
                 id: id,
@@ -10224,6 +10565,7 @@ class $$CustomersTableTableManager
                 gstin: gstin,
                 phone: phone,
                 email: email,
+                vendorCode: vendorCode,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
@@ -10353,6 +10695,8 @@ typedef $$MotorJobsTableCreateCompanionBuilder =
       required MotorJobStatus status,
       Value<double?> serviceCharge,
       Value<String?> sacCode,
+      Value<String?> gpNumber,
+      Value<DateTime?> gpDate,
       Value<DateTime?> dispatchDate,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -10371,6 +10715,8 @@ typedef $$MotorJobsTableUpdateCompanionBuilder =
       Value<MotorJobStatus> status,
       Value<double?> serviceCharge,
       Value<String?> sacCode,
+      Value<String?> gpNumber,
+      Value<DateTime?> gpDate,
       Value<DateTime?> dispatchDate,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -10497,6 +10843,16 @@ class $$MotorJobsTableFilterComposer
 
   ColumnFilters<String> get sacCode => $composableBuilder(
     column: $table.sacCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gpNumber => $composableBuilder(
+    column: $table.gpNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get gpDate => $composableBuilder(
+    column: $table.gpDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10653,6 +11009,16 @@ class $$MotorJobsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get gpNumber => $composableBuilder(
+    column: $table.gpNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get gpDate => $composableBuilder(
+    column: $table.gpDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get dispatchDate => $composableBuilder(
     column: $table.dispatchDate,
     builder: (column) => ColumnOrderings(column),
@@ -10741,6 +11107,12 @@ class $$MotorJobsTableAnnotationComposer
 
   GeneratedColumn<String> get sacCode =>
       $composableBuilder(column: $table.sacCode, builder: (column) => column);
+
+  GeneratedColumn<String> get gpNumber =>
+      $composableBuilder(column: $table.gpNumber, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get gpDate =>
+      $composableBuilder(column: $table.gpDate, builder: (column) => column);
 
   GeneratedColumn<DateTime> get dispatchDate => $composableBuilder(
     column: $table.dispatchDate,
@@ -10871,6 +11243,8 @@ class $$MotorJobsTableTableManager
                 Value<MotorJobStatus> status = const Value.absent(),
                 Value<double?> serviceCharge = const Value.absent(),
                 Value<String?> sacCode = const Value.absent(),
+                Value<String?> gpNumber = const Value.absent(),
+                Value<DateTime?> gpDate = const Value.absent(),
                 Value<DateTime?> dispatchDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -10887,6 +11261,8 @@ class $$MotorJobsTableTableManager
                 status: status,
                 serviceCharge: serviceCharge,
                 sacCode: sacCode,
+                gpNumber: gpNumber,
+                gpDate: gpDate,
                 dispatchDate: dispatchDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -10905,6 +11281,8 @@ class $$MotorJobsTableTableManager
                 required MotorJobStatus status,
                 Value<double?> serviceCharge = const Value.absent(),
                 Value<String?> sacCode = const Value.absent(),
+                Value<String?> gpNumber = const Value.absent(),
+                Value<DateTime?> gpDate = const Value.absent(),
                 Value<DateTime?> dispatchDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -10921,6 +11299,8 @@ class $$MotorJobsTableTableManager
                 status: status,
                 serviceCharge: serviceCharge,
                 sacCode: sacCode,
+                gpNumber: gpNumber,
+                gpDate: gpDate,
                 dispatchDate: dispatchDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -11608,6 +11988,9 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       Value<String?> signedPdfPath,
       Value<String?> notes,
       Value<DateTime?> reminderSentDate,
+      Value<String?> shipToName,
+      Value<String?> shipToAddress,
+      Value<String?> placeOfSupply,
       Value<String?> poNumber,
       Value<DateTime?> poDate,
       Value<String?> gpNumber,
@@ -11637,6 +12020,9 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<String?> signedPdfPath,
       Value<String?> notes,
       Value<DateTime?> reminderSentDate,
+      Value<String?> shipToName,
+      Value<String?> shipToAddress,
+      Value<String?> placeOfSupply,
       Value<String?> poNumber,
       Value<DateTime?> poDate,
       Value<String?> gpNumber,
@@ -11846,6 +12232,21 @@ class $$InvoicesTableFilterComposer
 
   ColumnFilters<DateTime> get reminderSentDate => $composableBuilder(
     column: $table.reminderSentDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get placeOfSupply => $composableBuilder(
+    column: $table.placeOfSupply,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12107,6 +12508,21 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get placeOfSupply => $composableBuilder(
+    column: $table.placeOfSupply,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get poNumber => $composableBuilder(
     column: $table.poNumber,
     builder: (column) => ColumnOrderings(column),
@@ -12249,6 +12665,21 @@ class $$InvoicesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get reminderSentDate => $composableBuilder(
     column: $table.reminderSentDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get placeOfSupply => $composableBuilder(
+    column: $table.placeOfSupply,
     builder: (column) => column,
   );
 
@@ -12448,6 +12879,9 @@ class $$InvoicesTableTableManager
                 Value<String?> signedPdfPath = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime?> reminderSentDate = const Value.absent(),
+                Value<String?> shipToName = const Value.absent(),
+                Value<String?> shipToAddress = const Value.absent(),
+                Value<String?> placeOfSupply = const Value.absent(),
                 Value<String?> poNumber = const Value.absent(),
                 Value<DateTime?> poDate = const Value.absent(),
                 Value<String?> gpNumber = const Value.absent(),
@@ -12475,6 +12909,9 @@ class $$InvoicesTableTableManager
                 signedPdfPath: signedPdfPath,
                 notes: notes,
                 reminderSentDate: reminderSentDate,
+                shipToName: shipToName,
+                shipToAddress: shipToAddress,
+                placeOfSupply: placeOfSupply,
                 poNumber: poNumber,
                 poDate: poDate,
                 gpNumber: gpNumber,
@@ -12504,6 +12941,9 @@ class $$InvoicesTableTableManager
                 Value<String?> signedPdfPath = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime?> reminderSentDate = const Value.absent(),
+                Value<String?> shipToName = const Value.absent(),
+                Value<String?> shipToAddress = const Value.absent(),
+                Value<String?> placeOfSupply = const Value.absent(),
                 Value<String?> poNumber = const Value.absent(),
                 Value<DateTime?> poDate = const Value.absent(),
                 Value<String?> gpNumber = const Value.absent(),
@@ -12531,6 +12971,9 @@ class $$InvoicesTableTableManager
                 signedPdfPath: signedPdfPath,
                 notes: notes,
                 reminderSentDate: reminderSentDate,
+                shipToName: shipToName,
+                shipToAddress: shipToAddress,
+                placeOfSupply: placeOfSupply,
                 poNumber: poNumber,
                 poDate: poDate,
                 gpNumber: gpNumber,

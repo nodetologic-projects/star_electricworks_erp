@@ -29,6 +29,10 @@ class Invoices extends Table {
   TextColumn get notes => text().nullable()();
   DateTimeColumn get reminderSentDate => dateTime().nullable()();
 
+  TextColumn get shipToName => text().nullable()();
+  TextColumn get shipToAddress => text().nullable()();
+  TextColumn get placeOfSupply => text().nullable()();
+
   TextColumn get poNumber => text().nullable()();
   DateTimeColumn get poDate => dateTime().nullable()();
   TextColumn get gpNumber => text().nullable()();
