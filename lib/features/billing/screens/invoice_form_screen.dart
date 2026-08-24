@@ -15,6 +15,7 @@ import 'package:starelectricerp/core/widgets/app_button.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/app_select.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
+import 'package:starelectricerp/core/widgets/gstin_input_field.dart';
 import 'package:starelectricerp/core/tax_calculator.dart';
 import 'package:starelectricerp/core/number_to_words.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
@@ -579,9 +580,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           children: [
             SizedBox(
               width: isDesktop ? 200 : double.infinity,
-              child: TextFormField(
+              child: GstinInputField(
                 controller: _customerGstinController,
-                decoration: const InputDecoration(labelText: 'GSTIN (Optional)'),
+                label: 'GSTIN (Optional)',
               ),
             ),
             SizedBox(

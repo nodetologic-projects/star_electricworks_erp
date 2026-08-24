@@ -9,6 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/app_button.dart';
+import 'package:starelectricerp/core/widgets/gstin_input_field.dart';
 import 'package:starelectricerp/core/updater/updater_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -35,6 +36,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   DscSigningMethod _signingMethod = DscSigningMethod.fileBased;
   bool _eInvoiceApplicable = false;
   bool _isLoading = false;
+  final _formKey = GlobalKey<FormState>();
+  final _companyNameController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _gstinController = TextEditingController();
+  final _bankNameController = TextEditingController();
+  final _bankAccountNoController = TextEditingController();
+  final _bankIfscController = TextEditingController();
 
   @override
   void initState() {
@@ -49,6 +59,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     
     if (mounted) {
       setState(() {
+        _companyNameController.text = settings.companyName;
+        _addressController.text = settings.address;
+        _phoneController.text = settings.phone;
+        _emailController.text = settings.email;
+        _gstinController.text = settings.gstin;
+        _bankNameController.text = settings.bankName;
+        _bankAccountNoController.text = settings.bankAccountNo;
+        _bankIfscController.text = settings.bankIfsc;
+        
         _selectedPfxPath = settings.dscCertPath;
         _signingMethod = settings.dscSigningMethod ?? DscSigningMethod.fileBased;
         _eInvoiceApplicable = settings.eInvoiceApplicable;
@@ -81,6 +100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _saveSettings() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     
     try {
@@ -88,6 +108,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final currentSettings = await settingsRepo.getSettings();
       
       await settingsRepo.updateSettings(currentSettings.toCompanion(true).copyWith(
+        companyName: drift.Value(_companyNameController.text),
+        address: drift.Value(_addressController.text),
+        phone: drift.Value(_phoneController.text),
+        email: drift.Value(_emailController.text),
+        gstin: drift.Value(_gstinController.text.trim()),
+        bankName: drift.Value(_bankNameController.text),
+        bankAccountNo: drift.Value(_bankAccountNoController.text),
+        bankIfsc: drift.Value(_bankIfscController.text),
         dscCertPath: drift.Value(_selectedPfxPath),
         dscSigningMethod: drift.Value(_signingMethod),
         dscPkcs11DllPath: drift.Value(_dllController.text),
@@ -122,7 +150,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
+          child: Form(
+            key: _formKey,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -133,6 +163,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 32),
                   
+                                    // Company Profile Card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Company Profile', style: Theme.of(context).textTheme.titleLarge),
+                          const SizedBox(height: 16),
+                          AppTextField(label: 'Company Name', controller: _companyNameController),
+                          const SizedBox(height: 16),
+                          AppTextField(label: 'Address', controller: _addressController),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(child: AppTextField(label: 'Phone', controller: _phoneController)),
+                              const SizedBox(width: 16),
+                              Expanded(child: AppTextField(label: 'Email', controller: _emailController)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          GstinInputField(controller: _gstinController),
+                          const SizedBox(height: 32),
+                          Text('Bank Details', style: Theme.of(context).textTheme.titleLarge),
+                          const SizedBox(height: 16),
+                          AppTextField(label: 'Bank Name', controller: _bankNameController),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(child: AppTextField(label: 'Account Number', controller: _bankAccountNoController)),
+                              const SizedBox(width: 16),
+                              Expanded(child: AppTextField(label: 'IFSC Code', controller: _bankIfscController)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
                   // DSC Settings Card
                   Card(
                     child: Padding(
@@ -578,6 +647,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ],
               ),
             ),
+          ),
         ),
     );
   }
