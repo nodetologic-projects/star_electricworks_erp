@@ -76,6 +76,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   final TextEditingController _poNumberController = TextEditingController();
   DateTime? _poDate;
+  DateTime _invoiceDate = DateTime.now();
+  DateTime? _dueDate;
+  int? _paymentTermDays;
   final List<_LineItem> _items = [];
   String _notes = '';
   
@@ -232,7 +235,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         invoiceNo: 'PENDING', // Will be overwritten by the repository atomically
         invoiceType: _selectedType,
         customerId: finalCustomerId,
-        invoiceDate: DateTime.now(),
+        invoiceDate: _invoiceDate,
+        dueDate: drift.Value(_dueDate),
+        paymentTermDays: drift.Value(_paymentTermDays),
         subtotal: totals.subtotal,
         discountAmount: totals.discountAmount,
         cgstAmount: totals.cgstAmount,
@@ -570,6 +575,81 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         ),
         const SizedBox(height: 24),
         
+
+                    const SizedBox(height: 24),
+                    const Text('Invoice Dates & Terms', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _invoiceDate,
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _invoiceDate = picked;
+                                  if (_paymentTermDays != null) {
+                                    _dueDate = _invoiceDate.add(Duration(days: _paymentTermDays!));
+                                  }
+                                });
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(labelText: 'Invoice Date', border: OutlineInputBorder()),
+                              child: Text("${_invoiceDate.day}/${_invoiceDate.month}/${_invoiceDate.year}"),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        if (_selectedType == InvoiceType.serviceTaxInvoice || _selectedType == InvoiceType.salesTaxInvoice || _selectedType == InvoiceType.billOfSupply) ...[
+                          Expanded(
+                            child: AppSelect<int?>(
+                              label: 'Payment Term',
+                              value: _paymentTermDays,
+                              items: const [
+                                DropdownMenuItem(value: null, child: Text('None')),
+                                DropdownMenuItem(value: 5, child: Text('5 days')),
+                                DropdownMenuItem(value: 15, child: Text('15 days')),
+                                DropdownMenuItem(value: 30, child: Text('30 days')),
+                              ],
+                              onChanged: (val) {
+                                setState(() {
+                                  _paymentTermDays = val;
+                                  if (val != null) {
+                                    _dueDate = _invoiceDate.add(Duration(days: val));
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                        ],
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _dueDate ?? _invoiceDate,
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setState(() => _dueDate = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(labelText: 'Due Date', border: OutlineInputBorder()),
+                              child: Text(_dueDate != null ? "${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}" : 'Select Due Date'),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 24),
                     const Text('Purchase Order Details (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),

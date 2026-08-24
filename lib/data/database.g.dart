@@ -2982,6 +2982,17 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _paymentTermDaysMeta = const VerificationMeta(
+    'paymentTermDays',
+  );
+  @override
+  late final GeneratedColumn<int> paymentTermDays = GeneratedColumn<int>(
+    'payment_term_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3018,6 +3029,7 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     reminderSentDate,
     poNumber,
     poDate,
+    paymentTermDays,
     createdAt,
   ];
   @override
@@ -3191,6 +3203,15 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         poDate.isAcceptableOrUnknown(data['po_date']!, _poDateMeta),
       );
     }
+    if (data.containsKey('payment_term_days')) {
+      context.handle(
+        _paymentTermDaysMeta,
+        paymentTermDays.isAcceptableOrUnknown(
+          data['payment_term_days']!,
+          _paymentTermDaysMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3298,6 +3319,10 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}po_date'],
       ),
+      paymentTermDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}payment_term_days'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3339,6 +3364,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   final DateTime? reminderSentDate;
   final String? poNumber;
   final DateTime? poDate;
+  final int? paymentTermDays;
   final DateTime createdAt;
   const Invoice({
     required this.id,
@@ -3363,6 +3389,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     this.reminderSentDate,
     this.poNumber,
     this.poDate,
+    this.paymentTermDays,
     required this.createdAt,
   });
   @override
@@ -3414,6 +3441,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     if (!nullToAbsent || poDate != null) {
       map['po_date'] = Variable<DateTime>(poDate);
     }
+    if (!nullToAbsent || paymentTermDays != null) {
+      map['payment_term_days'] = Variable<int>(paymentTermDays);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -3458,6 +3488,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       poDate: poDate == null && nullToAbsent
           ? const Value.absent()
           : Value(poDate),
+      paymentTermDays: paymentTermDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentTermDays),
       createdAt: Value(createdAt),
     );
   }
@@ -3496,6 +3529,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       ),
       poNumber: serializer.fromJson<String?>(json['poNumber']),
       poDate: serializer.fromJson<DateTime?>(json['poDate']),
+      paymentTermDays: serializer.fromJson<int?>(json['paymentTermDays']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -3529,6 +3563,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'reminderSentDate': serializer.toJson<DateTime?>(reminderSentDate),
       'poNumber': serializer.toJson<String?>(poNumber),
       'poDate': serializer.toJson<DateTime?>(poDate),
+      'paymentTermDays': serializer.toJson<int?>(paymentTermDays),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -3556,6 +3591,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     Value<DateTime?> reminderSentDate = const Value.absent(),
     Value<String?> poNumber = const Value.absent(),
     Value<DateTime?> poDate = const Value.absent(),
+    Value<int?> paymentTermDays = const Value.absent(),
     DateTime? createdAt,
   }) => Invoice(
     id: id ?? this.id,
@@ -3586,6 +3622,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
         : this.reminderSentDate,
     poNumber: poNumber.present ? poNumber.value : this.poNumber,
     poDate: poDate.present ? poDate.value : this.poDate,
+    paymentTermDays: paymentTermDays.present
+        ? paymentTermDays.value
+        : this.paymentTermDays,
     createdAt: createdAt ?? this.createdAt,
   );
   Invoice copyWithCompanion(InvoicesCompanion data) {
@@ -3638,6 +3677,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           : this.reminderSentDate,
       poNumber: data.poNumber.present ? data.poNumber.value : this.poNumber,
       poDate: data.poDate.present ? data.poDate.value : this.poDate,
+      paymentTermDays: data.paymentTermDays.present
+          ? data.paymentTermDays.value
+          : this.paymentTermDays,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -3667,6 +3709,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('reminderSentDate: $reminderSentDate, ')
           ..write('poNumber: $poNumber, ')
           ..write('poDate: $poDate, ')
+          ..write('paymentTermDays: $paymentTermDays, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -3696,6 +3739,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     reminderSentDate,
     poNumber,
     poDate,
+    paymentTermDays,
     createdAt,
   ]);
   @override
@@ -3724,6 +3768,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.reminderSentDate == this.reminderSentDate &&
           other.poNumber == this.poNumber &&
           other.poDate == this.poDate &&
+          other.paymentTermDays == this.paymentTermDays &&
           other.createdAt == this.createdAt);
 }
 
@@ -3750,6 +3795,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<DateTime?> reminderSentDate;
   final Value<String?> poNumber;
   final Value<DateTime?> poDate;
+  final Value<int?> paymentTermDays;
   final Value<DateTime> createdAt;
   const InvoicesCompanion({
     this.id = const Value.absent(),
@@ -3774,6 +3820,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.reminderSentDate = const Value.absent(),
     this.poNumber = const Value.absent(),
     this.poDate = const Value.absent(),
+    this.paymentTermDays = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   InvoicesCompanion.insert({
@@ -3799,6 +3846,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.reminderSentDate = const Value.absent(),
     this.poNumber = const Value.absent(),
     this.poDate = const Value.absent(),
+    this.paymentTermDays = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : invoiceNo = Value(invoiceNo),
        invoiceType = Value(invoiceType),
@@ -3834,6 +3882,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<DateTime>? reminderSentDate,
     Expression<String>? poNumber,
     Expression<DateTime>? poDate,
+    Expression<int>? paymentTermDays,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -3859,6 +3908,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (reminderSentDate != null) 'reminder_sent_date': reminderSentDate,
       if (poNumber != null) 'po_number': poNumber,
       if (poDate != null) 'po_date': poDate,
+      if (paymentTermDays != null) 'payment_term_days': paymentTermDays,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -3886,6 +3936,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<DateTime?>? reminderSentDate,
     Value<String?>? poNumber,
     Value<DateTime?>? poDate,
+    Value<int?>? paymentTermDays,
     Value<DateTime>? createdAt,
   }) {
     return InvoicesCompanion(
@@ -3911,6 +3962,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       reminderSentDate: reminderSentDate ?? this.reminderSentDate,
       poNumber: poNumber ?? this.poNumber,
       poDate: poDate ?? this.poDate,
+      paymentTermDays: paymentTermDays ?? this.paymentTermDays,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -3988,6 +4040,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     if (poDate.present) {
       map['po_date'] = Variable<DateTime>(poDate.value);
     }
+    if (paymentTermDays.present) {
+      map['payment_term_days'] = Variable<int>(paymentTermDays.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4019,6 +4074,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('reminderSentDate: $reminderSentDate, ')
           ..write('poNumber: $poNumber, ')
           ..write('poDate: $poDate, ')
+          ..write('paymentTermDays: $paymentTermDays, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -11452,6 +11508,7 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       Value<DateTime?> reminderSentDate,
       Value<String?> poNumber,
       Value<DateTime?> poDate,
+      Value<int?> paymentTermDays,
       Value<DateTime> createdAt,
     });
 typedef $$InvoicesTableUpdateCompanionBuilder =
@@ -11478,6 +11535,7 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<DateTime?> reminderSentDate,
       Value<String?> poNumber,
       Value<DateTime?> poDate,
+      Value<int?> paymentTermDays,
       Value<DateTime> createdAt,
     });
 
@@ -11688,6 +11746,11 @@ class $$InvoicesTableFilterComposer
 
   ColumnFilters<DateTime> get poDate => $composableBuilder(
     column: $table.poDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get paymentTermDays => $composableBuilder(
+    column: $table.paymentTermDays,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11934,6 +11997,11 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get paymentTermDays => $composableBuilder(
+    column: $table.paymentTermDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -12059,6 +12127,11 @@ class $$InvoicesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get poDate =>
       $composableBuilder(column: $table.poDate, builder: (column) => column);
+
+  GeneratedColumn<int> get paymentTermDays => $composableBuilder(
+    column: $table.paymentTermDays,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -12243,6 +12316,7 @@ class $$InvoicesTableTableManager
                 Value<DateTime?> reminderSentDate = const Value.absent(),
                 Value<String?> poNumber = const Value.absent(),
                 Value<DateTime?> poDate = const Value.absent(),
+                Value<int?> paymentTermDays = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicesCompanion(
                 id: id,
@@ -12267,6 +12341,7 @@ class $$InvoicesTableTableManager
                 reminderSentDate: reminderSentDate,
                 poNumber: poNumber,
                 poDate: poDate,
+                paymentTermDays: paymentTermDays,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -12293,6 +12368,7 @@ class $$InvoicesTableTableManager
                 Value<DateTime?> reminderSentDate = const Value.absent(),
                 Value<String?> poNumber = const Value.absent(),
                 Value<DateTime?> poDate = const Value.absent(),
+                Value<int?> paymentTermDays = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicesCompanion.insert(
                 id: id,
@@ -12317,6 +12393,7 @@ class $$InvoicesTableTableManager
                 reminderSentDate: reminderSentDate,
                 poNumber: poNumber,
                 poDate: poDate,
+                paymentTermDays: paymentTermDays,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0

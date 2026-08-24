@@ -26,5 +26,6 @@ class Invoices extends Table {
 
   TextColumn get poNumber => text().nullable()();
   DateTimeColumn get poDate => dateTime().nullable()();
+  IntColumn get paymentTermDays => integer().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
