@@ -6,6 +6,7 @@ class TaxCalculationResult {
   final double taxableAmount;
   final double cgstAmount;
   final double sgstAmount;
+  final double igstAmount;
   final double deliveryCharge;
   final double grandTotal;
 
@@ -15,6 +16,7 @@ class TaxCalculationResult {
     required this.taxableAmount,
     required this.cgstAmount,
     required this.sgstAmount,
+    this.igstAmount = 0.0,
     required this.deliveryCharge,
     required this.grandTotal,
   });
@@ -99,6 +101,7 @@ class TaxCalculator {
       taxableAmount: taxableAmount,
       cgstAmount: totalCgst,
       sgstAmount: totalSgst,
+      igstAmount: 0.0,
       deliveryCharge: deliveryCharge,
       grandTotal: grandTotal,
     );
