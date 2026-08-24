@@ -15,8 +15,20 @@ class SettingsRepository {
     if (settings.isNotEmpty) {
       return settings.first;
     }
-    // Return empty state or throw exception
-    throw Exception('Company settings not found');
+    // Seed default settings if empty
+    final defaultSettings = CompanySettingsCompanion.insert(
+      companyName: 'Star Electric Works',
+      address: '123 Default Address',
+      phone: '+91 0000000000',
+      email: 'info@starelectric.com',
+      gstin: '24AAAAA0000A1Z5',
+      bankName: 'Default Bank',
+      bankAccountNo: '0000000000',
+      bankIfsc: 'IFSC0000000',
+    );
+    await insertSettings(defaultSettings);
+    final newSettings = await _db.select(_db.companySettings).get();
+    return newSettings.first;
   }
   
   Stream<CompanySetting?> watchSettings() {
