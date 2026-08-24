@@ -9,6 +9,7 @@ import 'package:starelectricerp/core/widgets/status_badge.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/features/quotations/pdf/quotation_pdf.dart';
 import 'package:starelectricerp/data/repositories/quotations_repository.dart';
+import 'package:starelectricerp/core/services/direct_print_service.dart';
 
 class QuotationDetailScreen extends ConsumerWidget {
   final int quotationId;
@@ -59,6 +60,22 @@ class QuotationDetailScreen extends ConsumerWidget {
                     const SizedBox(width: 16),
                     Text('Total: ₹${q.estimatedAmount.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
                     const Spacer(),
+                    if (data.company != null) ...[
+                      ElevatedButton.icon(
+                        onPressed: () => DirectPrintService.printPdf(
+                          context, 
+                          q.quoteNo, 
+                          fallbackGenerate: () => QuotationPdfGenerator.generate(
+                            company: data.company!,
+                            data: data,
+                          )
+                        ),
+                        icon: const Icon(Icons.print),
+                        label: const Text('Direct Print'),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+
                     
                     if (q.status == QuotationStatus.draft)
                       FilledButton.icon(
