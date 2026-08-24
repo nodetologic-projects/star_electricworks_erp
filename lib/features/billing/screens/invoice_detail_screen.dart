@@ -1,3 +1,5 @@
+import 'package:starelectricerp/core/services/direct_print_service.dart';
+
 import 'package:starelectricerp/core/utils/permission_util.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -27,6 +29,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
         invoice: data.invoice,
         items: data.items,
         customer: data.customer,
+        totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
       );
 
 
@@ -131,6 +134,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
         invoice: data.invoice,
         items: data.items,
         customer: data.customer,
+        totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
       );
 
 
@@ -264,9 +268,25 @@ class InvoiceDetailScreen extends ConsumerWidget {
                                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
                           const Spacer(),
                           ElevatedButton.icon(
+                            onPressed: () => DirectPrintService.printPdf(
+                              context, 
+                              data.invoice.invoiceNo, 
+                              fallbackGenerate: () => InvoicePdfGenerator.generate(
+                                company: data.companySetting,
+                                invoice: data.invoice,
+                                items: data.items,
+                                customer: data.customer,
+                                totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
+                              )
+                            ),
+                            icon: const Icon(Icons.print),
+                            label: const Text('Direct Print'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
                             onPressed: () => _downloadPdf(context, data),
                             icon: const Icon(Icons.download),
-                            label: const Text('Download PDF'),
+                            label: const Text('Download/Print Preview'),
                           ),
                           const SizedBox(width: 8),
                           FilledButton.icon(
@@ -318,6 +338,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                     invoice: data.invoice,
                     items: data.items,
                     customer: data.customer,
+                    totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
                   ),
                   allowPrinting: true,
                   allowSharing: true,

@@ -1,4 +1,7 @@
 import 'package:starelectricerp/data/repositories/invoices_repository.dart';
+import 'package:starelectricerp/features/billing/providers/invoice_detail_provider.dart';
+import 'package:starelectricerp/features/billing/pdf/invoice_pdf.dart';
+import 'package:starelectricerp/core/services/direct_print_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -73,11 +76,6 @@ class _MotorJobDetailScreenState extends ConsumerState<MotorJobDetailScreen> {
     }
   }
 
-  void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming Soon in Phase 4')),
-    );
-  }
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
@@ -275,10 +273,59 @@ class _MotorJobDetailScreenState extends ConsumerState<MotorJobDetailScreen> {
                                   const SizedBox(height: 16),
                                   SizedBox(
                                     width: double.infinity,
-                                    child: AppButton(
-                                      label: 'View Delivery Challan',
-                                      variant: AppButtonVariant.secondary,
-                                      onPressed: _showComingSoon,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: AppButton(
+                                            label: 'View Delivery Challan',
+                                            variant: AppButtonVariant.secondary,
+                                            onPressed: () async {
+                                              final repo = ref.read(invoicesRepositoryProvider);
+                                              final challans = await repo.getInvoicesByJobId(job.id);
+                                              final challan = challans.firstWhere(
+                                                (inv) => inv.invoiceType == InvoiceType.deliveryChallan, 
+                                                orElse: () => throw Exception('Challan not found')
+                                              );
+                                              if (context.mounted) {
+                                                context.push('/invoices/${challan.id}');
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: AppButton(
+                                            label: 'Direct Print Challan',
+                                            variant: AppButtonVariant.primary,
+                                            onPressed: () async {
+                                              try {
+                                                final repo = ref.read(invoicesRepositoryProvider);
+                                                final challans = await repo.getInvoicesByJobId(job.id);
+                                                final challan = challans.firstWhere(
+                                                  (inv) => inv.invoiceType == InvoiceType.deliveryChallan, 
+                                                );
+                                                final invoiceDetail = await ref.read(invoiceDetailProvider(challan.id).future);
+                                                if (context.mounted) {
+                                                  DirectPrintService.printPdf(
+                                                    context,
+                                                    challan.invoiceNo,
+                                                    fallbackGenerate: () => InvoicePdfGenerator.generate(
+                                                      company: invoiceDetail.companySetting,
+                                                      invoice: invoiceDetail.invoice,
+                                                      items: invoiceDetail.items,
+                                                      customer: invoiceDetail.customer,
+                                                    ),
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not print: $e'), backgroundColor: Colors.red));
+                                                }
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
