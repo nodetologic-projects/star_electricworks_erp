@@ -15,6 +15,8 @@ class MotorJobs extends Table {
   TextColumn get status => textEnum<MotorJobStatus>()();
   RealColumn get serviceCharge => real().nullable()();
   TextColumn get sacCode => text().nullable()();
+  TextColumn get gpNumber => text().nullable()();
+  DateTimeColumn get gpDate => dateTime().nullable()();
   DateTimeColumn get dispatchDate => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();

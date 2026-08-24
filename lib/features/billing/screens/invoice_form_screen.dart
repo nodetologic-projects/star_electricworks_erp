@@ -73,6 +73,10 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   final TextEditingController _customerGstinController = TextEditingController();
   final TextEditingController _customerPhoneController = TextEditingController();
   final TextEditingController _customerEmailController = TextEditingController();
+  final TextEditingController _customerVendorCodeController = TextEditingController();
+  final TextEditingController _shipToNameController = TextEditingController();
+  final TextEditingController _shipToAddressController = TextEditingController();
+  final TextEditingController _placeOfSupplyController = TextEditingController();
 
   final TextEditingController _poNumberController = TextEditingController();
   final TextEditingController _gpNumberController = TextEditingController();
@@ -122,6 +126,10 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _customerGstinController.dispose();
     _customerPhoneController.dispose();
     _customerEmailController.dispose();
+    _customerVendorCodeController.dispose();
+    _shipToNameController.dispose();
+    _shipToAddressController.dispose();
+    _placeOfSupplyController.dispose();
     _poNumberController.dispose();
     _gpNumberController.dispose();
     super.dispose();
@@ -167,6 +175,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         gstin: drift.Value(_customerGstinController.text.trim()),
         phone: drift.Value(_customerPhoneController.text.trim()),
         email: drift.Value(_customerEmailController.text.trim()),
+        vendorCode: drift.Value(_customerVendorCodeController.text.trim().isNotEmpty ? _customerVendorCodeController.text.trim() : null),
       );
 
       if (_selectedCustomer == null) {
@@ -253,6 +262,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         poNumber: drift.Value(_poNumberController.text.trim().isEmpty ? null : _poNumberController.text.trim()),
         poDate: drift.Value(_poDate),
         gpNumber: drift.Value(_gpNumberController.text),
+        shipToName: drift.Value(_shipToNameController.text.trim().isNotEmpty ? _shipToNameController.text.trim() : null),
+        shipToAddress: drift.Value(_shipToAddressController.text.trim().isNotEmpty ? _shipToAddressController.text.trim() : null),
+        placeOfSupply: drift.Value(_placeOfSupplyController.text.trim().isNotEmpty ? _placeOfSupplyController.text.trim() : null),
 
         requiresEWayBill: drift.Value(reqEway),
         requiresEInvoice: drift.Value(reqEinvoice),
@@ -311,7 +323,16 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                   final job = motorJobs.firstWhere((j) => j.id == val);
                   setState(() {
                     item.linkedId = job.id;
-                    item.description = '${job.motorDescription} - ${job.jobDescription}';
+                    String gpStr = "";
+                    if (job.gpNumber != null && job.gpNumber!.isNotEmpty) {
+                      gpStr += " GP.NO.${job.gpNumber!}";
+                    }
+                    if (job.gpDate != null) {
+                      gpStr += " GP.DATE.${job.gpDate!.day.toString().padLeft(2, '0')}/${job.gpDate!.month.toString().padLeft(2, '0')}/${job.gpDate!.year}";
+                    }
+                    String hpStr = job.hp != null ? " ${job.hp} HP" : "";
+                    String phaseStr = job.phase != null ? " ${job.phase!.name.toUpperCase()}" : "";
+                    item.description = '${job.motorDescription}${hpStr}${phaseStr}$gpStr\n${job.jobDescription}';
                     item.unitPrice = job.serviceCharge ?? 0;
                     item.hsnCode = job.sacCode;
                     item.qty = 1;
@@ -493,6 +514,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                         _customerGstinController.text = selection.gstin ?? '';
                         _customerPhoneController.text = selection.phone;
                         _customerEmailController.text = selection.email;
+                        _customerVendorCodeController.text = selection.vendorCode ?? '';
+                        _placeOfSupplyController.text = selection.state; // Auto-derive place of supply from state
                       });
                       _recalculate();
                     },
@@ -575,10 +598,46 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 decoration: const InputDecoration(labelText: 'Email (Optional)'),
               ),
             ),
+            SizedBox(
+              width: isDesktop ? 200 : double.infinity,
+              child: TextFormField(
+                controller: _customerVendorCodeController,
+                decoration: const InputDecoration(labelText: 'Vendor Code (Optional)'),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
-        
+        const Text('Shipping & Supply Details', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            SizedBox(
+              width: isDesktop ? 300 : double.infinity,
+              child: TextFormField(
+                controller: _shipToNameController,
+                decoration: const InputDecoration(labelText: 'Ship To Name (Optional)'),
+              ),
+            ),
+            SizedBox(
+              width: isDesktop ? 300 : double.infinity,
+              child: TextFormField(
+                controller: _shipToAddressController,
+                decoration: const InputDecoration(labelText: 'Ship To Address (Optional)'),
+              ),
+            ),
+            SizedBox(
+              width: isDesktop ? 200 : double.infinity,
+              child: TextFormField(
+                controller: _placeOfSupplyController,
+                decoration: const InputDecoration(labelText: 'Place of Supply (Optional)'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
 
                     const SizedBox(height: 24),
                     const Text('Invoice Dates & Terms', style: TextStyle(fontWeight: FontWeight.bold)),
