@@ -6,8 +6,33 @@ import 'package:starelectricerp/core/routing/app_router.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
 import 'package:starelectricerp/features/auth/widgets/inactivity_wrapper.dart';
 
+
+import 'package:path_provider/path_provider.dart';
+
+Future<void> _migratePdfs() async {
+  try {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final newDir = Directory('${docsDir.path}/Star Electric Works Invoices');
+    if (!await newDir.exists()) {
+      await newDir.create(recursive: true);
+    }
+    
+    final dirList = docsDir.listSync();
+    for (var entity in dirList) {
+      if (entity is File && entity.path.endsWith('.pdf')) {
+        final newPath = '${newDir.path}/${entity.uri.pathSegments.last}';
+        await entity.rename(newPath);
+      }
+    }
+  } catch (e) {
+    debugPrint('PDF Migration error: $e');
+  }
+}
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _migratePdfs();
   
   final container = ProviderContainer();
   

@@ -33,7 +33,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
       final hasPermission = await PermissionUtil.requestStoragePermission();
       if (!hasPermission) throw Exception('Storage permission denied');
 
-      final dir = await getApplicationDocumentsDirectory();
+      final docsDir = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docsDir.path}/Star Electric Works Invoices');
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
 
       final file = File('${dir.path}/${data.invoice.invoiceNo}.pdf');
       
@@ -133,7 +137,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
       final hasPermission = await PermissionUtil.requestStoragePermission();
       if (!hasPermission) throw Exception('Storage permission denied');
 
-      final dir = await getApplicationDocumentsDirectory();
+      final docsDir = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docsDir.path}/Star Electric Works Invoices');
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
 
       final inputPdf = File('${dir.path}/${data.invoice.invoiceNo}_draft.pdf');
       final outputPdf = File('${dir.path}/${data.invoice.invoiceNo}_signed.pdf');
