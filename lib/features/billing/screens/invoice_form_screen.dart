@@ -75,6 +75,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   final TextEditingController _customerEmailController = TextEditingController();
 
   final TextEditingController _poNumberController = TextEditingController();
+  final TextEditingController _gpNumberController = TextEditingController();
   DateTime? _poDate;
   DateTime _invoiceDate = DateTime.now();
   DateTime? _dueDate;
@@ -122,6 +123,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _customerPhoneController.dispose();
     _customerEmailController.dispose();
     _poNumberController.dispose();
+    _gpNumberController.dispose();
     super.dispose();
   }
 
@@ -249,6 +251,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         notes: drift.Value(_notes.trim()),
         poNumber: drift.Value(_poNumberController.text.trim().isEmpty ? null : _poNumberController.text.trim()),
         poDate: drift.Value(_poDate),
+        gpNumber: drift.Value(_gpNumberController.text),
 
         requiresEWayBill: drift.Value(reqEway),
         requiresEInvoice: drift.Value(reqEinvoice),
@@ -684,6 +687,13 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                                 _poDate != null ? "${_poDate!.day}/${_poDate!.month}/${_poDate!.year}" : 'Select Date',
                               ),
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: AppTextField(
+                            label: 'GP Number',
+                            controller: _gpNumberController,
                           ),
                         ),
                       ],
