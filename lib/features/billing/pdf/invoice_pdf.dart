@@ -53,7 +53,7 @@ class InvoicePdfGenerator {
             _buildHeader(company, logoImage, invoice.invoiceType),
             pw.SizedBox(height: 24),
             _buildMetaRow(invoice, isDeliveryChallan, items, monoFont, monoFontBold),
-            if (invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ...[
+            if ((invoice.poNumber != null && invoice.poNumber!.isNotEmpty) || (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty)) ...[
               pw.SizedBox(height: 8),
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -63,12 +63,20 @@ class InvoicePdfGenerator {
                 child: pw.Row(
                   mainAxisSize: pw.MainAxisSize.min,
                   children: [
-                    pw.Text('PO No: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
-                    pw.Text(invoice.poNumber!, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                    if (invoice.poDate != null) ...[
-                      pw.SizedBox(width: 16),
-                      pw.Text('PO Date: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
-                      pw.Text(PdfDateFormatter.formatDate(invoice.poDate!), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    if (invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ...[
+                      pw.Text('PO No: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                      pw.Text(invoice.poNumber!, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                      if (invoice.poDate != null) ...[
+                        pw.SizedBox(width: 16),
+                        pw.Text('PO Date: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                        pw.Text(PdfDateFormatter.formatDate(invoice.poDate!), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ],
+                    if (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty) ...[
+                      if (invoice.poNumber != null && invoice.poNumber!.isNotEmpty)
+                        pw.SizedBox(width: 16),
+                      pw.Text('GP No: ', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                      pw.Text(invoice.gpNumber!, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                     ]
                   ],
                 ),
