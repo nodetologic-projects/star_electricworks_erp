@@ -1,3 +1,4 @@
+import 'package:starelectricerp/core/config/google_credentials.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -12,8 +13,8 @@ import 'cloud_backup_provider.dart';
 
 class GoogleDriveBackupProvider implements CloudBackupProvider {
   // CLIENT ACTION REQUIRED: Replace with your actual GCP OAuth 2.0 Client ID for Desktop
-  static const _clientId = 'YOUR_GOOGLE_DRIVE_CLIENT_ID.apps.googleusercontent.com';
-  static const _clientSecret = 'YOUR_GOOGLE_DRIVE_CLIENT_SECRET'; 
+  
+   
   
   static const _scopes = [drive.DriveApi.driveFileScope];
   static const _tokenKey = 'gdrive_auth_credentials';
@@ -34,7 +35,7 @@ class GoogleDriveBackupProvider implements CloudBackupProvider {
       try {
         final Map<String, dynamic> tokenData = jsonDecode(tokenJson);
         final credentials = AccessCredentials.fromJson(tokenData);
-        final clientId = ClientId(_clientId, _clientSecret);
+        final clientId = ClientId(GoogleCredentials.clientId, GoogleCredentials.clientSecret);
         _authClient = autoRefreshingClient(clientId, credentials, http.Client());
         return true;
       } catch (e) {
@@ -49,7 +50,7 @@ class GoogleDriveBackupProvider implements CloudBackupProvider {
   Future<bool> authenticate() async {
     if (await isAuthenticated()) return true;
 
-    final clientId = ClientId(_clientId, _clientSecret);
+    final clientId = ClientId(GoogleCredentials.clientId, GoogleCredentials.clientSecret);
     
     try {
       _authClient = await clientViaUserConsent(
