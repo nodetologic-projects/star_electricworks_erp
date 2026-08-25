@@ -45,10 +45,10 @@ part 'database.g.dart';
   Quotations,
 ])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration {
@@ -93,6 +93,16 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 9) {
           try { await m.createTable(quotations); } catch (_) {}
+        }
+        if (from < 10) {
+          try { await m.addColumn(invoices, invoices.igstAmount); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.shipToName); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.shipToAddress); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.placeOfSupply); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.poNumber); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.poDate); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.gpNumber); } catch (_) {}
+          try { await m.addColumn(customers, customers.vendorCode); } catch (_) {}
         }
       },
       beforeOpen: (details) async {
