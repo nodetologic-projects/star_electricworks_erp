@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
@@ -19,7 +19,7 @@ class GoogleDriveBackupProvider implements CloudBackupProvider {
   static const _scopes = [drive.DriveApi.driveFileScope];
   static const _tokenKey = 'gdrive_auth_credentials';
   
-  
+  final _secureStorage = const FlutterSecureStorage();
   AutoRefreshingAuthClient? _authClient;
 
   @override
@@ -30,8 +30,7 @@ class GoogleDriveBackupProvider implements CloudBackupProvider {
     if (_authClient != null) return true;
     
     // Try to load credentials from secure storage
-    final prefs = await SharedPreferences.getInstance();
-    final tokenJson = prefs.getString(_tokenKey);
+    final tokenJson = await _secureStorage.read(key: _tokenKey);
     if (tokenJson != null) {
       try {
         final Map<String, dynamic> tokenData = jsonDecode(tokenJson);
@@ -41,8 +40,7 @@ class GoogleDriveBackupProvider implements CloudBackupProvider {
         return true;
       } catch (e) {
         // Invalid or expired credentials format
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_tokenKey);
+        await _secureStorage.delete(key: _tokenKey);
       }
     }
     return false;
@@ -70,8 +68,7 @@ class GoogleDriveBackupProvider implements CloudBackupProvider {
       
       // Save credentials for future use
       final credentials = _authClient!.credentials;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, jsonEncode(credentials.toJson()));
+      await _secureStorage.write(key: _tokenKey, value: jsonEncode(credentials.toJson()));
       return true;
     } catch (e) {
       return false;
@@ -82,8 +79,7 @@ class GoogleDriveBackupProvider implements CloudBackupProvider {
   Future<void> logout() async {
     _authClient?.close();
     _authClient = null;
-    final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_tokenKey);
+    await _secureStorage.delete(key: _tokenKey);
   }
 
   Future<drive.DriveApi> _getDriveApi() async {
