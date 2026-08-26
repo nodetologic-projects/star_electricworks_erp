@@ -20,7 +20,6 @@ import 'package:starelectricerp/core/tax_calculator.dart';
 import 'package:starelectricerp/core/number_to_words.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
 
-
 class _LineItem {
   ItemSourceType type;
   int? linkedId;
@@ -30,9 +29,7 @@ class _LineItem {
   double unitPrice = 0;
   double? gstRate;
 
-  _LineItem({
-    required this.type,
-  });
+  _LineItem({required this.type});
 
   double get lineTotal => qty * unitPrice;
 }
@@ -47,7 +44,7 @@ class InvoiceFormScreen extends ConsumerStatefulWidget {
   final double? prefillAmount;
 
   const InvoiceFormScreen({
-    super.key, 
+    super.key,
     this.invoiceId,
     this.prefillJobId,
     this.prefillType,
@@ -65,19 +62,26 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _hasUnsavedChanges = false;
 
-  
   late InvoiceType _selectedType;
   int? _selectedCustomer;
   final TextEditingController _customerNameController = TextEditingController();
-  final TextEditingController _customerAddressController = TextEditingController();
-  final TextEditingController _customerStateController = TextEditingController();
-  final TextEditingController _customerGstinController = TextEditingController();
-  final TextEditingController _customerPhoneController = TextEditingController();
-  final TextEditingController _customerEmailController = TextEditingController();
-  final TextEditingController _customerVendorCodeController = TextEditingController();
+  final TextEditingController _customerAddressController =
+      TextEditingController();
+  final TextEditingController _customerStateController =
+      TextEditingController();
+  final TextEditingController _customerGstinController =
+      TextEditingController();
+  final TextEditingController _customerPhoneController =
+      TextEditingController();
+  final TextEditingController _customerEmailController =
+      TextEditingController();
+  final TextEditingController _customerVendorCodeController =
+      TextEditingController();
   final TextEditingController _shipToNameController = TextEditingController();
-  final TextEditingController _shipToAddressController = TextEditingController();
-  final TextEditingController _placeOfSupplyController = TextEditingController();
+  final TextEditingController _shipToAddressController =
+      TextEditingController();
+  final TextEditingController _placeOfSupplyController =
+      TextEditingController();
 
   final TextEditingController _poNumberController = TextEditingController();
   final TextEditingController _gpNumberController = TextEditingController();
@@ -87,7 +91,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   int? _paymentTermDays;
   final List<_LineItem> _items = [];
   String _notes = '';
-  
+
   double _discountAmount = 0;
   bool _isDiscountPercentage = false;
   double _deliveryCharge = 0;
@@ -105,11 +109,16 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     } else {
       if (widget.prefillJobId != null) {
         // We prepopulate later when async data loads, for now just add a row
-        _items.add(_LineItem(type: ItemSourceType.motorJob)..linkedId = widget.prefillJobId);
+        _items.add(
+          _LineItem(type: ItemSourceType.motorJob)
+            ..linkedId = widget.prefillJobId,
+        );
       } else {
         final item = _LineItem(type: ItemSourceType.custom);
-        if (widget.prefillDescription != null) item.description = widget.prefillDescription!;
-        if (widget.prefillAmount != null) item.unitPrice = widget.prefillAmount!;
+        if (widget.prefillDescription != null)
+          item.description = widget.prefillDescription!;
+        if (widget.prefillAmount != null)
+          item.unitPrice = widget.prefillAmount!;
         _items.add(item);
       }
     }
@@ -153,11 +162,17 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
     if (!_formKey.currentState!.validate()) return;
     if (_customerNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select or enter a customer/supplier')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select or enter a customer/supplier'),
+        ),
+      );
       return;
     }
     if (_items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add at least one line item')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one line item')),
+      );
       return;
     }
 
@@ -166,7 +181,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     try {
       final repo = ref.read(invoicesRepositoryProvider);
       final custRepo = ref.read(customersRepositoryProvider);
-      
+
       int finalCustomerId = _selectedCustomer ?? 0;
 
       final customerCompanion = CustomersCompanion(
@@ -176,7 +191,11 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         gstin: drift.Value(_customerGstinController.text.trim()),
         phone: drift.Value(_customerPhoneController.text.trim()),
         email: drift.Value(_customerEmailController.text.trim()),
-        vendorCode: drift.Value(_customerVendorCodeController.text.trim().isNotEmpty ? _customerVendorCodeController.text.trim() : null),
+        vendorCode: drift.Value(
+          _customerVendorCodeController.text.trim().isNotEmpty
+              ? _customerVendorCodeController.text.trim()
+              : null,
+        ),
       );
 
       if (_selectedCustomer == null) {
@@ -184,10 +203,19 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         finalCustomerId = await custRepo.insertCustomer(customerCompanion);
       } else {
         // Update existing customer
-        await custRepo.updateCustomer(customerCompanion.copyWith(id: drift.Value(_selectedCustomer!)));
+        await custRepo.updateCustomer(
+          customerCompanion.copyWith(id: drift.Value(_selectedCustomer!)),
+        );
       }
 
-      final inputs = _items.map((i) => InvoiceLineItemInput(lineTotal: i.lineTotal, gstRate: i.gstRate)).toList();
+      final inputs = _items
+          .map(
+            (i) => InvoiceLineItemInput(
+              lineTotal: i.lineTotal,
+              gstRate: i.gstRate,
+            ),
+          )
+          .toList();
       final totals = TaxCalculator.calculate(
         invoiceType: _selectedType,
         items: inputs,
@@ -206,23 +234,30 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       if (duplicate != null) {
         bool shouldProceed = false;
         if (mounted) {
-          shouldProceed = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Possible Duplicate Invoice'),
-              content: Text('A similar invoice for ${_customerNameController.text.trim()} totaling ₹${totals.grandTotal.toStringAsFixed(2)} was created on ${duplicate.invoiceDate.toString().split('.')[0]} (Invoice #${duplicate.invoiceNo}). Continue and create anyway, or cancel?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
+          shouldProceed =
+              await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Possible Duplicate Invoice'),
+                  content: Text(
+                    'A similar invoice for ${_customerNameController.text.trim()} totaling ₹${totals.grandTotal.toStringAsFixed(2)} was created on ${duplicate.invoiceDate.toString().split('.')[0]} (Invoice #${duplicate.invoiceNo}). Continue and create anyway, or cancel?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text(
+                        'Create Anyway',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Create Anyway', style: TextStyle(color: Colors.red)),
-                ),
-              ],
-            ),
-          ) ?? false;
+              ) ??
+              false;
         }
 
         if (!shouldProceed) {
@@ -231,20 +266,23 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         }
       }
 
-
-      final isGoods = _selectedType == InvoiceType.salesTaxInvoice || 
-                      _selectedType == InvoiceType.billOfSupply || 
-                      _selectedType == InvoiceType.deliveryChallan;
+      final isGoods =
+          _selectedType == InvoiceType.salesTaxInvoice ||
+          _selectedType == InvoiceType.billOfSupply ||
+          _selectedType == InvoiceType.deliveryChallan;
       final reqEway = isGoods && totals.grandTotal >= 50000.0;
-      
+
       // We read settings to see if eInvoice is applicable
       final settings = await ref.read(settingsRepositoryProvider).getSettings();
       final hasGst = _customerGstinController.text.trim().isNotEmpty;
-      final isTaxInvoice = _selectedType == InvoiceType.serviceTaxInvoice || _selectedType == InvoiceType.salesTaxInvoice;
+      final isTaxInvoice =
+          _selectedType == InvoiceType.serviceTaxInvoice ||
+          _selectedType == InvoiceType.salesTaxInvoice;
       final reqEinvoice = settings.eInvoiceApplicable && isTaxInvoice && hasGst;
 
       final invoiceCompanion = InvoicesCompanion.insert(
-        invoiceNo: 'PENDING', // Will be overwritten by the repository atomically
+        invoiceNo:
+            'PENDING', // Will be overwritten by the repository atomically
         invoiceType: _selectedType,
         customerId: finalCustomerId,
         invoiceDate: _invoiceDate,
@@ -260,12 +298,28 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         amountInWords: NumberToWords.convert(totals.grandTotal),
         status: InvoiceStatus.draft,
         notes: drift.Value(_notes.trim()),
-        poNumber: drift.Value(_poNumberController.text.trim().isEmpty ? null : _poNumberController.text.trim()),
+        poNumber: drift.Value(
+          _poNumberController.text.trim().isEmpty
+              ? null
+              : _poNumberController.text.trim(),
+        ),
         poDate: drift.Value(_poDate),
         gpNumber: drift.Value(_gpNumberController.text),
-        shipToName: drift.Value(_shipToNameController.text.trim().isNotEmpty ? _shipToNameController.text.trim() : null),
-        shipToAddress: drift.Value(_shipToAddressController.text.trim().isNotEmpty ? _shipToAddressController.text.trim() : null),
-        placeOfSupply: drift.Value(_placeOfSupplyController.text.trim().isNotEmpty ? _placeOfSupplyController.text.trim() : null),
+        shipToName: drift.Value(
+          _shipToNameController.text.trim().isNotEmpty
+              ? _shipToNameController.text.trim()
+              : null,
+        ),
+        shipToAddress: drift.Value(
+          _shipToAddressController.text.trim().isNotEmpty
+              ? _shipToAddressController.text.trim()
+              : null,
+        ),
+        placeOfSupply: drift.Value(
+          _placeOfSupplyController.text.trim().isNotEmpty
+              ? _placeOfSupplyController.text.trim()
+              : null,
+        ),
 
         requiresEWayBill: drift.Value(reqEway),
         requiresEInvoice: drift.Value(reqEinvoice),
@@ -275,10 +329,18 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         return InvoiceItemsCompanion.insert(
           invoiceId: 0, // Placeholder, repo will handle this
           itemSourceType: i.type,
-          motorJobId: drift.Value(i.type == ItemSourceType.motorJob ? i.linkedId : null),
-          copperStockId: drift.Value(i.type == ItemSourceType.copperStock ? i.linkedId : null),
+          motorJobId: drift.Value(
+            i.type == ItemSourceType.motorJob ? i.linkedId : null,
+          ),
+          copperStockId: drift.Value(
+            i.type == ItemSourceType.copperStock ? i.linkedId : null,
+          ),
           description: i.description,
-          hsnCode: drift.Value(i.hsnCode != null && i.hsnCode!.trim().isNotEmpty ? i.hsnCode!.trim() : null),
+          hsnCode: drift.Value(
+            i.hsnCode != null && i.hsnCode!.trim().isNotEmpty
+                ? i.hsnCode!.trim()
+                : null,
+          ),
           qty: drift.Value(i.qty),
           unitPrice: i.unitPrice,
           gstRate: drift.Value(i.gstRate),
@@ -286,7 +348,10 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         );
       }).toList();
 
-      final invoiceId = await repo.createInvoiceWithItems(invoiceCompanion, itemCompanions);
+      final invoiceId = await repo.createInvoiceWithItems(
+        invoiceCompanion,
+        itemCompanions,
+      );
 
       if (widget.sourceQuotationId != null) {
         final quotesRepo = ref.read(quotationsRepositoryProvider);
@@ -294,12 +359,16 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invoice saved successfully!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invoice saved successfully!')),
+        );
         context.go('/invoices');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving invoice: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving invoice: $e')));
       }
     } finally {
       if (mounted) if (mounted) setState(() => _hasUnsavedChanges = false);
@@ -307,8 +376,15 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     }
   }
 
-  Widget _buildLineItemRow(int index, _LineItem item, List<CopperStockData> copperStock, List<MotorJob> motorJobs) {
-    final showGst = _selectedType != InvoiceType.billOfSupply && _selectedType != InvoiceType.deliveryChallan;
+  Widget _buildLineItemRow(
+    int index,
+    _LineItem item,
+    List<CopperStockData> copperStock,
+    List<MotorJob> motorJobs,
+  ) {
+    final showGst =
+        _selectedType != InvoiceType.billOfSupply &&
+        _selectedType != InvoiceType.deliveryChallan;
 
     final rowContent = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,36 +392,60 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         SizedBox(
           width: 250,
           child: item.type == ItemSourceType.motorJob
-            ? AppSelect<int?>(
-                label: 'Select Motor Job',
-                value: item.linkedId,
-                items: motorJobs.map((j) => DropdownMenuItem(value: j.id, child: Text('${j.jobNo} - ${j.motorDescription}', overflow: TextOverflow.ellipsis))).toList(),
-                onChanged: (val) {
-                  final job = motorJobs.firstWhere((j) => j.id == val);
-                  setState(() {
-                    item.linkedId = job.id;
-                    String gpStr = "";
-                    if (job.gpNumber != null && job.gpNumber!.isNotEmpty) {
-                      gpStr += " GP.NO.${job.gpNumber!}";
-                    }
-                    if (job.gpDate != null) {
-                      gpStr += " GP.DATE.${job.gpDate!.day.toString().padLeft(2, '0')}/${job.gpDate!.month.toString().padLeft(2, '0')}/${job.gpDate!.year}";
-                    }
-                    String hpStr = job.hp != null ? " ${job.hp} HP" : "";
-                    String phaseStr = job.phase != null ? " ${job.phase!.name.toUpperCase()}" : "";
-                    item.description = '${job.motorDescription}${hpStr}${phaseStr}$gpStr\n${job.jobDescription}';
-                    item.unitPrice = job.serviceCharge ?? 0;
-                    item.hsnCode = job.sacCode;
-                    item.qty = 1;
-                  });
-                  _recalculate();
-                },
-              )
-            : item.type == ItemSourceType.copperStock
+              ? AppSelect<int?>(
+                  label: 'Select Motor Job',
+                  value: item.linkedId,
+                  items: motorJobs
+                      .map(
+                        (j) => DropdownMenuItem(
+                          value: j.id,
+                          child: Text(
+                            '${j.jobNo} - ${j.motorDescription}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) {
+                    final job = motorJobs.firstWhere((j) => j.id == val);
+                    setState(() {
+                      item.linkedId = job.id;
+                      String gpStr = "";
+                      if (job.gpNumber != null && job.gpNumber!.isNotEmpty) {
+                        gpStr += " GP.NO.${job.gpNumber!}";
+                      }
+                      if (job.gpDate != null) {
+                        gpStr +=
+                            " GP.DATE.${job.gpDate!.day.toString().padLeft(2, '0')}/${job.gpDate!.month.toString().padLeft(2, '0')}/${job.gpDate!.year}";
+                      }
+                      String hpStr = job.hp != null ? " ${job.hp} HP" : "";
+                      String phaseStr = job.phase != null
+                          ? " ${job.phase!.name.toUpperCase()}"
+                          : "";
+                      item.description =
+                          '${job.motorDescription}$hpStr$phaseStr$gpStr\n${job.jobDescription}';
+                      item.unitPrice = job.serviceCharge ?? 0;
+                      item.hsnCode = job.sacCode;
+                      item.qty = 1;
+                    });
+                    _recalculate();
+                  },
+                )
+              : item.type == ItemSourceType.copperStock
               ? AppSelect<int?>(
                   label: 'Select Copper Stock',
                   value: item.linkedId,
-                  items: copperStock.map((c) => DropdownMenuItem(value: c.id, child: Text(c.description, overflow: TextOverflow.ellipsis))).toList(),
+                  items: copperStock
+                      .map(
+                        (c) => DropdownMenuItem(
+                          value: c.id,
+                          child: Text(
+                            c.description,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (val) {
                     final stock = copperStock.firstWhere((c) => c.id == val);
                     setState(() {
@@ -361,7 +461,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               : TextFormField(
                   key: ValueKey('desc_${index}_${item.linkedId}'),
                   initialValue: item.description,
-                  decoration: const InputDecoration(labelText: 'Custom Description'),
+                  decoration: const InputDecoration(
+                    labelText: 'Custom Description',
+                  ),
                   onChanged: (val) => item.description = val,
                 ),
         ),
@@ -384,7 +486,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           width: 150,
           child: TextFormField(
             initialValue: item.unitPrice.toString(),
-            key: ValueKey('price_${index}_${item.linkedId}'), // force rebuild if linkedId changes
+            key: ValueKey(
+              'price_${index}_${item.linkedId}',
+            ), // force rebuild if linkedId changes
             decoration: const InputDecoration(labelText: 'Unit Price'),
             keyboardType: TextInputType.number,
             onChanged: (val) {
@@ -413,7 +517,13 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           width: 150,
           child: Padding(
             padding: const EdgeInsets.only(top: 16.0),
-            child: Text('₹${item.lineTotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16).mono),
+            child: Text(
+              '₹${item.lineTotal.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ).mono,
+            ),
           ),
         ),
         IconButton(
@@ -441,18 +551,36 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, double value, {bool isBold = false}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-        Text('₹${value.toStringAsFixed(2)}', style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal).mono),
-      ],
-    ),
-  );
+  Widget _buildSummaryRow(String label, double value, {bool isBold = false}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            Text(
+              '₹${value.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              ).mono,
+            ),
+          ],
+        ),
+      );
 
-  Widget _buildLeftPane(bool isDesktop, bool showGst, bool isSupplier, AsyncValue<List<CopperStockData>> copperStockAsync, AsyncValue<List<MotorJob>> motorJobsAsync, AsyncValue<List<Customer>> customersAsync) {
+  Widget _buildLeftPane(
+    bool isDesktop,
+    bool showGst,
+    bool isSupplier,
+    AsyncValue<List<CopperStockData>> copperStockAsync,
+    AsyncValue<List<MotorJob>> motorJobsAsync,
+    AsyncValue<List<Customer>> customersAsync,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -466,11 +594,26 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 label: 'Invoice Type *',
                 value: _selectedType,
                 items: const [
-                  DropdownMenuItem(value: InvoiceType.serviceTaxInvoice, child: Text('Service Tax Invoice')),
-                  DropdownMenuItem(value: InvoiceType.salesTaxInvoice, child: Text('Sales Tax Invoice')),
-                  DropdownMenuItem(value: InvoiceType.billOfSupply, child: Text('Bill of Supply')),
-                  DropdownMenuItem(value: InvoiceType.purchaseVoucher, child: Text('Purchase Voucher')),
-                  DropdownMenuItem(value: InvoiceType.deliveryChallan, child: Text('Delivery Challan')),
+                  DropdownMenuItem(
+                    value: InvoiceType.serviceTaxInvoice,
+                    child: Text('Service Tax Invoice'),
+                  ),
+                  DropdownMenuItem(
+                    value: InvoiceType.salesTaxInvoice,
+                    child: Text('Sales Tax Invoice'),
+                  ),
+                  DropdownMenuItem(
+                    value: InvoiceType.billOfSupply,
+                    child: Text('Bill of Supply'),
+                  ),
+                  DropdownMenuItem(
+                    value: InvoiceType.purchaseVoucher,
+                    child: Text('Purchase Voucher'),
+                  ),
+                  DropdownMenuItem(
+                    value: InvoiceType.deliveryChallan,
+                    child: Text('Delivery Challan'),
+                  ),
                 ],
                 onChanged: (val) {
                   if (val != null) {
@@ -478,7 +621,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       _selectedType = val;
                       // Reset items to avoid incorrect gst application when switching types
                       for (var item in _items) {
-                        if (val == InvoiceType.billOfSupply || val == InvoiceType.deliveryChallan) {
+                        if (val == InvoiceType.billOfSupply ||
+                            val == InvoiceType.deliveryChallan) {
                           item.gstRate = null;
                         }
                       }
@@ -493,7 +637,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               child: customersAsync.when(
                 data: (customers) {
                   return Autocomplete<Customer>(
-                    initialValue: TextEditingValue(text: _customerNameController.text),
+                    initialValue: TextEditingValue(
+                      text: _customerNameController.text,
+                    ),
                     optionsBuilder: (TextEditingValue textEditingValue) {
                       final query = textEditingValue.text.toLowerCase().trim();
                       if (query.isEmpty) {
@@ -501,7 +647,10 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       }
                       return customers.where((Customer customer) {
                         // case-insensitive, whitespace-forgiving
-                        final nameMatches = customer.name.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').contains(query.replaceAll(RegExp(r'\s+'), ' '));
+                        final nameMatches = customer.name
+                            .toLowerCase()
+                            .replaceAll(RegExp(r'\s+'), ' ')
+                            .contains(query.replaceAll(RegExp(r'\s+'), ' '));
                         return nameMatches;
                       });
                     },
@@ -515,33 +664,58 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                         _customerGstinController.text = selection.gstin ?? '';
                         _customerPhoneController.text = selection.phone;
                         _customerEmailController.text = selection.email;
-                        _customerVendorCodeController.text = selection.vendorCode ?? '';
-                        _placeOfSupplyController.text = selection.state; // Auto-derive place of supply from state
+                        _customerVendorCodeController.text =
+                            selection.vendorCode ?? '';
+                        _placeOfSupplyController.text = selection
+                            .state; // Auto-derive place of supply from state
                       });
                       _recalculate();
                     },
-                    fieldViewBuilder: (BuildContext context, TextEditingController fieldTextEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
-                      return TextFormField(
-                        controller: fieldTextEditingController,
-                        focusNode: fieldFocusNode,
-                        onChanged: (val) {
-                          _customerNameController.text = val;
-                          if (_selectedCustomer != null) {
-                            final selectedCustObj = customers.firstWhere((c) => c.id == _selectedCustomer, orElse: () => customers.first);
-                            if (selectedCustObj.name != val) {
-                              setState(() => _selectedCustomer = null);
-                            }
-                          }
+                    fieldViewBuilder:
+                        (
+                          BuildContext context,
+                          TextEditingController fieldTextEditingController,
+                          FocusNode fieldFocusNode,
+                          VoidCallback onFieldSubmitted,
+                        ) {
+                          return TextFormField(
+                            controller: fieldTextEditingController,
+                            focusNode: fieldFocusNode,
+                            onChanged: (val) {
+                              _customerNameController.text = val;
+                              if (_selectedCustomer != null) {
+                                final selectedCustObj = customers.firstWhere(
+                                  (c) => c.id == _selectedCustomer,
+                                  orElse: () => customers.first,
+                                );
+                                if (selectedCustObj.name != val) {
+                                  setState(() => _selectedCustomer = null);
+                                }
+                              }
+                            },
+                            decoration: InputDecoration(
+                              labelText: isSupplier
+                                  ? 'Supplier Name *'
+                                  : 'Customer Name *',
+                              suffixIcon:
+                                  _selectedCustomer == null &&
+                                      fieldTextEditingController.text.isNotEmpty
+                                  ? Tooltip(
+                                      message:
+                                          'Will be added as a new customer',
+                                      child: Icon(
+                                        Icons.person_add,
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            validator: (val) =>
+                                val == null || val.trim().isEmpty
+                                ? 'Required'
+                                : null,
+                          );
                         },
-                        decoration: InputDecoration(
-                          labelText: isSupplier ? 'Supplier Name *' : 'Customer Name *',
-                          suffixIcon: _selectedCustomer == null && fieldTextEditingController.text.isNotEmpty 
-                              ? Tooltip(message: 'Will be added as a new customer', child: Icon(Icons.person_add, color: Theme.of(context).primaryColor))
-                              : null,
-                        ),
-                        validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
-                      );
-                    },
                   );
                 },
                 loading: () => const CircularProgressIndicator(),
@@ -560,7 +734,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               child: TextFormField(
                 controller: _customerAddressController,
                 decoration: const InputDecoration(labelText: 'Address *'),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                validator: (val) =>
+                    val == null || val.trim().isEmpty ? 'Required' : null,
               ),
             ),
             SizedBox(
@@ -568,7 +743,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               child: TextFormField(
                 controller: _customerStateController,
                 decoration: const InputDecoration(labelText: 'State *'),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                validator: (val) =>
+                    val == null || val.trim().isEmpty ? 'Required' : null,
               ),
             ),
           ],
@@ -589,27 +765,36 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               width: isDesktop ? 200 : double.infinity,
               child: TextFormField(
                 controller: _customerPhoneController,
-                decoration: const InputDecoration(labelText: 'Phone (Optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Phone (Optional)',
+                ),
               ),
             ),
             SizedBox(
               width: isDesktop ? 200 : double.infinity,
               child: TextFormField(
                 controller: _customerEmailController,
-                decoration: const InputDecoration(labelText: 'Email (Optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Email (Optional)',
+                ),
               ),
             ),
             SizedBox(
               width: isDesktop ? 200 : double.infinity,
               child: TextFormField(
                 controller: _customerVendorCodeController,
-                decoration: const InputDecoration(labelText: 'Vendor Code (Optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Vendor Code (Optional)',
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 24),
-        const Text('Shipping & Supply Details', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text(
+          'Shipping & Supply Details',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 16),
         Wrap(
           spacing: 16,
@@ -619,160 +804,198 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               width: isDesktop ? 300 : double.infinity,
               child: TextFormField(
                 controller: _shipToNameController,
-                decoration: const InputDecoration(labelText: 'Ship To Name (Optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Ship To Name (Optional)',
+                ),
               ),
             ),
             SizedBox(
               width: isDesktop ? 300 : double.infinity,
               child: TextFormField(
                 controller: _shipToAddressController,
-                decoration: const InputDecoration(labelText: 'Ship To Address (Optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Ship To Address (Optional)',
+                ),
               ),
             ),
             SizedBox(
               width: isDesktop ? 200 : double.infinity,
               child: TextFormField(
                 controller: _placeOfSupplyController,
-                decoration: const InputDecoration(labelText: 'Place of Supply (Optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Place of Supply (Optional)',
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 24),
 
-                    const SizedBox(height: 24),
-                    const Text('Invoice Dates & Terms', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _invoiceDate,
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  _invoiceDate = picked;
-                                  if (_paymentTermDays != null) {
-                                    _dueDate = _invoiceDate.add(Duration(days: _paymentTermDays!));
-                                  }
-                                });
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: const InputDecoration(labelText: 'Invoice Date', border: OutlineInputBorder()),
-                              child: Text("${_invoiceDate.day}/${_invoiceDate.month}/${_invoiceDate.year}"),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        if (_selectedType == InvoiceType.serviceTaxInvoice || _selectedType == InvoiceType.salesTaxInvoice || _selectedType == InvoiceType.billOfSupply) ...[
-                          Expanded(
-                            child: AppSelect<int?>(
-                              label: 'Payment Term',
-                              value: _paymentTermDays,
-                              items: const [
-                                DropdownMenuItem(value: null, child: Text('None')),
-                                DropdownMenuItem(value: 5, child: Text('5 days')),
-                                DropdownMenuItem(value: 15, child: Text('15 days')),
-                                DropdownMenuItem(value: 30, child: Text('30 days')),
-                              ],
-                              onChanged: (val) {
-                                setState(() {
-                                  _paymentTermDays = val;
-                                  if (val != null) {
-                                    _dueDate = _invoiceDate.add(Duration(days: val));
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                        ],
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _dueDate ?? _invoiceDate,
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null) {
-                                setState(() => _dueDate = picked);
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: const InputDecoration(labelText: 'Due Date', border: OutlineInputBorder()),
-                              child: Text(_dueDate != null ? "${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}" : 'Select Due Date'),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    const Text('Purchase Order Details (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AppTextField(
-                            label: 'PO Number',
-                            controller: _poNumberController,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _poDate ?? DateTime.now(),
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null) {
-                                setState(() => _poDate = picked);
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: const InputDecoration(
-                                labelText: 'PO Date',
-                                border: OutlineInputBorder(),
-                              ),
-                              child: Text(
-                                _poDate != null ? "${_poDate!.day}/${_poDate!.month}/${_poDate!.year}" : 'Select Date',
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: AppTextField(
-                            label: 'GP Number',
-                            controller: _gpNumberController,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Text('Line Items', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 24),
+        const Text(
+          'Invoice Dates & Terms',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _invoiceDate,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _invoiceDate = picked;
+                      if (_paymentTermDays != null) {
+                        _dueDate = _invoiceDate.add(
+                          Duration(days: _paymentTermDays!),
+                        );
+                      }
+                    });
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Invoice Date',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Text(
+                    "${_invoiceDate.day}/${_invoiceDate.month}/${_invoiceDate.year}",
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            if (_selectedType == InvoiceType.serviceTaxInvoice ||
+                _selectedType == InvoiceType.salesTaxInvoice ||
+                _selectedType == InvoiceType.billOfSupply) ...[
+              Expanded(
+                child: AppSelect<int?>(
+                  label: 'Payment Term',
+                  value: _paymentTermDays,
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('None')),
+                    DropdownMenuItem(value: 5, child: Text('5 days')),
+                    DropdownMenuItem(value: 15, child: Text('15 days')),
+                    DropdownMenuItem(value: 30, child: Text('30 days')),
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _paymentTermDays = val;
+                      if (val != null) {
+                        _dueDate = _invoiceDate.add(Duration(days: val));
+                      }
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+            ],
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _dueDate ?? _invoiceDate,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    setState(() => _dueDate = picked);
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Due Date',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Text(
+                    _dueDate != null
+                        ? "${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}"
+                        : 'Select Due Date',
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'Purchase Order Details (Optional)',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: AppTextField(
+                label: 'PO Number',
+                controller: _poNumberController,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _poDate ?? DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    setState(() => _poDate = picked);
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'PO Date',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Text(
+                    _poDate != null
+                        ? "${_poDate!.day}/${_poDate!.month}/${_poDate!.year}"
+                        : 'Select Date',
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: AppTextField(
+                label: 'GP Number',
+                controller: _gpNumberController,
+              ),
+            ),
+          ],
+        ),
+        const Text(
+          'Line Items',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         copperStockAsync.when(
           data: (copperStock) => motorJobsAsync.when(
             data: (motorJobs) => Column(
               children: _items.asMap().entries.map((entry) {
-                return _buildLineItemRow(entry.key, entry.value, copperStock, motorJobs);
+                return _buildLineItemRow(
+                  entry.key,
+                  entry.value,
+                  copperStock,
+                  motorJobs,
+                );
               }).toList(),
             ),
             loading: () => const CircularProgressIndicator(),
-            error: (e,s) => const Text('Error loading jobs'),
+            error: (e, s) => const Text('Error loading jobs'),
           ),
           loading: () => const CircularProgressIndicator(),
-          error: (e,s) => const Text('Error loading stock'),
+          error: (e, s) => const Text('Error loading stock'),
         ),
         const SizedBox(height: 16),
         Wrap(
@@ -823,10 +1046,13 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Summary',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const Divider(),
             _buildSummaryRow('Subtotal:', totals.subtotal),
-            
+
             // Discount Toggle
             const SizedBox(height: 8),
             const Text('Discount'),
@@ -837,13 +1063,18 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     initialValue: _discountAmount.toString(),
                     keyboardType: TextInputType.number,
                     onChanged: (val) {
-                      setState(() => _discountAmount = double.tryParse(val) ?? 0);
+                      setState(
+                        () => _discountAmount = double.tryParse(val) ?? 0,
+                      );
                     },
                   ),
                 ),
                 const SizedBox(width: 8),
                 ToggleButtons(
-                  isSelected: [_isDiscountPercentage == false, _isDiscountPercentage == true],
+                  isSelected: [
+                    _isDiscountPercentage == false,
+                    _isDiscountPercentage == true,
+                  ],
                   onPressed: (index) {
                     setState(() => _isDiscountPercentage = index == 1);
                   },
@@ -854,10 +1085,14 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             if (totals.discountAmount > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
-                child: _buildSummaryRow('Discount applied:', -totals.discountAmount),
+                child: _buildSummaryRow(
+                  'Discount applied:',
+                  -totals.discountAmount,
+                ),
               ),
-            
-            if (_selectedType == InvoiceType.deliveryChallan || _selectedType == InvoiceType.serviceTaxInvoice) ...[
+
+            if (_selectedType == InvoiceType.deliveryChallan ||
+                _selectedType == InvoiceType.serviceTaxInvoice) ...[
               const SizedBox(height: 16),
               TextFormField(
                 decoration: const InputDecoration(labelText: 'Delivery Charge'),
@@ -868,8 +1103,11 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 },
               ),
             ],
-            
-            if (showGst && (totals.cgstAmount > 0 || totals.sgstAmount > 0 || totals.igstAmount > 0)) ...[
+
+            if (showGst &&
+                (totals.cgstAmount > 0 ||
+                    totals.sgstAmount > 0 ||
+                    totals.igstAmount > 0)) ...[
               const Divider(),
               _buildSummaryRow('IGST:', totals.igstAmount),
               _buildSummaryRow('CGST:', totals.cgstAmount),
@@ -880,7 +1118,10 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             const SizedBox(height: 8),
             Text(
               NumberToWords.convert(totals.grandTotal),
-              style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+              style: const TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.grey,
+              ),
             ),
           ],
         ),
@@ -894,11 +1135,18 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     final copperStockAsync = ref.watch(copperStockStreamProvider);
     final motorJobsAsync = ref.watch(motorJobsStreamProvider);
 
-    final showGst = _selectedType != InvoiceType.billOfSupply && _selectedType != InvoiceType.deliveryChallan;
+    final showGst =
+        _selectedType != InvoiceType.billOfSupply &&
+        _selectedType != InvoiceType.deliveryChallan;
     final isSupplier = _selectedType == InvoiceType.purchaseVoucher;
-    
+
     // Calculate totals for preview
-    final inputs = _items.map((i) => InvoiceLineItemInput(lineTotal: i.lineTotal, gstRate: i.gstRate)).toList();
+    final inputs = _items
+        .map(
+          (i) =>
+              InvoiceLineItemInput(lineTotal: i.lineTotal, gstRate: i.gstRate),
+        )
+        .toList();
     final totals = TaxCalculator.calculate(
       invoiceType: _selectedType,
       items: inputs,
@@ -917,10 +1165,21 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Unsaved Changes'),
-            content: const Text('You have unsaved changes. Are you sure you want to discard them?'),
+            content: const Text(
+              'You have unsaved changes. Are you sure you want to discard them?',
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Discard', style: TextStyle(color: Colors.red))),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Discard',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
             ],
           ),
         );
@@ -929,83 +1188,97 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         }
       },
       child: AppLayout(
-      currentRoute: '/invoices',
-      appBar: AppBar(title: const Text('Invoice Form')),
-      child: Form(
-        key: _formKey,
+        currentRoute: '/invoices',
+        appBar: AppBar(title: const Text('Invoice Form')),
+        child: Form(
+          key: _formKey,
           onChanged: () {
             if (!_hasUnsavedChanges) setState(() => _hasUnsavedChanges = true);
           },
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () => context.go('/invoices'),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'New Invoice',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ],
-                  ),
-                  AppButton(
-                    label: 'Save & Generate',
-                    onPressed: _saveInvoice,
-                    isLoading: _isSaving,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: isDesktop
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          flex: 3,
-                          child: SingleChildScrollView(
-                            child: _buildLeftPane(isDesktop, showGst, isSupplier, copperStockAsync, motorJobsAsync, customersAsync),
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () => context.go('/invoices'),
                         ),
-                        const SizedBox(width: 24),
-                        Expanded(
-                          flex: 1,
-                          child: SingleChildScrollView(
-                            child: _buildRightPane(showGst, totals),
-                          ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'New Invoice',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ],
-                    )
-                  : SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLeftPane(isDesktop, showGst, isSupplier, copperStockAsync, motorJobsAsync, customersAsync),
-                          const SizedBox(height: 24),
-                          _buildRightPane(showGst, totals),
-                        ],
-                      ),
                     ),
-              ),
-            ],
+                    AppButton(
+                      label: 'Save & Generate',
+                      onPressed: _saveInvoice,
+                      isLoading: _isSaving,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Expanded(
+                  child: isDesktop
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: SingleChildScrollView(
+                                child: _buildLeftPane(
+                                  isDesktop,
+                                  showGst,
+                                  isSupplier,
+                                  copperStockAsync,
+                                  motorJobsAsync,
+                                  customersAsync,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              flex: 1,
+                              child: SingleChildScrollView(
+                                child: _buildRightPane(showGst, totals),
+                              ),
+                            ),
+                          ],
+                        )
+                      : SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLeftPane(
+                                isDesktop,
+                                showGst,
+                                isSupplier,
+                                copperStockAsync,
+                                motorJobsAsync,
+                                customersAsync,
+                              ),
+                              const SizedBox(height: 24),
+                              _buildRightPane(showGst, totals),
+                            ],
+                          ),
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 }
