@@ -48,15 +48,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
+        print('DRIFT: onCreate started');
         await m.createAll();
+        print('DRIFT: onCreate finished');
       },
       onUpgrade: (Migrator m, int from, int to) async {
+        print('DRIFT: onUpgrade started from $from to $to');
         if (from == 1) {
           // For dev, just recreate all missing tables. Since we don't know what existed, 
           // we just create all. Drift will ignore if they exist? No, createTable fails if it exists.
@@ -107,9 +110,18 @@ class AppDatabase extends _$AppDatabase {
         if (from < 11) {
           try { await m.addColumn(invoices, invoices.paymentTermDays); } catch (_) {}
         }
+                if (from < 12) {
+          try { await m.addColumn(motorJobs, motorJobs.sacCode); } catch (_) {}
+          try { await m.addColumn(motorJobs, motorJobs.gpNumber); } catch (_) {}
+          try { await m.addColumn(motorJobs, motorJobs.gpDate); } catch (_) {}
+          
+        }
+
       },
       beforeOpen: (details) async {
+        print('DRIFT: beforeOpen started');
         await customStatement('PRAGMA foreign_keys = ON');
+        print('DRIFT: beforeOpen finished');
       },
     );
   }
@@ -117,13 +129,16 @@ class AppDatabase extends _$AppDatabase {
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
+    print('DRIFT: LazyDatabase init started');
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'starelectricerp.sqlite'));
 
     final cachebase = (await getTemporaryDirectory()).path;
     sqlite3.tempDirectory = cachebase;
 
-    return NativeDatabase.createInBackground(file);
+    print('DRIFT: Returning NativeDatabase');
+    print('DRIFT: Using SYNC NativeDatabase');
+    return NativeDatabase(file, logStatements: true);
   });
 }
 

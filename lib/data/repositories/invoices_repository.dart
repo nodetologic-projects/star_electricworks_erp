@@ -154,6 +154,7 @@ class InvoicesRepository {
   }
 
   Future<Map<String, dynamic>> getDashboardStats() async {
+    print('REPO: getDashboardStats started');
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
@@ -180,6 +181,7 @@ class InvoicesRepository {
       pendingAmount += inv.grandTotal;
     }
 
+    print('REPO: getDashboardStats returning');
     return {
       'totalSales': totalSales,
       'gstCollected': gstCollected,

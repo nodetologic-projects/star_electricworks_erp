@@ -20,7 +20,14 @@ final filteredMotorJobsProvider = StreamProvider<List<Map<String, dynamic>>>((re
   final searchQuery = ref.watch(motorJobsSearchQueryProvider);
   final repo = ref.watch(motorJobsRepositoryProvider);
   
-  return repo.watchFilteredMotorJobs(query: searchQuery);
+  print('PROVIDER: Calling watchFilteredMotorJobs');
+  return repo.watchFilteredMotorJobs(query: searchQuery).map((event) {
+    print('PROVIDER: Emitted data with ${event.length} items');
+    return event;
+  }).handleError((e) {
+    print('PROVIDER: Error: $e');
+    throw e;
+  });
 });
 
 final motorJobAutoNumberProvider = FutureProvider<String>((ref) async {

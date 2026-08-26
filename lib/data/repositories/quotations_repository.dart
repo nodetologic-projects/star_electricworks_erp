@@ -25,6 +25,7 @@ class QuotationsRepository {
   QuotationsRepository(this._db);
 
   Future<List<QuotationWithCustomer>> getQuotations() async {
+    print('REPO: getQuotations started');
     final query = _db.select(_db.quotations).join([
       leftOuterJoin(_db.customers, _db.customers.id.equalsExp(_db.quotations.customerId)),
       leftOuterJoin(_db.motorJobs, _db.motorJobs.id.equalsExp(_db.quotations.motorJobId)),
