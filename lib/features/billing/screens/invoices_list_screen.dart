@@ -1,3 +1,5 @@
+import 'package:starelectricerp/data/repositories/invoices_repository.dart';
+import 'package:starelectricerp/data/database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,6 +34,70 @@ class InvoicesListScreen extends ConsumerWidget {
       case InvoiceStatus.paid: return StatusBadgeType.paid;
       case InvoiceStatus.overdue: return StatusBadgeType.overdue;
       case InvoiceStatus.delivered: return StatusBadgeType.dispatched;
+    }
+  }
+
+  
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Invoice invoice) async {
+    bool isDraft = invoice.status == InvoiceStatus.draft;
+    
+    if (isDraft) {
+      final res = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete Draft Invoice?'),
+          content: Text('Are you sure you want to delete ${invoice.invoiceNo}?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('DELETE'),
+            ),
+          ],
+        ),
+      );
+      if (res == true && context.mounted) {
+        await ref.read(invoicesRepositoryProvider).deleteInvoice(invoice.id);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${invoice.invoiceNo} deleted.')));
+      }
+    } else {
+      String typedText = '';
+      final res = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete Finalized Invoice?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Invoice ${invoice.invoiceNo} is not a draft. Deleting it may cause compliance issues.'),
+              const SizedBox(height: 16),
+              const Text('Type "DELETE" below to confirm:'),
+              TextField(
+                autofocus: true,
+                onChanged: (val) => typedText = val,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+              )
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                if (typedText.trim() == 'DELETE') {
+                  Navigator.pop(ctx, true);
+                }
+              },
+              child: const Text('CONFIRM DELETE'),
+            ),
+          ],
+        ),
+      );
+      if (res == true && context.mounted) {
+        await ref.read(invoicesRepositoryProvider).deleteInvoice(invoice.id);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${invoice.invoiceNo} deleted.')));
+      }
     }
   }
 
@@ -120,6 +186,12 @@ class InvoicesListScreen extends ConsumerWidget {
                                     onPressed: () => context.push('/invoices/${invoice.id}'),
                                     icon: const Icon(Icons.visibility, size: 18),
                                     label: const Text('View'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextButton.icon(
+                                    onPressed: () => _confirmDelete(context, ref, invoice),
+                                    icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                                    label: const Text('Delete', style: TextStyle(color: Colors.red)),
                                   ),
                                 ],
                               ),

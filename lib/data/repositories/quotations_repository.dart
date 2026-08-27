@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' as import_drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
@@ -91,5 +92,22 @@ class QuotationsRepository {
       status: const Value(QuotationStatus.converted),
       convertedInvoiceId: Value(invoiceId),
     ));
+  }
+
+  Future<void> deleteQuotation(int id) async {
+    return _db.transaction(() async {
+      final q = await getQuotationById(id);
+      
+      await _db.into(_db.deletedRecordsLog).insert(
+        import_drift.DeletedRecordsLogCompanion.insert(
+          entityType: 'Quotation',
+          entityId: id,
+          deletedAt: DateTime.now().toIso8601String(),
+          snapshot: q.toJsonString(),
+        )
+      );
+
+      await (_db.delete(_db.quotations)..where((t) => t.id.equals(id))).go();
+    });
   }
 }

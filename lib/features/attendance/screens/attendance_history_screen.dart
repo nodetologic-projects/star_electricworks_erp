@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart' as import_intl;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -30,6 +31,31 @@ class _AttendanceHistoryScreenState extends ConsumerState<AttendanceHistoryScree
       setState(() {
         _selectedMonth = DateTime(picked.year, picked.month, 1);
       });
+    }
+  }
+
+
+  Future<void> _confirmDeleteRecord(BuildContext context, AttendanceRecord record) async {
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Record?'),
+        content: Text('Are you sure you want to delete the attendance record for ${import_intl.DateFormat('dd MMM yyyy').format(record.date)}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+    if (res == true && context.mounted) {
+      final db = ProviderScope.containerOf(context, listen: false).read(databaseProvider);
+      await (db.delete(db.attendanceRecords)..where((tbl) => tbl.id.equals(record.id))).go();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record deleted.')));
+      setState(() {});
     }
   }
 
@@ -194,7 +220,17 @@ class _AttendanceHistoryScreenState extends ConsumerState<AttendanceHistoryScree
                             final record = sortedRecords[index];
                             return ListTile(
                               title: Text(DateFormat('EEEE, dd MMM yyyy').format(record.date)),
-                              trailing: Chip(label: Text(record.status.name.toUpperCase())),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Chip(label: Text(record.status.name.toUpperCase())),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () => _confirmDeleteRecord(context, record),
+                                  ),
+                                ],
+                              ),
                             );
                           },
                         ),

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' as import_drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart';
 import 'package:starelectricerp/data/database.dart';
@@ -428,7 +429,28 @@ class InvoicesRepository {
     final invoiceIds = items.map((i) => i.invoiceId).toSet();
     return (_db.select(_db.invoices)..where((tbl) => tbl.id.isIn(invoiceIds))).get();
   }
+
+  Future<void> deleteInvoice(int id) async {
+    return _db.transaction(() async {
+      final invoice = await getInvoiceById(id);
+      
+      await _db.into(_db.deletedRecordsLog).insert(
+        import_drift.DeletedRecordsLogCompanion.insert(
+          entityType: 'Invoice',
+          entityId: id,
+          deletedAt: DateTime.now().toIso8601String(),
+          snapshot: invoice.toJsonString(),
+        )
+      );
+
+      await (_db.delete(_db.invoiceItems)..where((t) => t.invoiceId.equals(id))).go();
+      await (_db.delete(_db.payments)..where((t) => t.invoiceId.equals(id))).go();
+      await (_db.delete(_db.invoices)..where((t) => t.id.equals(id))).go();
+    });
+  }
+
 }
+
 
 class OutstandingSummaryRow {
   final Customer customer;
@@ -475,11 +497,13 @@ class CustomerLedgerResult {
 
 
 
+
 class InvoiceWithCustomer {
   final Invoice invoice;
   final Customer customer;
   InvoiceWithCustomer({required this.invoice, required this.customer});
 }
+
 
 class GstSummaryRow {
   final String month;

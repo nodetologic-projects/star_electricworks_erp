@@ -745,6 +745,21 @@ class $CustomersTable extends Customers
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -756,6 +771,7 @@ class $CustomersTable extends Customers
     email,
     vendorCode,
     createdAt,
+    isActive,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -830,6 +846,12 @@ class $CustomersTable extends Customers
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
     return context;
   }
 
@@ -875,6 +897,10 @@ class $CustomersTable extends Customers
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
     );
   }
 
@@ -894,6 +920,7 @@ class Customer extends DataClass implements Insertable<Customer> {
   final String email;
   final String? vendorCode;
   final DateTime createdAt;
+  final bool isActive;
   const Customer({
     required this.id,
     required this.name,
@@ -904,6 +931,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     required this.email,
     this.vendorCode,
     required this.createdAt,
+    required this.isActive,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -921,6 +949,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       map['vendor_code'] = Variable<String>(vendorCode);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_active'] = Variable<bool>(isActive);
     return map;
   }
 
@@ -939,6 +968,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           ? const Value.absent()
           : Value(vendorCode),
       createdAt: Value(createdAt),
+      isActive: Value(isActive),
     );
   }
 
@@ -957,6 +987,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       email: serializer.fromJson<String>(json['email']),
       vendorCode: serializer.fromJson<String?>(json['vendorCode']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
     );
   }
   @override
@@ -972,6 +1003,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       'email': serializer.toJson<String>(email),
       'vendorCode': serializer.toJson<String?>(vendorCode),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isActive': serializer.toJson<bool>(isActive),
     };
   }
 
@@ -985,6 +1017,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     String? email,
     Value<String?> vendorCode = const Value.absent(),
     DateTime? createdAt,
+    bool? isActive,
   }) => Customer(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -995,6 +1028,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     email: email ?? this.email,
     vendorCode: vendorCode.present ? vendorCode.value : this.vendorCode,
     createdAt: createdAt ?? this.createdAt,
+    isActive: isActive ?? this.isActive,
   );
   Customer copyWithCompanion(CustomersCompanion data) {
     return Customer(
@@ -1009,6 +1043,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           ? data.vendorCode.value
           : this.vendorCode,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
     );
   }
 
@@ -1023,7 +1058,8 @@ class Customer extends DataClass implements Insertable<Customer> {
           ..write('phone: $phone, ')
           ..write('email: $email, ')
           ..write('vendorCode: $vendorCode, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('isActive: $isActive')
           ..write(')'))
         .toString();
   }
@@ -1039,6 +1075,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     email,
     vendorCode,
     createdAt,
+    isActive,
   );
   @override
   bool operator ==(Object other) =>
@@ -1052,7 +1089,8 @@ class Customer extends DataClass implements Insertable<Customer> {
           other.phone == this.phone &&
           other.email == this.email &&
           other.vendorCode == this.vendorCode &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.isActive == this.isActive);
 }
 
 class CustomersCompanion extends UpdateCompanion<Customer> {
@@ -1065,6 +1103,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
   final Value<String> email;
   final Value<String?> vendorCode;
   final Value<DateTime> createdAt;
+  final Value<bool> isActive;
   const CustomersCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -1075,6 +1114,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.email = const Value.absent(),
     this.vendorCode = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.isActive = const Value.absent(),
   });
   CustomersCompanion.insert({
     this.id = const Value.absent(),
@@ -1086,6 +1126,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     required String email,
     this.vendorCode = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.isActive = const Value.absent(),
   }) : name = Value(name),
        address = Value(address),
        state = Value(state),
@@ -1101,6 +1142,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Expression<String>? email,
     Expression<String>? vendorCode,
     Expression<DateTime>? createdAt,
+    Expression<bool>? isActive,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1112,6 +1154,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       if (email != null) 'email': email,
       if (vendorCode != null) 'vendor_code': vendorCode,
       if (createdAt != null) 'created_at': createdAt,
+      if (isActive != null) 'is_active': isActive,
     });
   }
 
@@ -1125,6 +1168,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Value<String>? email,
     Value<String?>? vendorCode,
     Value<DateTime>? createdAt,
+    Value<bool>? isActive,
   }) {
     return CustomersCompanion(
       id: id ?? this.id,
@@ -1136,6 +1180,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       email: email ?? this.email,
       vendorCode: vendorCode ?? this.vendorCode,
       createdAt: createdAt ?? this.createdAt,
+      isActive: isActive ?? this.isActive,
     );
   }
 
@@ -1169,6 +1214,9 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
     return map;
   }
 
@@ -1183,7 +1231,8 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
           ..write('phone: $phone, ')
           ..write('email: $email, ')
           ..write('vendorCode: $vendorCode, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('isActive: $isActive')
           ..write(')'))
         .toString();
   }
@@ -9759,6 +9808,363 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
   }
 }
 
+class $DeletedRecordsLogTable extends DeletedRecordsLog
+    with TableInfo<$DeletedRecordsLogTable, DeletedRecordsLogData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeletedRecordsLogTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<int> entityId = GeneratedColumn<int>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _snapshotMeta = const VerificationMeta(
+    'snapshot',
+  );
+  @override
+  late final GeneratedColumn<String> snapshot = GeneratedColumn<String>(
+    'snapshot',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entityType,
+    entityId,
+    deletedAt,
+    snapshot,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deleted_records_log';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DeletedRecordsLogData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deletedAtMeta);
+    }
+    if (data.containsKey('snapshot')) {
+      context.handle(
+        _snapshotMeta,
+        snapshot.isAcceptableOrUnknown(data['snapshot']!, _snapshotMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_snapshotMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DeletedRecordsLogData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeletedRecordsLogData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+      snapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}snapshot'],
+      )!,
+    );
+  }
+
+  @override
+  $DeletedRecordsLogTable createAlias(String alias) {
+    return $DeletedRecordsLogTable(attachedDatabase, alias);
+  }
+}
+
+class DeletedRecordsLogData extends DataClass
+    implements Insertable<DeletedRecordsLogData> {
+  final int id;
+  final String entityType;
+  final int entityId;
+  final String deletedAt;
+  final String snapshot;
+  const DeletedRecordsLogData({
+    required this.id,
+    required this.entityType,
+    required this.entityId,
+    required this.deletedAt,
+    required this.snapshot,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<int>(entityId);
+    map['deleted_at'] = Variable<String>(deletedAt);
+    map['snapshot'] = Variable<String>(snapshot);
+    return map;
+  }
+
+  DeletedRecordsLogCompanion toCompanion(bool nullToAbsent) {
+    return DeletedRecordsLogCompanion(
+      id: Value(id),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      deletedAt: Value(deletedAt),
+      snapshot: Value(snapshot),
+    );
+  }
+
+  factory DeletedRecordsLogData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeletedRecordsLogData(
+      id: serializer.fromJson<int>(json['id']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<int>(json['entityId']),
+      deletedAt: serializer.fromJson<String>(json['deletedAt']),
+      snapshot: serializer.fromJson<String>(json['snapshot']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<int>(entityId),
+      'deletedAt': serializer.toJson<String>(deletedAt),
+      'snapshot': serializer.toJson<String>(snapshot),
+    };
+  }
+
+  DeletedRecordsLogData copyWith({
+    int? id,
+    String? entityType,
+    int? entityId,
+    String? deletedAt,
+    String? snapshot,
+  }) => DeletedRecordsLogData(
+    id: id ?? this.id,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    deletedAt: deletedAt ?? this.deletedAt,
+    snapshot: snapshot ?? this.snapshot,
+  );
+  DeletedRecordsLogData copyWithCompanion(DeletedRecordsLogCompanion data) {
+    return DeletedRecordsLogData(
+      id: data.id.present ? data.id.value : this.id,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      snapshot: data.snapshot.present ? data.snapshot.value : this.snapshot,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeletedRecordsLogData(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('snapshot: $snapshot')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, entityType, entityId, deletedAt, snapshot);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeletedRecordsLogData &&
+          other.id == this.id &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.deletedAt == this.deletedAt &&
+          other.snapshot == this.snapshot);
+}
+
+class DeletedRecordsLogCompanion
+    extends UpdateCompanion<DeletedRecordsLogData> {
+  final Value<int> id;
+  final Value<String> entityType;
+  final Value<int> entityId;
+  final Value<String> deletedAt;
+  final Value<String> snapshot;
+  const DeletedRecordsLogCompanion({
+    this.id = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.snapshot = const Value.absent(),
+  });
+  DeletedRecordsLogCompanion.insert({
+    this.id = const Value.absent(),
+    required String entityType,
+    required int entityId,
+    required String deletedAt,
+    required String snapshot,
+  }) : entityType = Value(entityType),
+       entityId = Value(entityId),
+       deletedAt = Value(deletedAt),
+       snapshot = Value(snapshot);
+  static Insertable<DeletedRecordsLogData> custom({
+    Expression<int>? id,
+    Expression<String>? entityType,
+    Expression<int>? entityId,
+    Expression<String>? deletedAt,
+    Expression<String>? snapshot,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (snapshot != null) 'snapshot': snapshot,
+    });
+  }
+
+  DeletedRecordsLogCompanion copyWith({
+    Value<int>? id,
+    Value<String>? entityType,
+    Value<int>? entityId,
+    Value<String>? deletedAt,
+    Value<String>? snapshot,
+  }) {
+    return DeletedRecordsLogCompanion(
+      id: id ?? this.id,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      deletedAt: deletedAt ?? this.deletedAt,
+      snapshot: snapshot ?? this.snapshot,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<int>(entityId.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (snapshot.present) {
+      map['snapshot'] = Variable<String>(snapshot.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeletedRecordsLogCompanion(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('snapshot: $snapshot')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -9783,6 +10189,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $PaymentsTable payments = $PaymentsTable(this);
   late final $QuotationsTable quotations = $QuotationsTable(this);
+  late final $DeletedRecordsLogTable deletedRecordsLog =
+      $DeletedRecordsLogTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9803,6 +10211,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     cashTransactions,
     payments,
     quotations,
+    deletedRecordsLog,
   ];
 }
 
@@ -10121,6 +10530,7 @@ typedef $$CustomersTableCreateCompanionBuilder =
       required String email,
       Value<String?> vendorCode,
       Value<DateTime> createdAt,
+      Value<bool> isActive,
     });
 typedef $$CustomersTableUpdateCompanionBuilder =
     CustomersCompanion Function({
@@ -10133,6 +10543,7 @@ typedef $$CustomersTableUpdateCompanionBuilder =
       Value<String> email,
       Value<String?> vendorCode,
       Value<DateTime> createdAt,
+      Value<bool> isActive,
     });
 
 final class $$CustomersTableReferences
@@ -10246,6 +10657,11 @@ class $$CustomersTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10378,6 +10794,11 @@ class $$CustomersTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CustomersTableAnnotationComposer
@@ -10417,6 +10838,9 @@ class $$CustomersTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
 
   Expression<T> motorJobsRefs<T extends Object>(
     Expression<T> Function($$MotorJobsTableAnnotationComposer a) f,
@@ -10535,6 +10959,7 @@ class $$CustomersTableTableManager
                 Value<String> email = const Value.absent(),
                 Value<String?> vendorCode = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
               }) => CustomersCompanion(
                 id: id,
                 name: name,
@@ -10545,6 +10970,7 @@ class $$CustomersTableTableManager
                 email: email,
                 vendorCode: vendorCode,
                 createdAt: createdAt,
+                isActive: isActive,
               ),
           createCompanionCallback:
               ({
@@ -10557,6 +10983,7 @@ class $$CustomersTableTableManager
                 required String email,
                 Value<String?> vendorCode = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
               }) => CustomersCompanion.insert(
                 id: id,
                 name: name,
@@ -10567,6 +10994,7 @@ class $$CustomersTableTableManager
                 email: email,
                 vendorCode: vendorCode,
                 createdAt: createdAt,
+                isActive: isActive,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -16943,6 +17371,215 @@ typedef $$QuotationsTableProcessedTableManager =
         bool convertedInvoiceId,
       })
     >;
+typedef $$DeletedRecordsLogTableCreateCompanionBuilder =
+    DeletedRecordsLogCompanion Function({
+      Value<int> id,
+      required String entityType,
+      required int entityId,
+      required String deletedAt,
+      required String snapshot,
+    });
+typedef $$DeletedRecordsLogTableUpdateCompanionBuilder =
+    DeletedRecordsLogCompanion Function({
+      Value<int> id,
+      Value<String> entityType,
+      Value<int> entityId,
+      Value<String> deletedAt,
+      Value<String> snapshot,
+    });
+
+class $$DeletedRecordsLogTableFilterComposer
+    extends Composer<_$AppDatabase, $DeletedRecordsLogTable> {
+  $$DeletedRecordsLogTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get snapshot => $composableBuilder(
+    column: $table.snapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DeletedRecordsLogTableOrderingComposer
+    extends Composer<_$AppDatabase, $DeletedRecordsLogTable> {
+  $$DeletedRecordsLogTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get snapshot => $composableBuilder(
+    column: $table.snapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DeletedRecordsLogTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DeletedRecordsLogTable> {
+  $$DeletedRecordsLogTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get snapshot =>
+      $composableBuilder(column: $table.snapshot, builder: (column) => column);
+}
+
+class $$DeletedRecordsLogTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DeletedRecordsLogTable,
+          DeletedRecordsLogData,
+          $$DeletedRecordsLogTableFilterComposer,
+          $$DeletedRecordsLogTableOrderingComposer,
+          $$DeletedRecordsLogTableAnnotationComposer,
+          $$DeletedRecordsLogTableCreateCompanionBuilder,
+          $$DeletedRecordsLogTableUpdateCompanionBuilder,
+          (
+            DeletedRecordsLogData,
+            BaseReferences<
+              _$AppDatabase,
+              $DeletedRecordsLogTable,
+              DeletedRecordsLogData
+            >,
+          ),
+          DeletedRecordsLogData,
+          PrefetchHooks Function()
+        > {
+  $$DeletedRecordsLogTableTableManager(
+    _$AppDatabase db,
+    $DeletedRecordsLogTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeletedRecordsLogTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DeletedRecordsLogTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DeletedRecordsLogTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<int> entityId = const Value.absent(),
+                Value<String> deletedAt = const Value.absent(),
+                Value<String> snapshot = const Value.absent(),
+              }) => DeletedRecordsLogCompanion(
+                id: id,
+                entityType: entityType,
+                entityId: entityId,
+                deletedAt: deletedAt,
+                snapshot: snapshot,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String entityType,
+                required int entityId,
+                required String deletedAt,
+                required String snapshot,
+              }) => DeletedRecordsLogCompanion.insert(
+                id: id,
+                entityType: entityType,
+                entityId: entityId,
+                deletedAt: deletedAt,
+                snapshot: snapshot,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DeletedRecordsLogTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DeletedRecordsLogTable,
+      DeletedRecordsLogData,
+      $$DeletedRecordsLogTableFilterComposer,
+      $$DeletedRecordsLogTableOrderingComposer,
+      $$DeletedRecordsLogTableAnnotationComposer,
+      $$DeletedRecordsLogTableCreateCompanionBuilder,
+      $$DeletedRecordsLogTableUpdateCompanionBuilder,
+      (
+        DeletedRecordsLogData,
+        BaseReferences<
+          _$AppDatabase,
+          $DeletedRecordsLogTable,
+          DeletedRecordsLogData
+        >,
+      ),
+      DeletedRecordsLogData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16977,4 +17614,6 @@ class $AppDatabaseManager {
       $$PaymentsTableTableManager(_db, _db.payments);
   $$QuotationsTableTableManager get quotations =>
       $$QuotationsTableTableManager(_db, _db.quotations);
+  $$DeletedRecordsLogTableTableManager get deletedRecordsLog =>
+      $$DeletedRecordsLogTableTableManager(_db, _db.deletedRecordsLog);
 }

@@ -44,6 +44,46 @@ class QuotationsListScreen extends ConsumerWidget {
     }
   }
 
+  
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, QuotationWithCustomer q) async {
+    String typedText = '';
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Quotation?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Are you sure you want to delete Quotation #${q.quotation.id}? This will permanently remove it.'),
+            const SizedBox(height: 16),
+            const Text('Type "DELETE" below to confirm:'),
+            TextField(
+              autofocus: true,
+              onChanged: (val) => typedText = val,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+            )
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              if (typedText.trim() == 'DELETE') {
+                Navigator.pop(ctx, true);
+              }
+            },
+            child: const Text('CONFIRM DELETE'),
+          ),
+        ],
+      ),
+    );
+    if (res == true && context.mounted) {
+      await ref.read(quotationsRepositoryProvider).deleteQuotation(q.quotation.id);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Quotation #${q.quotation.id} deleted.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listAsync = ref.watch(filteredQuotationsListProvider);
@@ -89,10 +129,20 @@ class QuotationsListScreen extends ConsumerWidget {
                         Text(q.validUntil != null ? DateFormat('dd/MM/yyyy').format(q.validUntil!) : 'N/A'),
                         Text(q.estimatedAmount.toStringAsFixed(2)),
                         StatusBadge(type: _getStatusBadge(q.status)),
-                        OutlinedButton.icon(
-                          onPressed: () => context.push('/quotations/${q.id}'),
-                          icon: const Icon(Icons.remove_red_eye, size: 16),
-                          label: const Text('View'),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => context.push('/quotations/${q.id}'),
+                              icon: const Icon(Icons.remove_red_eye, size: 16),
+                              label: const Text('View'),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: () => _confirmDelete(context, ref, item),
+                              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                            ),
+                          ],
                         ),
                       ];
                     },

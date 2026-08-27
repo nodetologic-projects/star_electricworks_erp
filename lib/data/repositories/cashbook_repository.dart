@@ -72,4 +72,8 @@ class CashbookRepository {
       'netBalance': totalIncome - totalExpense,
     };
   }
+
+  Future<void> deleteCashTransaction(int id) async {
+    await (_db.delete(_db.cashTransactions)..where((t) => t.id.equals(id))).go();
+  }
 }

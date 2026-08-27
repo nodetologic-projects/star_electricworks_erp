@@ -23,6 +23,7 @@ import 'package:starelectricerp/data/tables/cash_categories.dart';
 import 'package:starelectricerp/data/tables/cash_transactions.dart';
 import 'package:starelectricerp/data/tables/payments.dart';
 import 'package:starelectricerp/data/tables/quotations.dart';
+import 'package:starelectricerp/data/tables/deleted_records_log.dart';
 import 'package:starelectricerp/core/financial_year.dart';
 
 part 'database.g.dart';
@@ -43,12 +44,13 @@ part 'database.g.dart';
   CashTransactions,
   Payments,
   Quotations,
+  DeletedRecordsLog,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration {

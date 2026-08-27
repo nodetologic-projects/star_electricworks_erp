@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' as import_drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart';
 import 'package:starelectricerp/data/database.dart';
@@ -61,5 +62,25 @@ class MotorJobsRepository {
 
   Future<int> deleteMotorJob(int id) {
     return (_db.delete(_db.motorJobs)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<void> deleteMotorJob(int id) async {
+    return _db.transaction(() async {
+      // Create snapshot
+      final job = await getMotorJobById(id);
+      
+      // Delete referenced records if any, but MotorJobs don't have items table, it's just the MotorJob.
+      // Insert to log
+      await _db.into(_db.deletedRecordsLog).insert(
+        import_drift.DeletedRecordsLogCompanion.insert(
+          entityType: 'MotorJob',
+          entityId: id,
+          deletedAt: DateTime.now().toIso8601String(),
+          snapshot: job.toJsonString(),
+        )
+      );
+
+      await (_db.delete(_db.motorJobs)..where((t) => t.id.equals(id))).go();
+    });
   }
 }

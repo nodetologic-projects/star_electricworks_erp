@@ -10,4 +10,5 @@ class Customers extends Table {
   TextColumn get email => text()();
   TextColumn get vendorCode => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 }
