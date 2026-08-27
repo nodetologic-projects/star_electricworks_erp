@@ -84,6 +84,33 @@ class InvoicesRepository {
       int nextNumber = 1;
       if (currentSeq != null) {
         nextNumber = currentSeq.lastNumber + 1;
+      }
+      
+      String newInvoiceNo = '';
+      bool isUnique = false;
+      int attempts = 0;
+      
+      // Safeguard: Advance sequence if duplicate exists
+      while (!isUnique && attempts < 10) {
+        final rolloverLabel = FinancialYear.getRolloverLabel(label, nextNumber);
+        final displayNum = ((nextNumber - 1) % 5000) + 1;
+        newInvoiceNo = '$prefix-$rolloverLabel${displayNum.toString().padLeft(4, '0')}';
+        
+        final existing = await (_db.select(_db.invoices)..where((t) => t.invoiceNo.equals(newInvoiceNo))).getSingleOrNull();
+        if (existing == null) {
+          isUnique = true;
+        } else {
+          nextNumber++;
+          attempts++;
+        }
+      }
+      
+      if (!isUnique) {
+        throw Exception("Failed to generate a unique invoice number. Too many collisions.");
+      }
+
+      // Persist the safely incremented number
+      if (currentSeq != null) {
         await (_db.update(_db.financialYearSequence)..where((t) => t.id.equals(currentSeq.id)))
             .write(FinancialYearSequenceCompanion(lastNumber: Value(nextNumber)));
       } else {
@@ -95,8 +122,6 @@ class InvoicesRepository {
           )
         );
       }
-      
-      final newInvoiceNo = '$prefix-${FinancialYear.getRolloverLabel(label, nextNumber)}';
       
       final finalInvoice = invoice.copyWith(invoiceNo: Value(newInvoiceNo));
       final invoiceId = await _db.into(_db.invoices).insert(finalInvoice);
