@@ -10,18 +10,25 @@ using iText.Kernel.Geom;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 using Org.BouncyCastle.Security;
+using iText.Bouncycastle.Crypto;
+using iText.Bouncycastleconnector;
+using iText.Bouncycastle.X509;
+using iText.Commons.Bouncycastle.Cert;
+using iText.Commons.Bouncycastle.Crypto;
 
-namespace PdfSigner
+namespace InvoicePdfSigner
 {
     // A wrapper implementing IExternalSignature using Pkcs11Interop
     public class Pkcs11Signature : IExternalSignature
     {
+        private readonly Pkcs11InteropFactories _factories;
         private readonly ISession _session;
         private readonly IObjectHandle _privateKey;
         private readonly string _hashAlgorithm;
 
-        public Pkcs11Signature(ISession session, IObjectHandle privateKey, string hashAlgorithm)
+        public Pkcs11Signature(Pkcs11InteropFactories factories, ISession session, IObjectHandle privateKey, string hashAlgorithm)
         {
+            _factories = factories;
             _session = session;
             _privateKey = privateKey;
             _hashAlgorithm = hashAlgorithm;
@@ -55,7 +62,7 @@ namespace PdfSigner
         public byte[] Sign(byte[] message)
         {
             // For RSA SHA-256, we use Mechanism CKM_RSA_PKCS
-            var mechanism = new Mechanism(CKM.CKM_RSA_PKCS);
+            var mechanism = _factories.MechanismFactory.Create(CKM.CKM_RSA_PKCS);
             
             // Note: iText passes the hash of the document, not the document itself!
             // Wait, iText's Sign method usually receives the raw hash (if using detached).
@@ -137,10 +144,16 @@ namespace PdfSigner
 
                 AsymmetricKeyEntry pk = pkcs12Store.GetKey(alias);
                 X509CertificateEntry[] ce = pkcs12Store.GetCertificateChain(alias);
-                X509Certificate[] chain = new X509Certificate[ce.Length];
-                for (int k = 0; k < ce.Length; ++k) chain[k] = ce[k].Certificate;
+                IX509Certificate[] chain = new IX509Certificate[ce.Length];
+                for (int k = 0; k < ce.Length; ++k) chain[k] = new X509CertificateBC(ce[k].Certificate);
 
-                ApplySignature(inputPdf, outputPdf, chain, new PrivateKeySignature(pk.Key, DigestAlgorithms.SHA256));
+                string commonName = "Authorized Signatory";
+                try {
+                    foreach (var part in ce[0].Certificate.SubjectDN.ToString().Split(',')) {
+                        if (part.Trim().StartsWith("CN=")) { commonName = part.Trim().Substring(3); break; }
+                    }
+                } catch { }
+                ApplySignature(inputPdf, outputPdf, chain, new PrivateKeySignature(new PrivateKeyBC(pk.Key), DigestAlgorithms.SHA256), commonName);
                 return 0;
             }
             catch (IOException ex)
@@ -216,10 +229,16 @@ namespace PdfSigner
                         var parser = new X509CertificateParser();
                         X509Certificate certificate = parser.ReadCertificate(certBytes);
 
-                        X509Certificate[] chain = new X509Certificate[] { certificate };
-                        IExternalSignature signature = new Pkcs11Signature(session, privateKey, DigestAlgorithms.SHA256);
+                        IX509Certificate[] chain = new IX509Certificate[] { new X509CertificateBC(certificate) };
+                        IExternalSignature signature = new Pkcs11Signature(factories, session, privateKey, DigestAlgorithms.SHA256);
 
-                        ApplySignature(inputPdf, outputPdf, chain, signature);
+                        string commonName = "Authorized Signatory";
+                        try {
+                            foreach (var part in certificate.SubjectDN.ToString().Split(',')) {
+                                if (part.Trim().StartsWith("CN=")) { commonName = part.Trim().Substring(3); break; }
+                            }
+                        } catch { }
+                        ApplySignature(inputPdf, outputPdf, chain, signature, commonName);
                         
                         session.Logout();
                     }
@@ -234,24 +253,15 @@ namespace PdfSigner
             }
         }
 
-        static void ApplySignature(string inputPdf, string outputPdf, X509Certificate[] chain, IExternalSignature signature)
+        static void ApplySignature(string inputPdf, string outputPdf, IX509Certificate[] chain, IExternalSignature signature, string commonName)
         {
-            string commonName = "Authorized Signatory";
-            var subjectParts = chain[0].SubjectDN.ToString().Split(',');
-            foreach (var part in subjectParts)
-            {
-                if (part.Trim().StartsWith("CN="))
-                {
-                    commonName = part.Trim().Substring(3);
-                    break;
-                }
-            }
+
 
             using (PdfReader reader = new PdfReader(inputPdf))
             using (FileStream os = new FileStream(outputPdf, FileMode.Create))
             {
                 PdfSigner signer = new PdfSigner(reader, os, new StampingProperties());
-                int lastPage = reader.GetNumberOfPages();
+                int lastPage = signer.GetDocument().GetNumberOfPages();
                 Rectangle rect = new Rectangle(400, 50, 150, 50);
 
                 PdfSignatureAppearance appearance = signer.GetSignatureAppearance();
