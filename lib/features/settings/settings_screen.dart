@@ -31,7 +31,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _storage = const FlutterSecureStorage();
   final _passwordController = TextEditingController();
-  final _dllController = TextEditingController(text: r'C:\Windows\System32\eps2003csp11.dll');
+  final _dllController = TextEditingController(text: r'C:\Windows\System32\SignatureP11.dll');
   String? _selectedPfxPath;
   DscSigningMethod _signingMethod = DscSigningMethod.fileBased;
   bool _eInvoiceApplicable = false;
@@ -257,9 +257,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ] else ...[
                             SizedBox(
                               width: 400,
-                              child: AppTextField(
-                                label: 'PKCS#11 Driver DLL Path',
-                                controller: _dllController,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  AppTextField(
+                                    label: 'PKCS#11 Driver DLL Path',
+                                    controller: _dllController,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Presets: C:\\Windows\\System32\\SignatureP11.dll (ProxKey), eps2003csp11.dll (ePass2003), eTPKCS11.dll (SafeNet)',
+                                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
