@@ -174,7 +174,7 @@ namespace InvoicePdfSigner
             {
                 if (!File.Exists(dllPath))
                 {
-                    Console.WriteLine("DLL not found: " + dllPath);
+                    Console.WriteLine("DLL not found at: " + dllPath + ". Please check if the path is correct in Settings, and ensure you have installed the correct 64-bit/32-bit drivers for your token.");
                     return 4; // DLL not found
                 }
 
@@ -190,7 +190,7 @@ namespace InvoicePdfSigner
 
                     if (tokenSlot == null)
                     {
-                        Console.WriteLine("No token found.");
+                        Console.WriteLine("No USB token found. Please ensure the token is plugged in and recognized by the system.");
                         return 6; // Hardware Error (No token)
                     }
 
@@ -202,7 +202,7 @@ namespace InvoicePdfSigner
                         }
                         catch (Pkcs11Exception ex) when (ex.RV == CKR.CKR_PIN_INCORRECT)
                         {
-                            Console.WriteLine("Incorrect PIN.");
+                            Console.WriteLine("Incorrect PIN entered for the USB token.");
                             return 5; // Incorrect PIN
                         }
 
@@ -248,7 +248,7 @@ namespace InvoicePdfSigner
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Hardware Token Error: " + ex.ToString());
+                Console.WriteLine("Hardware/Token Error: " + ex.Message + " | Details: " + ex.ToString());
                 return 6; // Generic hardware/PKCS#11 error
             }
         }

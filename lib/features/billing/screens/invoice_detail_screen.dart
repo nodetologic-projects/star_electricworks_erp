@@ -169,7 +169,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
         );
       }
 
-      final result = method == DscSigningMethod.usbToken 
+      final error = method == DscSigningMethod.usbToken 
         ? await DscSigner.signPdfToken(
             inputPdfPath: inputPdf.path,
             outputPdfPath: outputPdf.path,
@@ -187,17 +187,26 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
 
       if (!context.mounted) return;
 
-      if (result == 0) {
+      if (error == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Signed successfully! Saved to: ${outputPdf.path}')),
         );
-      } else if (result == -1) {
+      } else if (error == 'UnsupportedPlatform') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Signing is only supported on Windows. Proceeded with unsigned draft.')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Signing failed with exit code: $result (Check hardware token or credentials)')),
+          SnackBar(
+            content: Text('Signing failed: $error'),
+            duration: const Duration(seconds: 10),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
         );
       }
     } catch (e) {

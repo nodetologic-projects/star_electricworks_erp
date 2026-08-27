@@ -4,14 +4,14 @@ import 'package:path/path.dart' as p;
 class DscSigner {
   /// Signs a PDF using the bundled C# helper on Windows.
   /// Returns a status code where 0 is success.
-  static Future<int> signPdf({
+  static Future<String?> signPdf({
     required String inputPdfPath,
     required String outputPdfPath,
     required String certPath,
     required String password,
   }) async {
     if (!Platform.isWindows) {
-      return -1; // -1 indicates unsupported platform
+      return 'UnsupportedPlatform'; // -1 indicates unsupported platform
     }
 
     try {
@@ -29,31 +29,32 @@ class DscSigner {
       final String targetExe = File(helperPath).existsSync() ? helperPath : devHelperPath;
 
       if (!File(targetExe).existsSync()) {
-        return -2; // -2 indicates helper not found
+        return 'Helper executable not found at: \$targetExe'; // -2 indicates helper not found
       }
 
       final result = await Process.run(
         targetExe,
         ['file', inputPdfPath, outputPdfPath, certPath, password],
       );
-      if (result.stderr.toString().isNotEmpty) {
-      }
 
-      return result.exitCode;
+      if (result.exitCode != 0) {
+        return 'Exit code ${result.exitCode}: ${result.stdout.toString().trim()} ${result.stderr.toString().trim()}';
+      }
+      return null;
     } catch (e) {
-      return -3; // -3 indicates unhandled exception
+      return e.toString();
     }
   }
 
   /// Signs a PDF using a PKCS#11 hardware token (e.g., USB Token)
-  static Future<int> signPdfToken({
+  static Future<String?> signPdfToken({
     required String inputPdfPath,
     required String outputPdfPath,
     required String dllPath,
     required String pin,
   }) async {
     if (!Platform.isWindows) {
-      return -1;
+      return 'UnsupportedPlatform';
     }
 
     try {
@@ -64,19 +65,20 @@ class DscSigner {
       final String targetExe = File(helperPath).existsSync() ? helperPath : devHelperPath;
 
       if (!File(targetExe).existsSync()) {
-        return -2;
+        return 'Helper executable not found at: \$targetExe';
       }
 
       final result = await Process.run(
         targetExe,
         ['token', inputPdfPath, outputPdfPath, dllPath, pin],
       );
-      if (result.stderr.toString().isNotEmpty) {
-      }
 
-      return result.exitCode;
+      if (result.exitCode != 0) {
+        return 'Exit code ${result.exitCode}: ${result.stdout.toString().trim()} ${result.stderr.toString().trim()}';
+      }
+      return null;
     } catch (e) {
-      return -3;
+      return e.toString();
     }
   }
 }
