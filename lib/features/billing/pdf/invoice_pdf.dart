@@ -10,6 +10,7 @@ class InvoicePdfGenerator {
   static const double letterheadTopMarginCm = 5.0;
 
   static Future<Uint8List> generate({
+    List<String> copyLabels = const ['Original for Recipient'],
     required CompanySetting company,
     required Invoice invoice,
     required List<InvoiceItem> items,
@@ -34,7 +35,8 @@ class InvoicePdfGenerator {
     final ByteData bytes = await rootBundle.load('assets/icon/app_icon.png');
     final pw.ImageProvider logoImage = pw.MemoryImage(bytes.buffer.asUint8List());
 
-    pdf.addPage(
+    for (final copyLabel in copyLabels) {
+      pdf.addPage(
       pw.MultiPage(
         pageTheme: pw.PageTheme(
           pageFormat: PdfPageFormat.a4,
@@ -62,7 +64,7 @@ class InvoicePdfGenerator {
           final isDeliveryChallan = invoice.invoiceType == InvoiceType.deliveryChallan;
 
           return [
-            _buildHeaderBlock(company, logoImage, invoice, customer, isPurchase),
+            _buildHeaderBlock(company, logoImage, invoice, customer, isPurchase, copyLabel),
             
             pw.SizedBox(height: 16),
             _buildMetaRow(invoice, isDeliveryChallan, items, monoFont, monoFontBold),
@@ -112,11 +114,12 @@ class InvoicePdfGenerator {
         },
       ),
     );
+    }
 
     return pdf.save();
   }
 
-  static pw.Widget _buildHeaderBlock(CompanySetting company, pw.ImageProvider? logoImage, Invoice invoice, Customer customer, bool isPurchase) {
+  static pw.Widget _buildHeaderBlock(CompanySetting company, pw.ImageProvider? logoImage, Invoice invoice, Customer customer, bool isPurchase, String copyLabel) {
     String typeLabel = 'INVOICE';
     switch (invoice.invoiceType) {
       case InvoiceType.serviceTaxInvoice:
@@ -144,7 +147,7 @@ class InvoicePdfGenerator {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Original for Recipient', style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
+            pw.Text(copyLabel, style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
             pw.Text('$typeLabel ${invoice.invoiceNo}', style: pw.TextStyle(color: PdfColor.fromHex('#501817'), fontSize: 16, fontWeight: pw.FontWeight.bold, letterSpacing: 1.5)),
           ]
         ),

@@ -17,14 +17,24 @@ import 'package:starelectricerp/core/widgets/status_badge.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:intl/intl.dart';
 
-class InvoiceDetailScreen extends ConsumerWidget {
+const _invoiceCopyTypes = ['Original for Recipient', 'Duplicate for Transporter', 'Triplicate for Supplier'];
+
+class InvoiceDetailScreen extends ConsumerStatefulWidget {
   final int invoiceId;
 
   const InvoiceDetailScreen({super.key, required this.invoiceId});
 
+  @override
+  ConsumerState<InvoiceDetailScreen> createState() => _InvoiceDetailScreenState();
+}
+
+class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
+  String _selectedCopyType = 'Original for Recipient';
+
   Future<void> _downloadPdf(BuildContext context, InvoiceDetailData data) async {
     try {
       final bytes = await InvoicePdfGenerator.generate(
+        copyLabels: [_selectedCopyType],
         company: data.companySetting,
         invoice: data.invoice,
         items: data.items,
@@ -130,6 +140,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
       // Generate base PDF
       final bytes = await InvoicePdfGenerator.generate(
+        copyLabels: [_selectedCopyType],
         company: data.companySetting,
         invoice: data.invoice,
         items: data.items,
@@ -199,8 +210,8 @@ class InvoiceDetailScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(invoiceDetailProvider(invoiceId));
+  Widget build(BuildContext context) {
+    final detailAsync = ref.watch(invoiceDetailProvider(widget.invoiceId));
 
     return Scaffold(
       appBar: AppBar(
@@ -267,11 +278,20 @@ class InvoiceDetailScreen extends ConsumerWidget {
                           Text('Balance Due: ₹${(data.invoice.grandTotal - data.payments.fold<double>(0, (s, p) => s + p.amount)).toStringAsFixed(2)}', 
                                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
                           const Spacer(),
+                          DropdownButton<String>(
+                            value: _selectedCopyType,
+                            items: _invoiceCopyTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                            onChanged: (val) {
+                              if (val != null) setState(() => _selectedCopyType = val);
+                            },
+                          ),
+                          const SizedBox(width: 8),
                           ElevatedButton.icon(
                             onPressed: () => DirectPrintService.printPdf(
                               context, 
                               data.invoice.invoiceNo, 
                               fallbackGenerate: () => InvoicePdfGenerator.generate(
+                                copyLabels: [_selectedCopyType],
                                 company: data.companySetting,
                                 invoice: data.invoice,
                                 items: data.items,
@@ -284,9 +304,26 @@ class InvoiceDetailScreen extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
+                            onPressed: () => DirectPrintService.printPdf(
+                              context, 
+                              data.invoice.invoiceNo, 
+                              fallbackGenerate: () => InvoicePdfGenerator.generate(
+                                copyLabels: _invoiceCopyTypes,
+                                company: data.companySetting,
+                                invoice: data.invoice,
+                                items: data.items,
+                                customer: data.customer,
+                                totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
+                              )
+                            ),
+                            icon: const Icon(Icons.print_rounded),
+                            label: const Text('Print All 3 Copies'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
                             onPressed: () => _downloadPdf(context, data),
                             icon: const Icon(Icons.download),
-                            label: const Text('Download/Print Preview'),
+                            label: const Text('Save PDF'),
                           ),
                           const SizedBox(width: 8),
                           FilledButton.icon(
@@ -304,7 +341,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                                 builder: (_) => RecordPaymentDialog(invoice: data.invoice, balanceDue: balance),
                               );
                               if (res == true) {
-                                ref.invalidate(invoiceDetailProvider(invoiceId));
+                                ref.invalidate(invoiceDetailProvider(widget.invoiceId));
                               }
                             },
                             icon: const Icon(Icons.payment),
@@ -334,6 +371,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
               Expanded(
                 child: PdfPreview(
                   build: (format) => InvoicePdfGenerator.generate(
+                    copyLabels: [_selectedCopyType],
                     company: data.companySetting,
                     invoice: data.invoice,
                     items: data.items,
