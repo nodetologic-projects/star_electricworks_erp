@@ -7,6 +7,8 @@ import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:printing/printing.dart';
 
 class InvoicePdfGenerator {
+  static const double letterheadTopMarginCm = 5.0;
+
   static Future<Uint8List> generate({
     required CompanySetting company,
     required Invoice invoice,
@@ -36,11 +38,21 @@ class InvoicePdfGenerator {
       pw.MultiPage(
         pageTheme: pw.PageTheme(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(32),
+          margin: pw.EdgeInsets.only(
+            top: (letterheadTopMarginCm * PdfPageFormat.cm) + 16,
+            left: 32,
+            right: 32,
+            bottom: 32,
+          ),
           buildBackground: (context) => pw.FullPage(
             ignoreMargins: true,
             child: pw.Container(
-              margin: const pw.EdgeInsets.all(16),
+              margin: pw.EdgeInsets.only(
+                top: letterheadTopMarginCm * PdfPageFormat.cm,
+                left: 16,
+                right: 16,
+                bottom: 16,
+              ),
               decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.black, width: 0.5)),
             ),
           ),
@@ -140,36 +152,13 @@ class InvoicePdfGenerator {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Left: Company
-            pw.Expanded(
-              child: pw.Container(
-                height: 140,
-                padding: const pw.EdgeInsets.all(8),
-                decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.black, width: 0.5)),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    if (logoImage != null) pw.Image(logoImage, width: 40, height: 40),
-                    pw.SizedBox(height: 4),
-                    pw.Text(company.companyName, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                    pw.Text(company.address, style: const pw.TextStyle(fontSize: 9)),
-                    pw.Text('Phone: ${company.phone}', style: const pw.TextStyle(fontSize: 9)),
-                    pw.Text('GSTIN: ${company.gstin}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                  ]
-                )
-              )
-            ),
-            // Middle: Bill To
+            // Left: Bill To
             pw.Expanded(
               child: pw.Container(
                 height: 140,
                 padding: const pw.EdgeInsets.all(8),
                 decoration: pw.BoxDecoration(
-                  border: const pw.Border(
-                    top: pw.BorderSide(width: 0.5),
-                    bottom: pw.BorderSide(width: 0.5),
-                    right: pw.BorderSide(width: 0.5),
-                  )
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5)
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
