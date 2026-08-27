@@ -1,3 +1,5 @@
+import 'package:starelectricerp/data/database.dart';
+import 'package:starelectricerp/data/repositories/copper_stock_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +22,7 @@ class CopperStockListScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Stock Item?'),
-        content: Text('This will hide ${stock.stockName} from new selections but keep historical records intact.'),
+        content: Text('This will hide ${stock.description} from new selections but keep historical records intact.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
           FilledButton(
@@ -32,13 +34,13 @@ class CopperStockListScreen extends ConsumerWidget {
       ),
     );
     if (res == true && context.mounted) {
-      await ref.read(copperStockRepositoryProvider).softDeleteCopperStock(stock.id);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${stock.stockName} deleted.')));
+      await ref.read(copperStockRepositoryProvider).safeDeleteCopperStock(stock.id);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${stock.description} deleted.')));
       // no need to refresh manually, riverpod will rebuild stream
     }
   }
 
-  @override
+    @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stockAsync = ref.watch(filteredCopperStockProvider);
 

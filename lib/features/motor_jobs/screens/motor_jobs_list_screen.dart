@@ -48,7 +48,7 @@ class MotorJobsListScreen extends ConsumerWidget {
       ),
     );
     if (res == true && context.mounted) {
-      await ref.read(motorJobsRepositoryProvider).deleteMotorJob(job['id']);
+      await ref.read(motorJobsRepositoryProvider).safeDeleteMotorJob(job['id']);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Job #${job['id']} deleted.')));
     }
   }

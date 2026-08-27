@@ -35,7 +35,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
     if (res == true && context.mounted) {
       final db = ref.read(databaseProvider);
       await (db.update(db.employees)..where((tbl) => tbl.id.equals(employee.id))).write(
-        import_drift.EmployeesCompanion(isActive: import_drift.Value(false)),
+        EmployeesCompanion(isActive: import_drift.Value(false)),
       );
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${employee.name} deleted.')));
     }

@@ -1,3 +1,4 @@
+import 'package:starelectricerp/features/customers/screens/customers_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -154,7 +155,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/customers',
-        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const PlaceholderScreen(title: 'Customers')),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const CustomersListScreen()),
       ),
       GoRoute(
         path: '/attendance',

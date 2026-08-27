@@ -99,11 +99,11 @@ class QuotationsRepository {
       final q = await getQuotationById(id);
       
       await _db.into(_db.deletedRecordsLog).insert(
-        import_drift.DeletedRecordsLogCompanion.insert(
+        DeletedRecordsLogCompanion.insert(
           entityType: 'Quotation',
           entityId: id,
           deletedAt: DateTime.now().toIso8601String(),
-          snapshot: q.toJsonString(),
+          snapshot: q.quotation.toJsonString(),
         )
       );
 

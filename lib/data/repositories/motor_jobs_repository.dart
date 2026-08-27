@@ -64,7 +64,7 @@ class MotorJobsRepository {
     return (_db.delete(_db.motorJobs)..where((t) => t.id.equals(id))).go();
   }
 
-  Future<void> deleteMotorJob(int id) async {
+  Future<void> safeDeleteMotorJob(int id) async {
     return _db.transaction(() async {
       // Create snapshot
       final job = await getMotorJobById(id);
@@ -72,7 +72,7 @@ class MotorJobsRepository {
       // Delete referenced records if any, but MotorJobs don't have items table, it's just the MotorJob.
       // Insert to log
       await _db.into(_db.deletedRecordsLog).insert(
-        import_drift.DeletedRecordsLogCompanion.insert(
+        DeletedRecordsLogCompanion.insert(
           entityType: 'MotorJob',
           entityId: id,
           deletedAt: DateTime.now().toIso8601String(),

@@ -435,7 +435,7 @@ class InvoicesRepository {
       final invoice = await getInvoiceById(id);
       
       await _db.into(_db.deletedRecordsLog).insert(
-        import_drift.DeletedRecordsLogCompanion.insert(
+        DeletedRecordsLogCompanion.insert(
           entityType: 'Invoice',
           entityId: id,
           deletedAt: DateTime.now().toIso8601String(),
