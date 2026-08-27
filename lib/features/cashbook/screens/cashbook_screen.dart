@@ -176,7 +176,7 @@ class _CashbookScreenState extends ConsumerState<CashbookScreen> {
                 
                 // Summary Card
                 FutureBuilder<Map<String, double>>(
-                  future: repo.getSummary(startDate: _startDate, endDate: _endDate, category: _selectedCategory),
+                  future: repo.getSummary(startDate: DateTime(_startDate.year, _startDate.month, _startDate.day), endDate: DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59, 999), category: _selectedCategory),
                   builder: (context, snapshot) {
                     final summary = snapshot.data ?? {'totalIncome': 0.0, 'totalExpense': 0.0, 'netBalance': 0.0};
                     return Row(
@@ -200,7 +200,7 @@ class _CashbookScreenState extends ConsumerState<CashbookScreen> {
           // List
           Expanded(
             child: FutureBuilder<List<CashTransaction>>(
-              future: repo.getTransactions(startDate: _startDate, endDate: _endDate, category: _selectedCategory),
+              future: repo.getTransactions(startDate: DateTime(_startDate.year, _startDate.month, _startDate.day), endDate: DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59, 999), category: _selectedCategory),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
