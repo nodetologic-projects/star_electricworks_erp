@@ -31,8 +31,8 @@ jobs:
         run: |
           cd windows/helpers/pdf_signer
           dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
-          mkdir -p ../../../build/windows/x64/runner/Release/data/flutter_assets/pdf_signer
-          cp publish/pdf_signer.exe ../../../build/windows/x64/runner/Release/data/flutter_assets/pdf_signer/
+          New-Item -ItemType Directory -Force -Path "../../../build/windows/x64/runner/Release/data/flutter_assets/pdf_signer"
+          Copy-Item -Path "publish/pdf_signer.exe" -Destination "../../../build/windows/x64/runner/Release/data/flutter_assets/pdf_signer/" -Force
 
       - name: Get version from tag
         id: get_version
@@ -71,7 +71,7 @@ jobs:
             downloadUrl = "https://github.com/$repo/releases/download/v$version/StarElectricERP-Setup-$version.exe"
             releaseNotes = "View release notes on GitHub."
           }
-          $json | ConvertTo-Json | Out-File version.json
+          $json | ConvertTo-Json | Out-File -Encoding utf8 version.json
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
