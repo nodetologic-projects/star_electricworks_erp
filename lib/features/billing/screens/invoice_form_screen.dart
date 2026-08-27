@@ -1040,12 +1040,36 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   }
 
   Widget _buildRightPane(bool showGst, TaxCalculationResult totals) {
+    final isGoods =
+        _selectedType == InvoiceType.salesTaxInvoice ||
+        _selectedType == InvoiceType.billOfSupply ||
+        _selectedType == InvoiceType.deliveryChallan;
+    final reqEway = isGoods && totals.grandTotal >= 50000.0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (reqEway)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12.0),
+                padding: const EdgeInsets.all(8.0),
+                color: Colors.amber.shade100,
+                child: Row(
+                  children: [
+                    Icon(Icons.local_shipping, color: Colors.amber.shade900, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'This invoice may require an e-Way Bill (goods value ≥ ₹50,000).',
+                        style: TextStyle(color: Colors.amber.shade900, fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const Text(
               'Summary',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
