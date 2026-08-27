@@ -25,6 +25,26 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
   String? _selectedCategory;
   
   bool _isLoading = false;
+  List<CashCategory> _categories = [];
+  bool _isCategoriesLoading = true;
+
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    final repo = ref.read(cashbookRepositoryProvider);
+    final cats = await repo.getCategories();
+    if (mounted) {
+      setState(() {
+        _categories = cats;
+        _isCategoriesLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -60,12 +80,10 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
     if (newCategory != null && mounted) {
       final repo = ref.read(cashbookRepositoryProvider);
       await repo.addCategory(newCategory);
+      await _loadCategories();
       setState(() {
         _selectedCategory = newCategory;
       });
-      // Refresh categories (will be handled by Riverpod provider in actual screen, 
-      // but here we just need it in the dropdown. To keep it simple, we use a FutureBuilder 
-      // or similar, but let's just trigger a rebuild of the FutureBuilder)
     }
   }
 
@@ -140,29 +158,24 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                 },
               ),
               const SizedBox(height: 16),
-              FutureBuilder<List<CashCategory>>(
-                future: repo.getCategories(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const CircularProgressIndicator();
-                  
-                  final cats = snapshot.data!;
-                  return AppSelect<String?>(
-                    label: 'Category',
-                    value: _selectedCategory,
-                    items: [
-                      ...cats.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))),
-                      const DropdownMenuItem(value: '__ADD_NEW__', child: Text('+ Add new category', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-                    ],
-                    onChanged: (val) {
-                      if (val == '__ADD_NEW__') {
-                        _addCategory();
-                      } else {
-                        setState(() => _selectedCategory = val);
-                      }
-                    },
-                  );
-                },
-              ),
+              if (_isCategoriesLoading)
+                const CircularProgressIndicator()
+              else
+                AppSelect<String?>(
+                  label: 'Category',
+                  value: _selectedCategory,
+                  items: [
+                    ..._categories.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))),
+                    const DropdownMenuItem(value: '__ADD_NEW__', child: Text('+ Add new category', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  ],
+                  onChanged: (val) {
+                    if (val == '__ADD_NEW__') {
+                      _addCategory();
+                    } else {
+                      setState(() => _selectedCategory = val);
+                    }
+                  },
+                ),
               const SizedBox(height: 16),
               ListTile(
                 title: const Text('Date'),
