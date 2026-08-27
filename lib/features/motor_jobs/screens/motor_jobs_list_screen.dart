@@ -133,8 +133,9 @@ class MotorJobsListScreen extends ConsumerWidget {
                               Text(job['motorDescription']),
                               StatusBadge(type: badgeType),
                               Text(dateFormatter.format(job['dateReceived'] as DateTime)),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
                                 children: [
                                   IconButton(
                                     icon: const Icon(Icons.edit, size: 18),

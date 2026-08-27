@@ -77,15 +77,15 @@ class CustomersListScreen extends ConsumerWidget {
                         Text(c.phone),
                         Text(c.gstin ?? ''),
                         Text(c.state),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
                           children: [
                             TextButton.icon(
                               onPressed: () => _openCustomerDetail(context, c.id),
                               icon: const Icon(Icons.person, size: 18),
                               label: const Text('Detail'),
                             ),
-                            const SizedBox(width: 8),
                             TextButton.icon(
                               onPressed: () => context.push('/customers/${c.id}/ledger'),
                               icon: const Icon(Icons.account_balance_wallet, size: 18),

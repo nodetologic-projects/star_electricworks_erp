@@ -129,15 +129,15 @@ class QuotationsListScreen extends ConsumerWidget {
                         Text(q.validUntil != null ? DateFormat('dd/MM/yyyy').format(q.validUntil!) : 'N/A'),
                         Text(q.estimatedAmount.toStringAsFixed(2)),
                         StatusBadge(type: _getStatusBadge(q.status)),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
                           children: [
                             OutlinedButton.icon(
                               onPressed: () => context.push('/quotations/${q.id}'),
                               icon: const Icon(Icons.remove_red_eye, size: 16),
                               label: const Text('View'),
                             ),
-                            const SizedBox(width: 8),
                             IconButton(
                               onPressed: () => _confirmDelete(context, ref, item),
                               icon: const Icon(Icons.delete, color: Colors.red, size: 20),

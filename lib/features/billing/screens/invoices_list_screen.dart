@@ -179,15 +179,15 @@ class InvoicesListScreen extends ConsumerWidget {
                               Text('Customer #${invoice.customerId}'), // Will replace with joined query or provider
                               Text('₹${invoice.grandTotal.toStringAsFixed(2)}', style: const TextStyle().mono),
                               StatusBadge(type: _getStatusBadge(invoice.status)),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
                                 children: [
                                   TextButton.icon(
                                     onPressed: () => context.push('/invoices/${invoice.id}'),
                                     icon: const Icon(Icons.visibility, size: 18),
                                     label: const Text('View'),
                                   ),
-                                  const SizedBox(width: 8),
                                   TextButton.icon(
                                     onPressed: () => _confirmDelete(context, ref, invoice),
                                     icon: const Icon(Icons.delete, size: 18, color: Colors.red),
