@@ -32,9 +32,24 @@ namespace PdfSigner
             return _hashAlgorithm;
         }
 
+        public string GetDigestAlgorithmName()
+        {
+            return _hashAlgorithm;
+        }
+
         public string GetEncryptionAlgorithm()
         {
             return "RSA";
+        }
+
+        public string GetSignatureAlgorithmName()
+        {
+            return "RSA";
+        }
+
+        public ISignatureMechanismParams GetSignatureMechanismParameters()
+        {
+            return null;
         }
 
         public byte[] Sign(byte[] message)
