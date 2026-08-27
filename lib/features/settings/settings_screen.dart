@@ -18,6 +18,7 @@ import 'package:starelectricerp/features/auth/providers/auth_provider.dart';
 import 'package:starelectricerp/data/repositories/settings_repository.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/core/backup/backup_provider.dart';
+import 'package:starelectricerp/core/backup/excel_backup_service.dart';
 import 'package:intl/intl.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
 
@@ -393,6 +394,71 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 32),
 
+                Text('Excel Data Backup', style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Consumer(builder: (context, ref, child) {
+                      final excelBackup = ref.read(excelBackupServiceProvider);
+                      bool isExporting = false;
+
+                      return StatefulBuilder(builder: (context, setLocalState) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Export all your data — Customers, Invoices, Motor Jobs, Copper Stock, '
+                              'Employees, Attendance, Cash Book, Quotations, and Payments — as a single '
+                              'Excel workbook (.xlsx) with one sheet per table. Perfect for manual '
+                              'record-keeping or sharing with an accountant.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 24),
+                            isExporting
+                                ? const Row(
+                                    children: [
+                                      SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                                      SizedBox(width: 12),
+                                      Text('Exporting data, please wait...'),
+                                    ],
+                                  )
+                                : ElevatedButton.icon(
+                                    icon: const Icon(Icons.table_chart),
+                                    label: const Text('Export Full Excel Backup'),
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
+                                    onPressed: () async {
+                                      setLocalState(() => isExporting = true);
+                                      try {
+                                        final path = await excelBackup.exportFullBackup();
+                                        if (context.mounted) {
+                                          if (path != null) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Excel backup saved: $path'), backgroundColor: Colors.green),
+                                            );
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Export cancelled.')),
+                                            );
+                                          }
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
+                                          );
+                                        }
+                                      } finally {
+                                        setLocalState(() => isExporting = false);
+                                      }
+                                    },
+                                  ),
+                          ],
+                        );
+                      });
+                    }),
+                  ),
+                ),
                 Text('Cloud Backup (Google Drive)', style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 16),
                 
