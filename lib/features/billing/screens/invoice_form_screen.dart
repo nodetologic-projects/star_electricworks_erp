@@ -557,17 +557,24 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(
-              '₹${value.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              ).mono,
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                '₹${value.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                ).mono,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
