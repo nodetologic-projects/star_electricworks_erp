@@ -50,7 +50,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration {
@@ -118,6 +118,13 @@ class AppDatabase extends _$AppDatabase {
           try { await m.addColumn(motorJobs, motorJobs.gpDate); } catch (_) {}
           
         }
+
+        if (from < 14) {
+          try { await m.createTable(deletedRecordsLog); } catch (_) {}
+          try { await m.addColumn(customers, customers.isActive); } catch (_) {}
+        }
+
+
 
       },
       beforeOpen: (details) async {
