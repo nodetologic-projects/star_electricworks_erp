@@ -24,6 +24,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Inject Google Credentials
+        run: |
+          New-Item -ItemType Directory -Force -Path "lib/core/config"
+          $Creds = @"
+class GoogleCredentials {
+  static const clientId = '${{ secrets.GOOGLE_CLIENT_ID }}';
+  static const clientSecret = '${{ secrets.GOOGLE_CLIENT_SECRET }}';
+}
+"@
+          $Creds | Out-File -Encoding utf8 lib/core/config/google_credentials.dart
+
       - name: Build Windows release
         run: flutter build windows --release
 
