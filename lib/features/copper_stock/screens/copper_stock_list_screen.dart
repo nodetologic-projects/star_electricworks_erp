@@ -99,12 +99,15 @@ class CopperStockListScreen extends ConsumerWidget {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    '${stock.stockQtyKg.toStringAsFixed(2)} kg',
-                                    style: TextStyle(
-                                      fontWeight: isLowStock ? FontWeight.bold : FontWeight.normal,
-                                      color: isLowStock ? Colors.red.shade700 : null,
-                                    ).mono,
+                                  Flexible(
+                                    child: Text(
+                                      '${stock.stockQtyKg.toStringAsFixed(2)} kg',
+                                      style: TextStyle(
+                                        fontWeight: isLowStock ? FontWeight.bold : FontWeight.normal,
+                                        color: isLowStock ? Colors.red.shade700 : null,
+                                      ).mono,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                   if (isLowStock) ...[
                                     const SizedBox(width: 8),
