@@ -720,7 +720,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             label: 'Save Settings',
                             onPressed: _saveSettings,
                             isLoading: _isLoading,
-                          )
+                          ),
+                          const SizedBox(height: 32),
+                          Center(
+                            child: Text(
+                              'Made by nodetologic IT Solutions By Taiyeb Khumri',
+                              style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),
