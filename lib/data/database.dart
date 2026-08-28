@@ -24,6 +24,7 @@ import 'package:starelectricerp/data/tables/cash_transactions.dart';
 import 'package:starelectricerp/data/tables/payments.dart';
 import 'package:starelectricerp/data/tables/quotations.dart';
 import 'package:starelectricerp/data/tables/deleted_records_log.dart';
+import 'package:starelectricerp/data/tables/purchases.dart';
 import 'package:starelectricerp/core/financial_year.dart';
 
 part 'database.g.dart';
@@ -45,12 +46,13 @@ part 'database.g.dart';
   Payments,
   Quotations,
   DeletedRecordsLog,
+  Purchases,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration {
@@ -127,6 +129,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 16) {
           try { await m.addColumn(companySettings, companySettings.upiId); } catch (_) {}
+        }
+        if (from < 17) {
+          try { await m.createTable(purchases); } catch (_) {}
         }
       },
       beforeOpen: (details) async {

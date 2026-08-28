@@ -9,6 +9,8 @@ import 'package:starelectricerp/features/motor_jobs/screens/motor_jobs_list_scre
 import 'package:starelectricerp/features/motor_jobs/screens/motor_job_form_screen.dart';
 import 'package:starelectricerp/features/motor_jobs/screens/motor_job_detail_screen.dart';
 import 'package:starelectricerp/features/copper_stock/screens/copper_stock_list_screen.dart';
+import 'package:starelectricerp/features/purchases/screens/purchases_list_screen.dart';
+import 'package:starelectricerp/features/purchases/screens/add_purchase_screen.dart';
 import 'package:starelectricerp/features/copper_stock/screens/copper_stock_form_screen.dart';
 import 'package:starelectricerp/features/dashboard/screens/dashboard_screen.dart';
 import 'package:starelectricerp/features/billing/screens/invoices_list_screen.dart';
@@ -172,6 +174,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/cashbook',
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const CashbookScreen()),
+      ),
+      GoRoute(
+        path: '/purchases',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const PurchasesListScreen()),
+      ),
+      GoRoute(
+        path: '/purchases/new',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const AddPurchaseScreen()),
+      ),
+      GoRoute(
+        path: '/purchases',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const PurchasesListScreen()),
+      ),
+      GoRoute(
+        path: '/purchases/new',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const AddPurchaseScreen()),
       ),
       GoRoute(
         path: '/',
