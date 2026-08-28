@@ -11,6 +11,7 @@ class CompanySettings extends Table {
   TextColumn get bankName => text()();
   TextColumn get bankAccountNo => text()();
   TextColumn get bankIfsc => text()();
+  TextColumn get upiId => text().nullable()();
   TextColumn get dscCertPath => text().nullable()();
   TextColumn get dscSigningMethod => textEnum<DscSigningMethod>().nullable()();
   TextColumn get dscPkcs11DllPath => text().nullable()();

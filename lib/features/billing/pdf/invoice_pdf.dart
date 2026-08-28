@@ -109,7 +109,7 @@ class InvoicePdfGenerator {
             ],
             
             pw.SizedBox(height: 24),
-            _buildFooter(company, invoice),
+            _buildFooter(company, invoice, totalPaid),
           ];
         },
       ),
@@ -533,7 +533,7 @@ class InvoicePdfGenerator {
     );
   }
 
-  static pw.Widget _buildFooter(CompanySetting company, Invoice invoice) {
+  static pw.Widget _buildFooter(CompanySetting company, Invoice invoice, double totalPaid) {
     final type = invoice.invoiceType;
     final isPurchase = type == InvoiceType.purchaseVoucher;
     final isDeliveryChallan = type == InvoiceType.deliveryChallan;
@@ -547,10 +547,42 @@ class InvoicePdfGenerator {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               if (!isPurchase && !isDeliveryChallan) ...[
-                pw.Text('Bank Details', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
-                pw.Text('Bank Name: ${company.bankName}', style: const pw.TextStyle(fontSize: 10)),
-                pw.Text('Account No: ${company.bankAccountNo}', style: const pw.TextStyle(fontSize: 10)),
-                pw.Text('IFSC: ${company.bankIfsc}', style: const pw.TextStyle(fontSize: 10)),
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('Bank Details', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                        pw.Text('Bank Name: ${company.bankName}', style: const pw.TextStyle(fontSize: 10)),
+                        pw.Text('Account No: ${company.bankAccountNo}', style: const pw.TextStyle(fontSize: 10)),
+                        pw.Text('IFSC: ${company.bankIfsc}', style: const pw.TextStyle(fontSize: 10)),
+                        if (company.upiId != null && company.upiId!.isNotEmpty)
+                          pw.Text('UPI ID: ${company.upiId}', style: const pw.TextStyle(fontSize: 10)),
+                      ],
+                    ),
+                    if (company.upiId != null && company.upiId!.isNotEmpty && (invoice.grandTotal - totalPaid) > 0) ...[
+                      pw.SizedBox(width: 24),
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
+                        children: [
+                          pw.Container(
+                            width: 60,
+                            height: 60,
+                            child: pw.BarcodeWidget(
+                              barcode: pw.Barcode.qrCode(),
+                              data: 'upi://pay?pa=${company.upiId}&pn=${Uri.encodeComponent(company.companyName)}&am=${(invoice.grandTotal - totalPaid).toStringAsFixed(2)}&cu=INR&tn=${Uri.encodeComponent(invoice.invoiceNo)}',
+                              color: PdfColors.black,
+                              drawText: false,
+                            ),
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.Text('Scan to pay via UPI', style: const pw.TextStyle(fontSize: 8)),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
                 pw.SizedBox(height: 16),
               ],
               if (isBillOfSupply)

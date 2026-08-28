@@ -50,7 +50,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration {
@@ -112,13 +112,11 @@ class AppDatabase extends _$AppDatabase {
         if (from < 11) {
           try { await m.addColumn(invoices, invoices.paymentTermDays); } catch (_) {}
         }
-                if (from < 12) {
+        if (from < 12) {
           try { await m.addColumn(motorJobs, motorJobs.sacCode); } catch (_) {}
           try { await m.addColumn(motorJobs, motorJobs.gpNumber); } catch (_) {}
           try { await m.addColumn(motorJobs, motorJobs.gpDate); } catch (_) {}
-          
         }
-
         if (from < 14) {
           try { await m.createTable(deletedRecordsLog); } catch (_) {}
           try { await m.addColumn(customers, customers.isActive); } catch (_) {}
@@ -127,10 +125,9 @@ class AppDatabase extends _$AppDatabase {
           try { await m.addColumn(invoiceItems, invoiceItems.hsnCode); } catch (_) {}
           try { await m.addColumn(copperStock, copperStock.hsnCode); } catch (_) {}
         }
-
-
-
-
+        if (from < 16) {
+          try { await m.addColumn(companySettings, companySettings.upiId); } catch (_) {}
+        }
       },
       beforeOpen: (details) async {
         print('DRIFT: beforeOpen started');

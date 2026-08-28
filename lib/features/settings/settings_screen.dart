@@ -46,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _bankNameController = TextEditingController();
   final _bankAccountNoController = TextEditingController();
   final _bankIfscController = TextEditingController();
+  final _upiIdController = TextEditingController();
 
   @override
   void initState() {
@@ -68,6 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _bankNameController.text = settings.bankName;
         _bankAccountNoController.text = settings.bankAccountNo;
         _bankIfscController.text = settings.bankIfsc;
+        _upiIdController.text = settings.upiId ?? '';
         
         _selectedPfxPath = settings.dscCertPath;
         _signingMethod = settings.dscSigningMethod ?? DscSigningMethod.fileBased;
@@ -117,6 +119,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         bankName: drift.Value(_bankNameController.text),
         bankAccountNo: drift.Value(_bankAccountNoController.text),
         bankIfsc: drift.Value(_bankIfscController.text),
+        upiId: drift.Value(_upiIdController.text.trim().isEmpty ? null : _upiIdController.text.trim()),
         dscCertPath: drift.Value(_selectedPfxPath),
         dscSigningMethod: drift.Value(_signingMethod),
         dscPkcs11DllPath: drift.Value(_dllController.text),
@@ -196,6 +199,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               Expanded(child: AppTextField(label: 'Account Number', controller: _bankAccountNoController)),
                               const SizedBox(width: 16),
                               Expanded(child: AppTextField(label: 'IFSC Code', controller: _bankIfscController)),
+                              const SizedBox(width: 16),
+                              Expanded(child: AppTextField(label: 'UPI ID (Optional)', controller: _upiIdController)),
                             ],
                           ),
                         ],
