@@ -22,7 +22,7 @@ class UpdateInfo {
 
 class UpdaterService {
   // CLIENT ACTION REQUIRED: Replace OWNER/REPO with actual repository path
-  static const String _versionUrl = 'https://raw.githubusercontent.com/nodetologic-projects/star_electricworks_erp/main/version.json';
+  static const String _versionUrl = 'https://www.nodetologic.com/version.json';
 
   Future<UpdateInfo?> checkForUpdates() async {
     try {
