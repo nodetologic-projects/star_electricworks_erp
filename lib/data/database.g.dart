@@ -5814,6 +5814,15 @@ class $CompanySettingsTable extends CompanySettings
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _upiIdMeta = const VerificationMeta('upiId');
+  @override
+  late final GeneratedColumn<String> upiId = GeneratedColumn<String>(
+    'upi_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _dscCertPathMeta = const VerificationMeta(
     'dscCertPath',
   );
@@ -5884,6 +5893,7 @@ class $CompanySettingsTable extends CompanySettings
     bankName,
     bankAccountNo,
     bankIfsc,
+    upiId,
     dscCertPath,
     dscSigningMethod,
     dscPkcs11DllPath,
@@ -5975,6 +5985,12 @@ class $CompanySettingsTable extends CompanySettings
     } else if (isInserting) {
       context.missing(_bankIfscMeta);
     }
+    if (data.containsKey('upi_id')) {
+      context.handle(
+        _upiIdMeta,
+        upiId.isAcceptableOrUnknown(data['upi_id']!, _upiIdMeta),
+      );
+    }
     if (data.containsKey('dsc_cert_path')) {
       context.handle(
         _dscCertPathMeta,
@@ -6053,6 +6069,10 @@ class $CompanySettingsTable extends CompanySettings
         DriftSqlType.string,
         data['${effectivePrefix}bank_ifsc'],
       )!,
+      upiId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}upi_id'],
+      ),
       dscCertPath: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}dsc_cert_path'],
@@ -6104,6 +6124,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
   final String bankName;
   final String bankAccountNo;
   final String bankIfsc;
+  final String? upiId;
   final String? dscCertPath;
   final DscSigningMethod? dscSigningMethod;
   final String? dscPkcs11DllPath;
@@ -6119,6 +6140,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     required this.bankName,
     required this.bankAccountNo,
     required this.bankIfsc,
+    this.upiId,
     this.dscCertPath,
     this.dscSigningMethod,
     this.dscPkcs11DllPath,
@@ -6137,6 +6159,9 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     map['bank_name'] = Variable<String>(bankName);
     map['bank_account_no'] = Variable<String>(bankAccountNo);
     map['bank_ifsc'] = Variable<String>(bankIfsc);
+    if (!nullToAbsent || upiId != null) {
+      map['upi_id'] = Variable<String>(upiId);
+    }
     if (!nullToAbsent || dscCertPath != null) {
       map['dsc_cert_path'] = Variable<String>(dscCertPath);
     }
@@ -6168,6 +6193,9 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       bankName: Value(bankName),
       bankAccountNo: Value(bankAccountNo),
       bankIfsc: Value(bankIfsc),
+      upiId: upiId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(upiId),
       dscCertPath: dscCertPath == null && nullToAbsent
           ? const Value.absent()
           : Value(dscCertPath),
@@ -6199,6 +6227,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       bankName: serializer.fromJson<String>(json['bankName']),
       bankAccountNo: serializer.fromJson<String>(json['bankAccountNo']),
       bankIfsc: serializer.fromJson<String>(json['bankIfsc']),
+      upiId: serializer.fromJson<String?>(json['upiId']),
       dscCertPath: serializer.fromJson<String?>(json['dscCertPath']),
       dscSigningMethod: $CompanySettingsTable.$converterdscSigningMethodn
           .fromJson(serializer.fromJson<String?>(json['dscSigningMethod'])),
@@ -6220,6 +6249,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       'bankName': serializer.toJson<String>(bankName),
       'bankAccountNo': serializer.toJson<String>(bankAccountNo),
       'bankIfsc': serializer.toJson<String>(bankIfsc),
+      'upiId': serializer.toJson<String?>(upiId),
       'dscCertPath': serializer.toJson<String?>(dscCertPath),
       'dscSigningMethod': serializer.toJson<String?>(
         $CompanySettingsTable.$converterdscSigningMethodn.toJson(
@@ -6242,6 +6272,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     String? bankName,
     String? bankAccountNo,
     String? bankIfsc,
+    Value<String?> upiId = const Value.absent(),
     Value<String?> dscCertPath = const Value.absent(),
     Value<DscSigningMethod?> dscSigningMethod = const Value.absent(),
     Value<String?> dscPkcs11DllPath = const Value.absent(),
@@ -6257,6 +6288,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     bankName: bankName ?? this.bankName,
     bankAccountNo: bankAccountNo ?? this.bankAccountNo,
     bankIfsc: bankIfsc ?? this.bankIfsc,
+    upiId: upiId.present ? upiId.value : this.upiId,
     dscCertPath: dscCertPath.present ? dscCertPath.value : this.dscCertPath,
     dscSigningMethod: dscSigningMethod.present
         ? dscSigningMethod.value
@@ -6282,6 +6314,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           ? data.bankAccountNo.value
           : this.bankAccountNo,
       bankIfsc: data.bankIfsc.present ? data.bankIfsc.value : this.bankIfsc,
+      upiId: data.upiId.present ? data.upiId.value : this.upiId,
       dscCertPath: data.dscCertPath.present
           ? data.dscCertPath.value
           : this.dscCertPath,
@@ -6310,6 +6343,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           ..write('bankName: $bankName, ')
           ..write('bankAccountNo: $bankAccountNo, ')
           ..write('bankIfsc: $bankIfsc, ')
+          ..write('upiId: $upiId, ')
           ..write('dscCertPath: $dscCertPath, ')
           ..write('dscSigningMethod: $dscSigningMethod, ')
           ..write('dscPkcs11DllPath: $dscPkcs11DllPath, ')
@@ -6330,6 +6364,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     bankName,
     bankAccountNo,
     bankIfsc,
+    upiId,
     dscCertPath,
     dscSigningMethod,
     dscPkcs11DllPath,
@@ -6349,6 +6384,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           other.bankName == this.bankName &&
           other.bankAccountNo == this.bankAccountNo &&
           other.bankIfsc == this.bankIfsc &&
+          other.upiId == this.upiId &&
           other.dscCertPath == this.dscCertPath &&
           other.dscSigningMethod == this.dscSigningMethod &&
           other.dscPkcs11DllPath == this.dscPkcs11DllPath &&
@@ -6366,6 +6402,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
   final Value<String> bankName;
   final Value<String> bankAccountNo;
   final Value<String> bankIfsc;
+  final Value<String?> upiId;
   final Value<String?> dscCertPath;
   final Value<DscSigningMethod?> dscSigningMethod;
   final Value<String?> dscPkcs11DllPath;
@@ -6381,6 +6418,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     this.bankName = const Value.absent(),
     this.bankAccountNo = const Value.absent(),
     this.bankIfsc = const Value.absent(),
+    this.upiId = const Value.absent(),
     this.dscCertPath = const Value.absent(),
     this.dscSigningMethod = const Value.absent(),
     this.dscPkcs11DllPath = const Value.absent(),
@@ -6397,6 +6435,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     required String bankName,
     required String bankAccountNo,
     required String bankIfsc,
+    this.upiId = const Value.absent(),
     this.dscCertPath = const Value.absent(),
     this.dscSigningMethod = const Value.absent(),
     this.dscPkcs11DllPath = const Value.absent(),
@@ -6420,6 +6459,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     Expression<String>? bankName,
     Expression<String>? bankAccountNo,
     Expression<String>? bankIfsc,
+    Expression<String>? upiId,
     Expression<String>? dscCertPath,
     Expression<String>? dscSigningMethod,
     Expression<String>? dscPkcs11DllPath,
@@ -6436,6 +6476,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
       if (bankName != null) 'bank_name': bankName,
       if (bankAccountNo != null) 'bank_account_no': bankAccountNo,
       if (bankIfsc != null) 'bank_ifsc': bankIfsc,
+      if (upiId != null) 'upi_id': upiId,
       if (dscCertPath != null) 'dsc_cert_path': dscCertPath,
       if (dscSigningMethod != null) 'dsc_signing_method': dscSigningMethod,
       if (dscPkcs11DllPath != null) 'dsc_pkcs11_dll_path': dscPkcs11DllPath,
@@ -6455,6 +6496,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     Value<String>? bankName,
     Value<String>? bankAccountNo,
     Value<String>? bankIfsc,
+    Value<String?>? upiId,
     Value<String?>? dscCertPath,
     Value<DscSigningMethod?>? dscSigningMethod,
     Value<String?>? dscPkcs11DllPath,
@@ -6471,6 +6513,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
       bankName: bankName ?? this.bankName,
       bankAccountNo: bankAccountNo ?? this.bankAccountNo,
       bankIfsc: bankIfsc ?? this.bankIfsc,
+      upiId: upiId ?? this.upiId,
       dscCertPath: dscCertPath ?? this.dscCertPath,
       dscSigningMethod: dscSigningMethod ?? this.dscSigningMethod,
       dscPkcs11DllPath: dscPkcs11DllPath ?? this.dscPkcs11DllPath,
@@ -6509,6 +6552,9 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     if (bankIfsc.present) {
       map['bank_ifsc'] = Variable<String>(bankIfsc.value);
     }
+    if (upiId.present) {
+      map['upi_id'] = Variable<String>(upiId.value);
+    }
     if (dscCertPath.present) {
       map['dsc_cert_path'] = Variable<String>(dscCertPath.value);
     }
@@ -6543,6 +6589,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
           ..write('bankName: $bankName, ')
           ..write('bankAccountNo: $bankAccountNo, ')
           ..write('bankIfsc: $bankIfsc, ')
+          ..write('upiId: $upiId, ')
           ..write('dscCertPath: $dscCertPath, ')
           ..write('dscSigningMethod: $dscSigningMethod, ')
           ..write('dscPkcs11DllPath: $dscPkcs11DllPath, ')
@@ -14660,6 +14707,7 @@ typedef $$CompanySettingsTableCreateCompanionBuilder =
       required String bankName,
       required String bankAccountNo,
       required String bankIfsc,
+      Value<String?> upiId,
       Value<String?> dscCertPath,
       Value<DscSigningMethod?> dscSigningMethod,
       Value<String?> dscPkcs11DllPath,
@@ -14677,6 +14725,7 @@ typedef $$CompanySettingsTableUpdateCompanionBuilder =
       Value<String> bankName,
       Value<String> bankAccountNo,
       Value<String> bankIfsc,
+      Value<String?> upiId,
       Value<String?> dscCertPath,
       Value<DscSigningMethod?> dscSigningMethod,
       Value<String?> dscPkcs11DllPath,
@@ -14735,6 +14784,11 @@ class $$CompanySettingsTableFilterComposer
 
   ColumnFilters<String> get bankIfsc => $composableBuilder(
     column: $table.bankIfsc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get upiId => $composableBuilder(
+    column: $table.upiId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14819,6 +14873,11 @@ class $$CompanySettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get upiId => $composableBuilder(
+    column: $table.upiId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get dscCertPath => $composableBuilder(
     column: $table.dscCertPath,
     builder: (column) => ColumnOrderings(column),
@@ -14884,6 +14943,9 @@ class $$CompanySettingsTableAnnotationComposer
 
   GeneratedColumn<String> get bankIfsc =>
       $composableBuilder(column: $table.bankIfsc, builder: (column) => column);
+
+  GeneratedColumn<String> get upiId =>
+      $composableBuilder(column: $table.upiId, builder: (column) => column);
 
   GeneratedColumn<String> get dscCertPath => $composableBuilder(
     column: $table.dscCertPath,
@@ -14956,6 +15018,7 @@ class $$CompanySettingsTableTableManager
                 Value<String> bankName = const Value.absent(),
                 Value<String> bankAccountNo = const Value.absent(),
                 Value<String> bankIfsc = const Value.absent(),
+                Value<String?> upiId = const Value.absent(),
                 Value<String?> dscCertPath = const Value.absent(),
                 Value<DscSigningMethod?> dscSigningMethod =
                     const Value.absent(),
@@ -14972,6 +15035,7 @@ class $$CompanySettingsTableTableManager
                 bankName: bankName,
                 bankAccountNo: bankAccountNo,
                 bankIfsc: bankIfsc,
+                upiId: upiId,
                 dscCertPath: dscCertPath,
                 dscSigningMethod: dscSigningMethod,
                 dscPkcs11DllPath: dscPkcs11DllPath,
@@ -14989,6 +15053,7 @@ class $$CompanySettingsTableTableManager
                 required String bankName,
                 required String bankAccountNo,
                 required String bankIfsc,
+                Value<String?> upiId = const Value.absent(),
                 Value<String?> dscCertPath = const Value.absent(),
                 Value<DscSigningMethod?> dscSigningMethod =
                     const Value.absent(),
@@ -15005,6 +15070,7 @@ class $$CompanySettingsTableTableManager
                 bankName: bankName,
                 bankAccountNo: bankAccountNo,
                 bankIfsc: bankIfsc,
+                upiId: upiId,
                 dscCertPath: dscCertPath,
                 dscSigningMethod: dscSigningMethod,
                 dscPkcs11DllPath: dscPkcs11DllPath,
