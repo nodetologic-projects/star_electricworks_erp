@@ -9,6 +9,7 @@ import 'package:starelectricerp/core/widgets/status_badge.dart';
 import 'package:starelectricerp/features/dashboard/providers/dashboard_provider.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
+import 'package:starelectricerp/features/copper_stock/screens/stock_adjustment_dialog.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -56,23 +57,46 @@ class DashboardScreen extends ConsumerWidget {
                 border: Border.all(color: Colors.amber.shade300),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.amber.shade700, size: 32),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Low Stock Alert', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900)),
-                        Text('${data.lowStockItems.length} copper items are at or below reorder level.'),
-                      ],
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.amber.shade700, size: 32),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Low Stock Alert', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900)),
+                            Text('${data.lowStockItems.length} copper items are at or below reorder level.'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  AppButton(
-                    label: 'View Stock',
-                    onPressed: () => context.go('/stock'),
-                  ),
+                  const SizedBox(height: 16),
+                  ...data.lowStockItems.map((item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0, left: 48.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item.description} — ${item.stockQtyKg.toStringAsFixed(2)} kg (Reorder at: ${item.reorderLevelKg?.toStringAsFixed(2)} kg)',
+                                style: const TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            AppButton(
+                              label: 'Restock',
+                              onPressed: () => showDialog(
+                                context: context,
+                                builder: (_) => StockAdjustmentDialog(stockId: item.id),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
                 ],
               ),
             ),

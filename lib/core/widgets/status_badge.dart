@@ -46,7 +46,7 @@ class StatusBadge extends StatelessWidget {
         icon = Icons.pie_chart_outline;
         break;
       case StatusBadgeType.lowStock:
-        backgroundColor = AppTheme.errorRed;
+        backgroundColor = AppTheme.warningAmber;
         label = 'Low Stock';
         icon = Icons.warning_amber_rounded;
         break;
