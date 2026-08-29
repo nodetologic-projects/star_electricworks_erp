@@ -598,7 +598,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           child: Padding(
             padding: const EdgeInsets.only(top: 16.0),
             child: Text(
-              '₹${item.lineTotal.toStringAsFixed(2)}',
+              '₹${(showGst ? (item.lineTotal * (1 + ((item.gstRate ?? 0) / 100))) : item.lineTotal).toStringAsFixed(2)}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,

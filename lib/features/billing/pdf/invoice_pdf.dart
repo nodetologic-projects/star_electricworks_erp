@@ -608,7 +608,7 @@ class InvoicePdfGenerator {
       'Qty',
       'Rate',
       if (showGst) 'GST%',
-      'Total',
+      if (showGst) 'Total\n(incl. GST)' else 'Total',
     ];
 
     final data = items.map((item) {
@@ -627,7 +627,7 @@ class InvoicePdfGenerator {
         if (showGst)
           pw.Text('${item.gstRate ?? 0}%', style: pw.TextStyle(font: monoFont)),
         pw.Text(
-          item.lineTotal.toStringAsFixed(2),
+          (showGst ? (item.lineTotal * (1 + (item.gstRate ?? 0) / 100)) : item.lineTotal).toStringAsFixed(2),
           style: pw.TextStyle(font: monoFont),
         ),
       ];
