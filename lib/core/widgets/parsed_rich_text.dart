@@ -36,6 +36,6 @@ class ParsedRichText extends StatelessWidget {
       ));
     }
 
-    return RichText(text: TextSpan(children: spans));
+    return Text.rich(TextSpan(children: spans));
   }
 }
