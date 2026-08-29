@@ -24,6 +24,7 @@ class _LineItem {
   ItemSourceType type;
   int? linkedId;
   String description = '';
+  String? rateRs;
   String? hsnCode;
   double qty = 1;
   double unitPrice = 0;
@@ -525,6 +526,16 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                   ),
                   onChanged: (val) => item.description = val,
                 ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 100,
+          child: TextFormField(
+            key: ValueKey('raters_${index}_${item.linkedId}'),
+            initialValue: item.rateRs ?? '',
+            decoration: const InputDecoration(labelText: 'Rate/RS'),
+            onChanged: (val) => item.rateRs = val,
+          ),
         ),
         const SizedBox(width: 8),
         SizedBox(

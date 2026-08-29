@@ -4633,6 +4633,15 @@ class $InvoiceItemsTable extends InvoiceItems
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _rateRsMeta = const VerificationMeta('rateRs');
+  @override
+  late final GeneratedColumn<String> rateRs = GeneratedColumn<String>(
+    'rate_rs',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _hsnCodeMeta = const VerificationMeta(
     'hsnCode',
   );
@@ -4694,6 +4703,7 @@ class $InvoiceItemsTable extends InvoiceItems
     motorJobId,
     copperStockId,
     description,
+    rateRs,
     hsnCode,
     qty,
     unitPrice,
@@ -4751,6 +4761,12 @@ class $InvoiceItemsTable extends InvoiceItems
       );
     } else if (isInserting) {
       context.missing(_descriptionMeta);
+    }
+    if (data.containsKey('rate_rs')) {
+      context.handle(
+        _rateRsMeta,
+        rateRs.isAcceptableOrUnknown(data['rate_rs']!, _rateRsMeta),
+      );
     }
     if (data.containsKey('hsn_code')) {
       context.handle(
@@ -4821,6 +4837,10 @@ class $InvoiceItemsTable extends InvoiceItems
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       )!,
+      rateRs: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rate_rs'],
+      ),
       hsnCode: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}hsn_code'],
@@ -4862,6 +4882,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
   final int? motorJobId;
   final int? copperStockId;
   final String description;
+  final String? rateRs;
   final String? hsnCode;
   final double? qty;
   final double unitPrice;
@@ -4874,6 +4895,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
     this.motorJobId,
     this.copperStockId,
     required this.description,
+    this.rateRs,
     this.hsnCode,
     this.qty,
     required this.unitPrice,
@@ -4897,6 +4919,9 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
       map['copper_stock_id'] = Variable<int>(copperStockId);
     }
     map['description'] = Variable<String>(description);
+    if (!nullToAbsent || rateRs != null) {
+      map['rate_rs'] = Variable<String>(rateRs);
+    }
     if (!nullToAbsent || hsnCode != null) {
       map['hsn_code'] = Variable<String>(hsnCode);
     }
@@ -4923,6 +4948,9 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
           ? const Value.absent()
           : Value(copperStockId),
       description: Value(description),
+      rateRs: rateRs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rateRs),
       hsnCode: hsnCode == null && nullToAbsent
           ? const Value.absent()
           : Value(hsnCode),
@@ -4949,6 +4977,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
       motorJobId: serializer.fromJson<int?>(json['motorJobId']),
       copperStockId: serializer.fromJson<int?>(json['copperStockId']),
       description: serializer.fromJson<String>(json['description']),
+      rateRs: serializer.fromJson<String?>(json['rateRs']),
       hsnCode: serializer.fromJson<String?>(json['hsnCode']),
       qty: serializer.fromJson<double?>(json['qty']),
       unitPrice: serializer.fromJson<double>(json['unitPrice']),
@@ -4968,6 +4997,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
       'motorJobId': serializer.toJson<int?>(motorJobId),
       'copperStockId': serializer.toJson<int?>(copperStockId),
       'description': serializer.toJson<String>(description),
+      'rateRs': serializer.toJson<String?>(rateRs),
       'hsnCode': serializer.toJson<String?>(hsnCode),
       'qty': serializer.toJson<double?>(qty),
       'unitPrice': serializer.toJson<double>(unitPrice),
@@ -4983,6 +5013,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
     Value<int?> motorJobId = const Value.absent(),
     Value<int?> copperStockId = const Value.absent(),
     String? description,
+    Value<String?> rateRs = const Value.absent(),
     Value<String?> hsnCode = const Value.absent(),
     Value<double?> qty = const Value.absent(),
     double? unitPrice,
@@ -4997,6 +5028,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
         ? copperStockId.value
         : this.copperStockId,
     description: description ?? this.description,
+    rateRs: rateRs.present ? rateRs.value : this.rateRs,
     hsnCode: hsnCode.present ? hsnCode.value : this.hsnCode,
     qty: qty.present ? qty.value : this.qty,
     unitPrice: unitPrice ?? this.unitPrice,
@@ -5019,6 +5051,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
       description: data.description.present
           ? data.description.value
           : this.description,
+      rateRs: data.rateRs.present ? data.rateRs.value : this.rateRs,
       hsnCode: data.hsnCode.present ? data.hsnCode.value : this.hsnCode,
       qty: data.qty.present ? data.qty.value : this.qty,
       unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
@@ -5036,6 +5069,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
           ..write('motorJobId: $motorJobId, ')
           ..write('copperStockId: $copperStockId, ')
           ..write('description: $description, ')
+          ..write('rateRs: $rateRs, ')
           ..write('hsnCode: $hsnCode, ')
           ..write('qty: $qty, ')
           ..write('unitPrice: $unitPrice, ')
@@ -5053,6 +5087,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
     motorJobId,
     copperStockId,
     description,
+    rateRs,
     hsnCode,
     qty,
     unitPrice,
@@ -5069,6 +5104,7 @@ class InvoiceItem extends DataClass implements Insertable<InvoiceItem> {
           other.motorJobId == this.motorJobId &&
           other.copperStockId == this.copperStockId &&
           other.description == this.description &&
+          other.rateRs == this.rateRs &&
           other.hsnCode == this.hsnCode &&
           other.qty == this.qty &&
           other.unitPrice == this.unitPrice &&
@@ -5083,6 +5119,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
   final Value<int?> motorJobId;
   final Value<int?> copperStockId;
   final Value<String> description;
+  final Value<String?> rateRs;
   final Value<String?> hsnCode;
   final Value<double?> qty;
   final Value<double> unitPrice;
@@ -5095,6 +5132,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     this.motorJobId = const Value.absent(),
     this.copperStockId = const Value.absent(),
     this.description = const Value.absent(),
+    this.rateRs = const Value.absent(),
     this.hsnCode = const Value.absent(),
     this.qty = const Value.absent(),
     this.unitPrice = const Value.absent(),
@@ -5108,6 +5146,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     this.motorJobId = const Value.absent(),
     this.copperStockId = const Value.absent(),
     required String description,
+    this.rateRs = const Value.absent(),
     this.hsnCode = const Value.absent(),
     this.qty = const Value.absent(),
     required double unitPrice,
@@ -5125,6 +5164,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     Expression<int>? motorJobId,
     Expression<int>? copperStockId,
     Expression<String>? description,
+    Expression<String>? rateRs,
     Expression<String>? hsnCode,
     Expression<double>? qty,
     Expression<double>? unitPrice,
@@ -5138,6 +5178,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
       if (motorJobId != null) 'motor_job_id': motorJobId,
       if (copperStockId != null) 'copper_stock_id': copperStockId,
       if (description != null) 'description': description,
+      if (rateRs != null) 'rate_rs': rateRs,
       if (hsnCode != null) 'hsn_code': hsnCode,
       if (qty != null) 'qty': qty,
       if (unitPrice != null) 'unit_price': unitPrice,
@@ -5153,6 +5194,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     Value<int?>? motorJobId,
     Value<int?>? copperStockId,
     Value<String>? description,
+    Value<String?>? rateRs,
     Value<String?>? hsnCode,
     Value<double?>? qty,
     Value<double>? unitPrice,
@@ -5166,6 +5208,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
       motorJobId: motorJobId ?? this.motorJobId,
       copperStockId: copperStockId ?? this.copperStockId,
       description: description ?? this.description,
+      rateRs: rateRs ?? this.rateRs,
       hsnCode: hsnCode ?? this.hsnCode,
       qty: qty ?? this.qty,
       unitPrice: unitPrice ?? this.unitPrice,
@@ -5197,6 +5240,9 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (rateRs.present) {
+      map['rate_rs'] = Variable<String>(rateRs.value);
+    }
     if (hsnCode.present) {
       map['hsn_code'] = Variable<String>(hsnCode.value);
     }
@@ -5224,6 +5270,7 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
           ..write('motorJobId: $motorJobId, ')
           ..write('copperStockId: $copperStockId, ')
           ..write('description: $description, ')
+          ..write('rateRs: $rateRs, ')
           ..write('hsnCode: $hsnCode, ')
           ..write('qty: $qty, ')
           ..write('unitPrice: $unitPrice, ')
@@ -14573,6 +14620,7 @@ typedef $$InvoiceItemsTableCreateCompanionBuilder =
       Value<int?> motorJobId,
       Value<int?> copperStockId,
       required String description,
+      Value<String?> rateRs,
       Value<String?> hsnCode,
       Value<double?> qty,
       required double unitPrice,
@@ -14587,6 +14635,7 @@ typedef $$InvoiceItemsTableUpdateCompanionBuilder =
       Value<int?> motorJobId,
       Value<int?> copperStockId,
       Value<String> description,
+      Value<String?> rateRs,
       Value<String?> hsnCode,
       Value<double?> qty,
       Value<double> unitPrice,
@@ -14673,6 +14722,11 @@ class $$InvoiceItemsTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rateRs => $composableBuilder(
+    column: $table.rateRs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14795,6 +14849,11 @@ class $$InvoiceItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get rateRs => $composableBuilder(
+    column: $table.rateRs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get hsnCode => $composableBuilder(
     column: $table.hsnCode,
     builder: (column) => ColumnOrderings(column),
@@ -14912,6 +14971,9 @@ class $$InvoiceItemsTableAnnotationComposer
     column: $table.description,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get rateRs =>
+      $composableBuilder(column: $table.rateRs, builder: (column) => column);
 
   GeneratedColumn<String> get hsnCode =>
       $composableBuilder(column: $table.hsnCode, builder: (column) => column);
@@ -15036,6 +15098,7 @@ class $$InvoiceItemsTableTableManager
                 Value<int?> motorJobId = const Value.absent(),
                 Value<int?> copperStockId = const Value.absent(),
                 Value<String> description = const Value.absent(),
+                Value<String?> rateRs = const Value.absent(),
                 Value<String?> hsnCode = const Value.absent(),
                 Value<double?> qty = const Value.absent(),
                 Value<double> unitPrice = const Value.absent(),
@@ -15048,6 +15111,7 @@ class $$InvoiceItemsTableTableManager
                 motorJobId: motorJobId,
                 copperStockId: copperStockId,
                 description: description,
+                rateRs: rateRs,
                 hsnCode: hsnCode,
                 qty: qty,
                 unitPrice: unitPrice,
@@ -15062,6 +15126,7 @@ class $$InvoiceItemsTableTableManager
                 Value<int?> motorJobId = const Value.absent(),
                 Value<int?> copperStockId = const Value.absent(),
                 required String description,
+                Value<String?> rateRs = const Value.absent(),
                 Value<String?> hsnCode = const Value.absent(),
                 Value<double?> qty = const Value.absent(),
                 required double unitPrice,
@@ -15074,6 +15139,7 @@ class $$InvoiceItemsTableTableManager
                 motorJobId: motorJobId,
                 copperStockId: copperStockId,
                 description: description,
+                rateRs: rateRs,
                 hsnCode: hsnCode,
                 qty: qty,
                 unitPrice: unitPrice,

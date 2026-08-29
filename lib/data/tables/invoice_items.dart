@@ -11,6 +11,7 @@ class InvoiceItems extends Table {
   IntColumn get motorJobId => integer().nullable().references(MotorJobs, #id)();
   IntColumn get copperStockId => integer().nullable().references(CopperStock, #id)();
   TextColumn get description => text()();
+  TextColumn get rateRs => text().nullable()();
   TextColumn get hsnCode => text().nullable()();
   RealColumn get qty => real().nullable()();
   RealColumn get unitPrice => real()();

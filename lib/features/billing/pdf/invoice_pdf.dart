@@ -603,6 +603,7 @@ class InvoicePdfGenerator {
   }) {
     final headers = [
       'Description',
+      'Rate/RS',
       if (!isDeliveryChallan) 'SAC/HSN',
       'Qty',
       'Rate',
@@ -613,6 +614,7 @@ class InvoicePdfGenerator {
     final data = items.map((item) {
       return [
         _buildDescriptionWidget(item.description),
+        pw.Text(item.rateRs ?? '', style: pw.TextStyle(font: monoFont)),
         if (!isDeliveryChallan) item.hsnCode ?? '',
         pw.Text(
           item.qty?.toString() ?? '1',
@@ -635,25 +637,28 @@ class InvoicePdfGenerator {
       0: pw.Alignment.centerLeft,
       1: pw.Alignment.center,
       2: pw.Alignment.center,
-      3: pw.Alignment.centerRight,
+      3: pw.Alignment.center,
       4: pw.Alignment.centerRight,
       5: pw.Alignment.centerRight,
+      6: pw.Alignment.centerRight,
     };
 
     if (isDeliveryChallan) {
       alignments = {
         0: pw.Alignment.centerLeft,
         1: pw.Alignment.center,
-        2: pw.Alignment.centerRight,
+        2: pw.Alignment.center,
         3: pw.Alignment.centerRight,
+        4: pw.Alignment.centerRight,
       };
     } else if (!showGst) {
       alignments = {
         0: pw.Alignment.centerLeft,
         1: pw.Alignment.center,
         2: pw.Alignment.center,
-        3: pw.Alignment.centerRight,
+        3: pw.Alignment.center,
         4: pw.Alignment.centerRight,
+        5: pw.Alignment.centerRight,
       };
     }
 
