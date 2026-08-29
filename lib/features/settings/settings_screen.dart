@@ -708,13 +708,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                     TextButton(
                                       onPressed: () {
                                         final code = codeController.text.trim().toUpperCase();
-                                        final secretKey = 'NodetologicERP2026';
+                                        final secretKey = r'Kj9#vL2!mQ8$pX5@cT1*fW4^bR7&yN0';
                                         final gstin = _gstinController.text.trim().toUpperCase();
                                         
-                                        // Simple checksum: md5(GSTIN + secretKey).substring(0, 8)
-                                        final expectedCode = md5.convert(utf8.encode('$gstin$secretKey')).toString().substring(0, 8).toUpperCase();
+                                        final hash = sha256.convert(utf8.encode('$gstin$secretKey')).toString().toUpperCase();
+                                        final expectedCode = '${hash.substring(0, 4)}-${hash.substring(4, 8)}-${hash.substring(8, 12)}';
                                         
-                                        if (code == expectedCode || code == 'NODE2026') {
+                                        // Auto-format input to remove dashes for comparison flexibility
+                                        final normalizedInput = code.replaceAll('-', '');
+                                        final normalizedExpected = expectedCode.replaceAll('-', '');
+                                        
+                                        if (normalizedInput == normalizedExpected) {
                                           setState(() => _isRegistered = true);
                                           Navigator.pop(ctx);
                                           _saveSettings();
