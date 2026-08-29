@@ -661,28 +661,28 @@ class InvoicePdfGenerator {
       if (!isDeliveryChallan) 'SAC/HSN',
       'Qty',
       'Rate',
-      if (showGst) 'GST%',
-      if (showGst) 'Total\n(incl. GST)' else 'Total',
+      'Dis',
+      if (showGst) 'CGST',
+      if (showGst) 'SGST',
+      'Total',
     ];
 
     final data = items.map((item) {
+      final rate = item.gstRate ?? 0.0;
+      final gstAmount = showGst ? (item.lineTotal * (rate / 100)) : 0.0;
+      final cgstAmount = gstAmount / 2;
+      final sgstAmount = gstAmount / 2;
+      final total = showGst ? (item.lineTotal + gstAmount) : item.lineTotal;
+      
       return [
         _buildDescriptionWidget(item.description),
         if (!isDeliveryChallan) item.hsnCode ?? '',
-        pw.Text(
-          item.qty?.toString() ?? '1',
-          style: pw.TextStyle(font: monoFont),
-        ),
-        pw.Text(
-          item.unitPrice.toStringAsFixed(2),
-          style: pw.TextStyle(font: monoFont),
-        ),
-        if (showGst)
-          pw.Text('${item.gstRate ?? 0}%', style: pw.TextStyle(font: monoFont)),
-        pw.Text(
-          (showGst ? (item.lineTotal * (1 + (item.gstRate ?? 0) / 100)) : item.lineTotal).toStringAsFixed(2),
-          style: pw.TextStyle(font: monoFont),
-        ),
+        pw.Text(item.qty?.toString() ?? '1', style: pw.TextStyle(font: monoFont)),
+        pw.Text(item.unitPrice.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
+        pw.Text('0.00', style: pw.TextStyle(font: monoFont)), // Placeholder for item discount
+        if (showGst) pw.Text(cgstAmount.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
+        if (showGst) pw.Text(sgstAmount.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
+        pw.Text(total.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
       ];
     }).toList();
 
@@ -693,14 +693,18 @@ class InvoicePdfGenerator {
       3: pw.Alignment.centerRight,
       4: pw.Alignment.centerRight,
       5: pw.Alignment.centerRight,
+      6: pw.Alignment.centerRight,
+      7: pw.Alignment.centerRight,
     };
 
     if (isDeliveryChallan) {
       alignments = {
         0: pw.Alignment.centerLeft,
         1: pw.Alignment.center,
-        2: pw.Alignment.centerRight,
+        2: pw.Alignment.center,
         3: pw.Alignment.centerRight,
+        4: pw.Alignment.centerRight,
+        5: pw.Alignment.centerRight,
       };
     } else if (!showGst) {
       alignments = {
@@ -709,6 +713,7 @@ class InvoicePdfGenerator {
         2: pw.Alignment.center,
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
+        5: pw.Alignment.centerRight,
       };
     }
 
@@ -846,11 +851,25 @@ class InvoicePdfGenerator {
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               _buildTotalsLine(
-                'Total Before Tax:',
-                (invoice.subtotal - invoice.discountAmount),
+                'Subtotal:',
+                invoice.subtotal,
                 monoFont,
                 monoFontBold,
               ),
+              if (invoice.discountAmount > 0)
+                _buildTotalsLine(
+                  'Discount:',
+                  -invoice.discountAmount,
+                  monoFont,
+                  monoFontBold,
+                ),
+              if (invoice.discountAmount > 0)
+                _buildTotalsLine(
+                  'Total Before Tax:',
+                  (invoice.subtotal - invoice.discountAmount),
+                  monoFont,
+                  monoFontBold,
+                ),
 
               if (invoice.deliveryCharge != null && invoice.deliveryCharge! > 0)
                 _buildTotalsLine(
@@ -959,41 +978,11 @@ static pw.Widget _buildFooter(
                 pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          'Bank Details',
-                          style: pw.TextStyle(
-                            fontWeight: pw.FontWeight.bold,
-                            fontSize: 8,
-                          ),
-                        ),
-                        pw.Text(
-                          'Bank Name: ${company.bankName}',
-                          style: const pw.TextStyle(fontSize: 8),
-                        ),
-                        pw.Text(
-                          'Account No: ${company.bankAccountNo}',
-                          style: const pw.TextStyle(fontSize: 8),
-                        ),
-                        pw.Text(
-                          'IFSC: ${company.bankIfsc}',
-                          style: const pw.TextStyle(fontSize: 8),
-                        ),
-                        if (company.upiId != null && company.upiId!.isNotEmpty)
-                          pw.Text(
-                            'UPI ID: ${company.upiId}',
-                            style: const pw.TextStyle(fontSize: 8),
-                          ),
-                      ],
-                    ),
                     if (company.upiId != null &&
                         company.upiId!.isNotEmpty &&
                         (invoice.grandTotal - totalPaid) > 0) ...[
-                      pw.SizedBox(width: 24),
                       pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.center,
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
                           pw.Container(
                             width: 60,
@@ -1024,16 +1013,6 @@ static pw.Widget _buildFooter(
                   style: pw.TextStyle(
                     fontSize: 8,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.black,
-                  ),
-                ),
-
-              if (!isDeliveryChallan && !isPurchase)
-                pw.Text(
-                  'Thank you for your business.',
-                  style: const pw.TextStyle(
-                    fontSize: 8,
-                    fontStyle: pw.FontStyle.italic,
                     color: PdfColors.black,
                   ),
                 ),

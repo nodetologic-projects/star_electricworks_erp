@@ -546,7 +546,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                           final newText = text.replaceRange(selection.start, selection.end, '**$selected**');
                           ctrl.value = ctrl.value.copyWith(
                             text: newText,
-                            selection: TextSelection.collapsed(offset: selection.end + 4),
+                            selection: TextSelection.collapsed(offset: selection.start + selected.length + 4),
                           );
                           item.description = newText;
                         } else {

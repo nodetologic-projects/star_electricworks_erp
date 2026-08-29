@@ -314,7 +314,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
                                 final newText = text.replaceRange(selection.start, selection.end, '**$selected**');
                                 ctrl.value = ctrl.value.copyWith(
                                   text: newText,
-                                  selection: TextSelection.collapsed(offset: selection.end + 4),
+                                  selection: TextSelection.collapsed(offset: selection.start + selected.length + 4),
                                 );
                               } else {
                                 final cursor = selection.isValid ? selection.start : text.length;
