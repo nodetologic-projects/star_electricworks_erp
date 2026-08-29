@@ -87,6 +87,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   final TextEditingController _poNumberController = TextEditingController();
   final TextEditingController _gpNumberController = TextEditingController();
   DateTime? _poDate;
+  DateTime? _gpDate;
   DateTime _invoiceDate = DateTime.now();
   DateTime? _dueDate;
   int? _paymentTermDays;
@@ -160,6 +161,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         _poNumberController.text = existingInvoice.poNumber ?? '';
         _poDate = existingInvoice.poDate;
         _gpNumberController.text = existingInvoice.gpNumber ?? '';
+        _gpDate = existingInvoice.gpDate;
         
         _items.clear();
         for (final item in existingItems) {
@@ -361,6 +363,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         ),
         poDate: drift.Value(_poDate),
         gpNumber: drift.Value(_gpNumberController.text),
+        gpDate: drift.Value(_gpDate),
         shipToName: drift.Value(
           _shipToNameController.text.trim().isNotEmpty
               ? _shipToNameController.text.trim()
@@ -1085,6 +1088,32 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               child: AppTextField(
                 label: 'GP Number',
                 controller: _gpNumberController,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _gpDate ?? DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    setState(() => _gpDate = picked);
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'GP Date',
+                  ),
+                  child: Text(
+                    _gpDate != null
+                        ? "${_gpDate!.day}/${_gpDate!.month}/${_gpDate!.year}"
+                        : 'Select Date',
+                  ),
+                ),
               ),
             ),
           ],

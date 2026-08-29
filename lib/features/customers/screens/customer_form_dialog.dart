@@ -129,6 +129,11 @@ class _CustomerFormDialogState extends ConsumerState<CustomerFormDialog> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: _panController,
+                decoration: const InputDecoration(labelText: 'PAN Number', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _stateController,
                 decoration: const InputDecoration(labelText: 'State *', border: OutlineInputBorder()),
                 validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,

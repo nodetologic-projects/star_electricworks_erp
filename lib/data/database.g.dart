@@ -3291,6 +3291,15 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gpDateMeta = const VerificationMeta('gpDate');
+  @override
+  late final GeneratedColumn<DateTime> gpDate = GeneratedColumn<DateTime>(
+    'gp_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _paymentTermDaysMeta = const VerificationMeta(
     'paymentTermDays',
   );
@@ -3343,6 +3352,7 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     poNumber,
     poDate,
     gpNumber,
+    gpDate,
     paymentTermDays,
     createdAt,
   ];
@@ -3556,6 +3566,12 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         gpNumber.isAcceptableOrUnknown(data['gp_number']!, _gpNumberMeta),
       );
     }
+    if (data.containsKey('gp_date')) {
+      context.handle(
+        _gpDateMeta,
+        gpDate.isAcceptableOrUnknown(data['gp_date']!, _gpDateMeta),
+      );
+    }
     if (data.containsKey('payment_term_days')) {
       context.handle(
         _paymentTermDaysMeta,
@@ -3692,6 +3708,10 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.string,
         data['${effectivePrefix}gp_number'],
       ),
+      gpDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}gp_date'],
+      ),
       paymentTermDays: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}payment_term_days'],
@@ -3746,6 +3766,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   final String? poNumber;
   final DateTime? poDate;
   final String? gpNumber;
+  final DateTime? gpDate;
   final int? paymentTermDays;
   final DateTime createdAt;
   const Invoice({
@@ -3776,6 +3797,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     this.poNumber,
     this.poDate,
     this.gpNumber,
+    this.gpDate,
     this.paymentTermDays,
     required this.createdAt,
   });
@@ -3841,6 +3863,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     if (!nullToAbsent || gpNumber != null) {
       map['gp_number'] = Variable<String>(gpNumber);
     }
+    if (!nullToAbsent || gpDate != null) {
+      map['gp_date'] = Variable<DateTime>(gpDate);
+    }
     if (!nullToAbsent || paymentTermDays != null) {
       map['payment_term_days'] = Variable<int>(paymentTermDays);
     }
@@ -3901,6 +3926,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       gpNumber: gpNumber == null && nullToAbsent
           ? const Value.absent()
           : Value(gpNumber),
+      gpDate: gpDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gpDate),
       paymentTermDays: paymentTermDays == null && nullToAbsent
           ? const Value.absent()
           : Value(paymentTermDays),
@@ -3947,6 +3975,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       poNumber: serializer.fromJson<String?>(json['poNumber']),
       poDate: serializer.fromJson<DateTime?>(json['poDate']),
       gpNumber: serializer.fromJson<String?>(json['gpNumber']),
+      gpDate: serializer.fromJson<DateTime?>(json['gpDate']),
       paymentTermDays: serializer.fromJson<int?>(json['paymentTermDays']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -3986,6 +4015,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'poNumber': serializer.toJson<String?>(poNumber),
       'poDate': serializer.toJson<DateTime?>(poDate),
       'gpNumber': serializer.toJson<String?>(gpNumber),
+      'gpDate': serializer.toJson<DateTime?>(gpDate),
       'paymentTermDays': serializer.toJson<int?>(paymentTermDays),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -4019,6 +4049,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     Value<String?> poNumber = const Value.absent(),
     Value<DateTime?> poDate = const Value.absent(),
     Value<String?> gpNumber = const Value.absent(),
+    Value<DateTime?> gpDate = const Value.absent(),
     Value<int?> paymentTermDays = const Value.absent(),
     DateTime? createdAt,
   }) => Invoice(
@@ -4059,6 +4090,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     poNumber: poNumber.present ? poNumber.value : this.poNumber,
     poDate: poDate.present ? poDate.value : this.poDate,
     gpNumber: gpNumber.present ? gpNumber.value : this.gpNumber,
+    gpDate: gpDate.present ? gpDate.value : this.gpDate,
     paymentTermDays: paymentTermDays.present
         ? paymentTermDays.value
         : this.paymentTermDays,
@@ -4127,6 +4159,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       poNumber: data.poNumber.present ? data.poNumber.value : this.poNumber,
       poDate: data.poDate.present ? data.poDate.value : this.poDate,
       gpNumber: data.gpNumber.present ? data.gpNumber.value : this.gpNumber,
+      gpDate: data.gpDate.present ? data.gpDate.value : this.gpDate,
       paymentTermDays: data.paymentTermDays.present
           ? data.paymentTermDays.value
           : this.paymentTermDays,
@@ -4164,6 +4197,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('poNumber: $poNumber, ')
           ..write('poDate: $poDate, ')
           ..write('gpNumber: $gpNumber, ')
+          ..write('gpDate: $gpDate, ')
           ..write('paymentTermDays: $paymentTermDays, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -4199,6 +4233,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     poNumber,
     poDate,
     gpNumber,
+    gpDate,
     paymentTermDays,
     createdAt,
   ]);
@@ -4233,6 +4268,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.poNumber == this.poNumber &&
           other.poDate == this.poDate &&
           other.gpNumber == this.gpNumber &&
+          other.gpDate == this.gpDate &&
           other.paymentTermDays == this.paymentTermDays &&
           other.createdAt == this.createdAt);
 }
@@ -4265,6 +4301,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<String?> poNumber;
   final Value<DateTime?> poDate;
   final Value<String?> gpNumber;
+  final Value<DateTime?> gpDate;
   final Value<int?> paymentTermDays;
   final Value<DateTime> createdAt;
   const InvoicesCompanion({
@@ -4295,6 +4332,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.poNumber = const Value.absent(),
     this.poDate = const Value.absent(),
     this.gpNumber = const Value.absent(),
+    this.gpDate = const Value.absent(),
     this.paymentTermDays = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -4326,6 +4364,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.poNumber = const Value.absent(),
     this.poDate = const Value.absent(),
     this.gpNumber = const Value.absent(),
+    this.gpDate = const Value.absent(),
     this.paymentTermDays = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : invoiceNo = Value(invoiceNo),
@@ -4367,6 +4406,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<String>? poNumber,
     Expression<DateTime>? poDate,
     Expression<String>? gpNumber,
+    Expression<DateTime>? gpDate,
     Expression<int>? paymentTermDays,
     Expression<DateTime>? createdAt,
   }) {
@@ -4398,6 +4438,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (poNumber != null) 'po_number': poNumber,
       if (poDate != null) 'po_date': poDate,
       if (gpNumber != null) 'gp_number': gpNumber,
+      if (gpDate != null) 'gp_date': gpDate,
       if (paymentTermDays != null) 'payment_term_days': paymentTermDays,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -4431,6 +4472,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<String?>? poNumber,
     Value<DateTime?>? poDate,
     Value<String?>? gpNumber,
+    Value<DateTime?>? gpDate,
     Value<int?>? paymentTermDays,
     Value<DateTime>? createdAt,
   }) {
@@ -4462,6 +4504,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       poNumber: poNumber ?? this.poNumber,
       poDate: poDate ?? this.poDate,
       gpNumber: gpNumber ?? this.gpNumber,
+      gpDate: gpDate ?? this.gpDate,
       paymentTermDays: paymentTermDays ?? this.paymentTermDays,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -4555,6 +4598,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     if (gpNumber.present) {
       map['gp_number'] = Variable<String>(gpNumber.value);
     }
+    if (gpDate.present) {
+      map['gp_date'] = Variable<DateTime>(gpDate.value);
+    }
     if (paymentTermDays.present) {
       map['payment_term_days'] = Variable<int>(paymentTermDays.value);
     }
@@ -4594,6 +4640,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('poNumber: $poNumber, ')
           ..write('poDate: $poDate, ')
           ..write('gpNumber: $gpNumber, ')
+          ..write('gpDate: $gpDate, ')
           ..write('paymentTermDays: $paymentTermDays, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -13578,6 +13625,7 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       Value<String?> poNumber,
       Value<DateTime?> poDate,
       Value<String?> gpNumber,
+      Value<DateTime?> gpDate,
       Value<int?> paymentTermDays,
       Value<DateTime> createdAt,
     });
@@ -13610,6 +13658,7 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<String?> poNumber,
       Value<DateTime?> poDate,
       Value<String?> gpNumber,
+      Value<DateTime?> gpDate,
       Value<int?> paymentTermDays,
       Value<DateTime> createdAt,
     });
@@ -13846,6 +13895,11 @@ class $$InvoicesTableFilterComposer
 
   ColumnFilters<String> get gpNumber => $composableBuilder(
     column: $table.gpNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get gpDate => $composableBuilder(
+    column: $table.gpDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14122,6 +14176,11 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get gpDate => $composableBuilder(
+    column: $table.gpDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get paymentTermDays => $composableBuilder(
     column: $table.paymentTermDays,
     builder: (column) => ColumnOrderings(column),
@@ -14275,6 +14334,9 @@ class $$InvoicesTableAnnotationComposer
 
   GeneratedColumn<String> get gpNumber =>
       $composableBuilder(column: $table.gpNumber, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get gpDate =>
+      $composableBuilder(column: $table.gpDate, builder: (column) => column);
 
   GeneratedColumn<int> get paymentTermDays => $composableBuilder(
     column: $table.paymentTermDays,
@@ -14469,6 +14531,7 @@ class $$InvoicesTableTableManager
                 Value<String?> poNumber = const Value.absent(),
                 Value<DateTime?> poDate = const Value.absent(),
                 Value<String?> gpNumber = const Value.absent(),
+                Value<DateTime?> gpDate = const Value.absent(),
                 Value<int?> paymentTermDays = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicesCompanion(
@@ -14499,6 +14562,7 @@ class $$InvoicesTableTableManager
                 poNumber: poNumber,
                 poDate: poDate,
                 gpNumber: gpNumber,
+                gpDate: gpDate,
                 paymentTermDays: paymentTermDays,
                 createdAt: createdAt,
               ),
@@ -14531,6 +14595,7 @@ class $$InvoicesTableTableManager
                 Value<String?> poNumber = const Value.absent(),
                 Value<DateTime?> poDate = const Value.absent(),
                 Value<String?> gpNumber = const Value.absent(),
+                Value<DateTime?> gpDate = const Value.absent(),
                 Value<int?> paymentTermDays = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicesCompanion.insert(
@@ -14561,6 +14626,7 @@ class $$InvoicesTableTableManager
                 poNumber: poNumber,
                 poDate: poDate,
                 gpNumber: gpNumber,
+                gpDate: gpDate,
                 paymentTermDays: paymentTermDays,
                 createdAt: createdAt,
               ),

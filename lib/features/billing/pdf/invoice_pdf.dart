@@ -661,7 +661,6 @@ class InvoicePdfGenerator {
       if (!isDeliveryChallan) 'SAC/HSN',
       'Qty',
       'Rate',
-      'Dis',
       if (showGst) 'CGST',
       if (showGst) 'SGST',
       'Total',
@@ -674,14 +673,27 @@ class InvoicePdfGenerator {
       final sgstAmount = gstAmount / 2;
       final total = showGst ? (item.lineTotal + gstAmount) : item.lineTotal;
       
+      final halfRateStr = (rate / 2).toStringAsFixed(1).replaceAll('.0', '');
+
       return [
         _buildDescriptionWidget(item.description),
         if (!isDeliveryChallan) item.hsnCode ?? '',
         pw.Text(item.qty?.toString() ?? '1', style: pw.TextStyle(font: monoFont)),
         pw.Text(item.unitPrice.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
-        pw.Text('0.00', style: pw.TextStyle(font: monoFont)), // Placeholder for item discount
-        if (showGst) pw.Text(cgstAmount.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
-        if (showGst) pw.Text(sgstAmount.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
+        if (showGst) pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
+          children: [
+            pw.Text(cgstAmount.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
+            pw.Text('($halfRateStr%)', style: pw.TextStyle(fontSize: 7)),
+          ]
+        ),
+        if (showGst) pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
+          children: [
+            pw.Text(sgstAmount.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
+            pw.Text('($halfRateStr%)', style: pw.TextStyle(fontSize: 7)),
+          ]
+        ),
         pw.Text(total.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
       ];
     }).toList();
@@ -694,17 +706,14 @@ class InvoicePdfGenerator {
       4: pw.Alignment.centerRight,
       5: pw.Alignment.centerRight,
       6: pw.Alignment.centerRight,
-      7: pw.Alignment.centerRight,
     };
 
     if (isDeliveryChallan) {
       alignments = {
         0: pw.Alignment.centerLeft,
         1: pw.Alignment.center,
-        2: pw.Alignment.center,
+        2: pw.Alignment.centerRight,
         3: pw.Alignment.centerRight,
-        4: pw.Alignment.centerRight,
-        5: pw.Alignment.centerRight,
       };
     } else if (!showGst) {
       alignments = {
@@ -713,7 +722,6 @@ class InvoicePdfGenerator {
         2: pw.Alignment.center,
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
-        5: pw.Alignment.centerRight,
       };
     }
 
