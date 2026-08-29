@@ -22,7 +22,7 @@ void main() {
       bankAccountNo: '123456',
       bankIfsc: 'HDFC0001',
       upiId: 'test@upi',
-      eInvoiceApplicable: false,
+      eInvoiceApplicable: false, isRegistered: true,
     );
     
     final invoice = Invoice(

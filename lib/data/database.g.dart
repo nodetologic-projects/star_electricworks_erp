@@ -5978,6 +5978,21 @@ class $CompanySettingsTable extends CompanySettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _isRegisteredMeta = const VerificationMeta(
+    'isRegistered',
+  );
+  @override
+  late final GeneratedColumn<bool> isRegistered = GeneratedColumn<bool>(
+    'is_registered',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_registered" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -5995,6 +6010,7 @@ class $CompanySettingsTable extends CompanySettings
     dscPkcs11DllPath,
     eInvoiceApplicable,
     logoPath,
+    isRegistered,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6120,6 +6136,15 @@ class $CompanySettingsTable extends CompanySettings
         logoPath.isAcceptableOrUnknown(data['logo_path']!, _logoPathMeta),
       );
     }
+    if (data.containsKey('is_registered')) {
+      context.handle(
+        _isRegisteredMeta,
+        isRegistered.isAcceptableOrUnknown(
+          data['is_registered']!,
+          _isRegisteredMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6192,6 +6217,10 @@ class $CompanySettingsTable extends CompanySettings
         DriftSqlType.string,
         data['${effectivePrefix}logo_path'],
       ),
+      isRegistered: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_registered'],
+      )!,
     );
   }
 
@@ -6226,6 +6255,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
   final String? dscPkcs11DllPath;
   final bool eInvoiceApplicable;
   final String? logoPath;
+  final bool isRegistered;
   const CompanySetting({
     required this.id,
     required this.companyName,
@@ -6242,6 +6272,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     this.dscPkcs11DllPath,
     required this.eInvoiceApplicable,
     this.logoPath,
+    required this.isRegistered,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6275,6 +6306,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     if (!nullToAbsent || logoPath != null) {
       map['logo_path'] = Variable<String>(logoPath);
     }
+    map['is_registered'] = Variable<bool>(isRegistered);
     return map;
   }
 
@@ -6305,6 +6337,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       logoPath: logoPath == null && nullToAbsent
           ? const Value.absent()
           : Value(logoPath),
+      isRegistered: Value(isRegistered),
     );
   }
 
@@ -6330,6 +6363,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       dscPkcs11DllPath: serializer.fromJson<String?>(json['dscPkcs11DllPath']),
       eInvoiceApplicable: serializer.fromJson<bool>(json['eInvoiceApplicable']),
       logoPath: serializer.fromJson<String?>(json['logoPath']),
+      isRegistered: serializer.fromJson<bool>(json['isRegistered']),
     );
   }
   @override
@@ -6355,6 +6389,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       'dscPkcs11DllPath': serializer.toJson<String?>(dscPkcs11DllPath),
       'eInvoiceApplicable': serializer.toJson<bool>(eInvoiceApplicable),
       'logoPath': serializer.toJson<String?>(logoPath),
+      'isRegistered': serializer.toJson<bool>(isRegistered),
     };
   }
 
@@ -6374,6 +6409,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     Value<String?> dscPkcs11DllPath = const Value.absent(),
     bool? eInvoiceApplicable,
     Value<String?> logoPath = const Value.absent(),
+    bool? isRegistered,
   }) => CompanySetting(
     id: id ?? this.id,
     companyName: companyName ?? this.companyName,
@@ -6394,6 +6430,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
         : this.dscPkcs11DllPath,
     eInvoiceApplicable: eInvoiceApplicable ?? this.eInvoiceApplicable,
     logoPath: logoPath.present ? logoPath.value : this.logoPath,
+    isRegistered: isRegistered ?? this.isRegistered,
   );
   CompanySetting copyWithCompanion(CompanySettingsCompanion data) {
     return CompanySetting(
@@ -6424,6 +6461,9 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           ? data.eInvoiceApplicable.value
           : this.eInvoiceApplicable,
       logoPath: data.logoPath.present ? data.logoPath.value : this.logoPath,
+      isRegistered: data.isRegistered.present
+          ? data.isRegistered.value
+          : this.isRegistered,
     );
   }
 
@@ -6444,7 +6484,8 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           ..write('dscSigningMethod: $dscSigningMethod, ')
           ..write('dscPkcs11DllPath: $dscPkcs11DllPath, ')
           ..write('eInvoiceApplicable: $eInvoiceApplicable, ')
-          ..write('logoPath: $logoPath')
+          ..write('logoPath: $logoPath, ')
+          ..write('isRegistered: $isRegistered')
           ..write(')'))
         .toString();
   }
@@ -6466,6 +6507,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     dscPkcs11DllPath,
     eInvoiceApplicable,
     logoPath,
+    isRegistered,
   );
   @override
   bool operator ==(Object other) =>
@@ -6485,7 +6527,8 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           other.dscSigningMethod == this.dscSigningMethod &&
           other.dscPkcs11DllPath == this.dscPkcs11DllPath &&
           other.eInvoiceApplicable == this.eInvoiceApplicable &&
-          other.logoPath == this.logoPath);
+          other.logoPath == this.logoPath &&
+          other.isRegistered == this.isRegistered);
 }
 
 class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
@@ -6504,6 +6547,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
   final Value<String?> dscPkcs11DllPath;
   final Value<bool> eInvoiceApplicable;
   final Value<String?> logoPath;
+  final Value<bool> isRegistered;
   const CompanySettingsCompanion({
     this.id = const Value.absent(),
     this.companyName = const Value.absent(),
@@ -6520,6 +6564,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     this.dscPkcs11DllPath = const Value.absent(),
     this.eInvoiceApplicable = const Value.absent(),
     this.logoPath = const Value.absent(),
+    this.isRegistered = const Value.absent(),
   });
   CompanySettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -6537,6 +6582,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     this.dscPkcs11DllPath = const Value.absent(),
     this.eInvoiceApplicable = const Value.absent(),
     this.logoPath = const Value.absent(),
+    this.isRegistered = const Value.absent(),
   }) : companyName = Value(companyName),
        address = Value(address),
        phone = Value(phone),
@@ -6561,6 +6607,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     Expression<String>? dscPkcs11DllPath,
     Expression<bool>? eInvoiceApplicable,
     Expression<String>? logoPath,
+    Expression<bool>? isRegistered,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -6579,6 +6626,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
       if (eInvoiceApplicable != null)
         'e_invoice_applicable': eInvoiceApplicable,
       if (logoPath != null) 'logo_path': logoPath,
+      if (isRegistered != null) 'is_registered': isRegistered,
     });
   }
 
@@ -6598,6 +6646,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     Value<String?>? dscPkcs11DllPath,
     Value<bool>? eInvoiceApplicable,
     Value<String?>? logoPath,
+    Value<bool>? isRegistered,
   }) {
     return CompanySettingsCompanion(
       id: id ?? this.id,
@@ -6615,6 +6664,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
       dscPkcs11DllPath: dscPkcs11DllPath ?? this.dscPkcs11DllPath,
       eInvoiceApplicable: eInvoiceApplicable ?? this.eInvoiceApplicable,
       logoPath: logoPath ?? this.logoPath,
+      isRegistered: isRegistered ?? this.isRegistered,
     );
   }
 
@@ -6670,6 +6720,9 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     if (logoPath.present) {
       map['logo_path'] = Variable<String>(logoPath.value);
     }
+    if (isRegistered.present) {
+      map['is_registered'] = Variable<bool>(isRegistered.value);
+    }
     return map;
   }
 
@@ -6690,7 +6743,8 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
           ..write('dscSigningMethod: $dscSigningMethod, ')
           ..write('dscPkcs11DllPath: $dscPkcs11DllPath, ')
           ..write('eInvoiceApplicable: $eInvoiceApplicable, ')
-          ..write('logoPath: $logoPath')
+          ..write('logoPath: $logoPath, ')
+          ..write('isRegistered: $isRegistered')
           ..write(')'))
         .toString();
   }
@@ -15787,6 +15841,7 @@ typedef $$CompanySettingsTableCreateCompanionBuilder =
       Value<String?> dscPkcs11DllPath,
       Value<bool> eInvoiceApplicable,
       Value<String?> logoPath,
+      Value<bool> isRegistered,
     });
 typedef $$CompanySettingsTableUpdateCompanionBuilder =
     CompanySettingsCompanion Function({
@@ -15805,6 +15860,7 @@ typedef $$CompanySettingsTableUpdateCompanionBuilder =
       Value<String?> dscPkcs11DllPath,
       Value<bool> eInvoiceApplicable,
       Value<String?> logoPath,
+      Value<bool> isRegistered,
     });
 
 class $$CompanySettingsTableFilterComposer
@@ -15889,6 +15945,11 @@ class $$CompanySettingsTableFilterComposer
 
   ColumnFilters<String> get logoPath => $composableBuilder(
     column: $table.logoPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isRegistered => $composableBuilder(
+    column: $table.isRegistered,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -15976,6 +16037,11 @@ class $$CompanySettingsTableOrderingComposer
     column: $table.logoPath,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isRegistered => $composableBuilder(
+    column: $table.isRegistered,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CompanySettingsTableAnnotationComposer
@@ -16044,6 +16110,11 @@ class $$CompanySettingsTableAnnotationComposer
 
   GeneratedColumn<String> get logoPath =>
       $composableBuilder(column: $table.logoPath, builder: (column) => column);
+
+  GeneratedColumn<bool> get isRegistered => $composableBuilder(
+    column: $table.isRegistered,
+    builder: (column) => column,
+  );
 }
 
 class $$CompanySettingsTableTableManager
@@ -16099,6 +16170,7 @@ class $$CompanySettingsTableTableManager
                 Value<String?> dscPkcs11DllPath = const Value.absent(),
                 Value<bool> eInvoiceApplicable = const Value.absent(),
                 Value<String?> logoPath = const Value.absent(),
+                Value<bool> isRegistered = const Value.absent(),
               }) => CompanySettingsCompanion(
                 id: id,
                 companyName: companyName,
@@ -16115,6 +16187,7 @@ class $$CompanySettingsTableTableManager
                 dscPkcs11DllPath: dscPkcs11DllPath,
                 eInvoiceApplicable: eInvoiceApplicable,
                 logoPath: logoPath,
+                isRegistered: isRegistered,
               ),
           createCompanionCallback:
               ({
@@ -16134,6 +16207,7 @@ class $$CompanySettingsTableTableManager
                 Value<String?> dscPkcs11DllPath = const Value.absent(),
                 Value<bool> eInvoiceApplicable = const Value.absent(),
                 Value<String?> logoPath = const Value.absent(),
+                Value<bool> isRegistered = const Value.absent(),
               }) => CompanySettingsCompanion.insert(
                 id: id,
                 companyName: companyName,
@@ -16150,6 +16224,7 @@ class $$CompanySettingsTableTableManager
                 dscPkcs11DllPath: dscPkcs11DllPath,
                 eInvoiceApplicable: eInvoiceApplicable,
                 logoPath: logoPath,
+                isRegistered: isRegistered,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

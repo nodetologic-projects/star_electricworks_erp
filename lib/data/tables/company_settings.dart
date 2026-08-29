@@ -17,4 +17,5 @@ class CompanySettings extends Table {
   TextColumn get dscPkcs11DllPath => text().nullable()();
   BoolColumn get eInvoiceApplicable => boolean().withDefault(const Constant(false))();
   TextColumn get logoPath => text().nullable()();
+  BoolColumn get isRegistered => boolean().withDefault(const Constant(false))();
 }
