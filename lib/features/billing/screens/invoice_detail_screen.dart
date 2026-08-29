@@ -98,26 +98,35 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
   }
 
 
-  Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
+Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
+    print("ACTION: Sign & Print button pressed");
+    
     // If already signed, just print
     if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
-      await DirectPrintService.printPdf(
-        context,
-        data.invoice.invoiceNo,
-        fallbackGenerate: () => InvoicePdfGenerator.generate(
-          copyLabels: [_selectedCopyType],
-          company: data.companySetting,
-          invoice: data.invoice,
-          items: data.items,
-          customer: data.customer,
-          totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
-        )
-      );
+      print("INFO: Invoice already signed (path: ${data.invoice.signedPdfPath}), skipping to print step");
+      await _executePrintStep(context, data);
       return;
     }
 
+    print("ACTION: Starting Sign step...");
     final success = await _signAndFinalize(context, data);
-    if (success && context.mounted) {
+    print("RESULT: Sign step returned success=$success");
+    
+    if (success) {
+      print("ACTION: Starting Print step...");
+      if (context.mounted) {
+        await _executePrintStep(context, data);
+      } else {
+        print("ERROR: Cannot execute print step - context is no longer mounted after signing");
+      }
+    } else {
+      print("INFO: Skipping Print step because Sign step failed or was cancelled");
+    }
+  }
+
+  Future<void> _executePrintStep(BuildContext context, InvoiceDetailData data) async {
+    try {
+      print("ACTION: Calling DirectPrintService.printPdf");
       await DirectPrintService.printPdf(
         context,
         data.invoice.invoiceNo,
@@ -130,6 +139,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
         )
       );
+      print("RESULT: Print step completed (check DirectPrintService logs for success/failure)");
+    } catch (e, stack) {
+      print("ERROR: Print step threw an exception: $e\n$stack");
     }
   }
 
@@ -223,6 +235,8 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
 
       if (!context.mounted) return false;
 
+      print("RESULT of DscSigner (null means success): $error");
+      
       if (error == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Signed successfully! Saved to: ${outputPdf.path}')),
@@ -330,6 +344,22 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                           const SizedBox(width: 16),
                           Text('Balance Due: ₹${(data.invoice.grandTotal - data.payments.fold<double>(0, (s, p) => s + p.amount)).toStringAsFixed(2)}', 
                                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                          if (data.invoice.status == InvoiceStatus.draft)
+                            ElevatedButton.icon(
+                              onPressed: () => context.push('/invoices/edit/${data.invoice.id}'),
+                              icon: const Icon(Icons.edit),
+                              label: const Text('Edit Invoice'),
+                            )
+                          else
+                            Tooltip(
+                              message: "Finalized invoices can't be edited — create a credit note or new invoice for corrections instead.",
+                              child: ElevatedButton.icon(
+                                onPressed: null,
+                                icon: const Icon(Icons.edit),
+                                label: const Text('Edit Invoice'),
+                              ),
+                            ),
+                          const SizedBox(width: 8),
                           DropdownButton<String>(
                             value: _selectedCopyType,
                             items: _invoiceCopyTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
