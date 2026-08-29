@@ -107,17 +107,7 @@ class InvoicePdfGenerator {
                 ),
               ],
 
-              if (invoice.paymentTermDays != null) ...[
-                pw.SizedBox(height: 12),
-                pw.Text(
-                  'Payment Terms: Pay within ${invoice.paymentTermDays} days of bill generation',
-                  style: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 8,
-                    color: PdfColors.black,
-                  ),
-                ),
-              ],
+
 
               if (invoice.notes != null && invoice.notes!.isNotEmpty) ...[
                 pw.SizedBox(height: 12),
@@ -221,13 +211,88 @@ class InvoicePdfGenerator {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Left: Bill To
+            // Left: Company Info
             pw.Expanded(
               child: pw.Container(
                 height: 140,
                 padding: const pw.EdgeInsets.all(8),
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      company.companyName,
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      company.address,
+                      style: const pw.TextStyle(fontSize: 7.5),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      'Ph: ${company.phone}',
+                      style: const pw.TextStyle(fontSize: 7.5),
+                    ),
+                    pw.Text(
+                      'Email: ${company.email}',
+                      style: const pw.TextStyle(fontSize: 7.5),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Bank: ${company.bankName}',
+                      style: const pw.TextStyle(fontSize: 7.5),
+                    ),
+                    pw.Text(
+                      'A/C: ${company.bankAccountNo}',
+                      style: const pw.TextStyle(fontSize: 7.5),
+                    ),
+                    pw.Text(
+                      'IFSC: ${company.bankIfsc}',
+                      style: const pw.TextStyle(fontSize: 7.5),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'GSTIN: ${company.gstin}',
+                      style: pw.TextStyle(
+                        fontSize: 7.5,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    if (company.gstin.length == 15)
+                      pw.Text(
+                        'PAN: ${company.gstin.substring(2, 12)}',
+                        style: const pw.TextStyle(fontSize: 7.5),
+                      ),
+                    if (invoice.paymentTermDays != null) ...[
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'Payment Term: ${invoice.paymentTermDays} Days',
+                        style: pw.TextStyle(
+                          fontSize: 7.5,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            // Middle: Bill To
+            pw.Expanded(
+              child: pw.Container(
+                height: 140,
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(
+                  border: const pw.Border(
+                    top: pw.BorderSide(width: 0.5),
+                    bottom: pw.BorderSide(width: 0.5),
+                    right: pw.BorderSide(width: 0.5),
+                  ),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -271,6 +336,7 @@ class InvoicePdfGenerator {
                         'Place of Supply: ${invoice.placeOfSupply}',
                         style: const pw.TextStyle(fontSize: 7.5),
                       ),
+
                   ],
                 ),
               ),
@@ -328,8 +394,7 @@ class InvoicePdfGenerator {
               ),
             ),
           ],
-        ),
-      ],
+        )      ],
     );
   }
 
@@ -1000,11 +1065,19 @@ class InvoicePdfGenerator {
     );
   }
 
-  static pw.Widget _buildFooter(
+static pw.Widget _buildFooter(
     CompanySetting company,
     Invoice invoice,
     double totalPaid,
   ) {
+    print('DIAGNOSTICS - _buildFooter called');
+    print('DIAGNOSTICS - company.upiId: "${company.upiId}"');
+    print('DIAGNOSTICS - invoice.grandTotal: ${invoice.grandTotal}');
+    print('DIAGNOSTICS - totalPaid: $totalPaid');
+
+    final bool shouldShowQr = company.upiId != null && company.upiId!.isNotEmpty && (invoice.grandTotal - totalPaid) > 0;
+    print('DIAGNOSTICS - QR condition evaluates to: $shouldShowQr');
+
     final type = invoice.invoiceType;
     final isPurchase = type == InvoiceType.purchaseVoucher;
     final isDeliveryChallan = type == InvoiceType.deliveryChallan;

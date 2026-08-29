@@ -135,6 +135,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/invoices/edit/:id',
+        pageBuilder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return _fadeTransitionPage(
+            context,
+            state,
+            InvoiceFormScreen(invoiceId: id),
+          );
+        },
+      ),
+      GoRoute(
         path: '/invoices/:id',
         pageBuilder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;

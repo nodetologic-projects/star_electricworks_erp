@@ -105,7 +105,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _selectedCustomer = widget.prefillCustomerId;
 
     if (widget.invoiceId != null) {
-      // Note: Edit mode is not currently implemented or routed.
+      Future.microtask(() => _loadExistingInvoice(widget.invoiceId!));
     } else {
       if (widget.prefillJobId != null) {
         // We prepopulate later when async data loads, for now just add a row
@@ -121,6 +121,57 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           item.unitPrice = widget.prefillAmount!;
         _items.add(item);
       }
+    }
+  }
+
+
+  Future<void> _loadExistingInvoice(int id) async {
+    final repo = ref.read(invoicesRepositoryProvider);
+    final custRepo = ref.read(customersRepositoryProvider);
+    
+    final existingInvoice = await repo.getInvoiceById(id);
+    final existingItems = await repo.getItemsForInvoice(id);
+    final existingCustomer = await custRepo.getCustomerById(existingInvoice.customerId);
+    
+    if (mounted) {
+      setState(() {
+        _selectedType = existingInvoice.invoiceType;
+        _selectedCustomer = existingInvoice.customerId;
+        _invoiceDate = existingInvoice.invoiceDate;
+        _dueDate = existingInvoice.dueDate ?? existingInvoice.invoiceDate;
+        _paymentTermDays = existingInvoice.paymentTermDays ?? 0;
+        _deliveryCharge = existingInvoice.deliveryCharge ?? 0;
+        _discountAmount = existingInvoice.discountAmount;
+        _notes = existingInvoice.notes ?? '';
+        _isDiscountPercentage = false; // it is stored as absolute amount
+        
+          _customerNameController.text = existingCustomer.name;
+          _customerAddressController.text = existingCustomer.address ?? '';
+          _customerStateController.text = existingCustomer.state ?? '';
+          _customerGstinController.text = existingCustomer.gstin ?? '';
+          _customerPhoneController.text = existingCustomer.phone ?? '';
+          _customerEmailController.text = existingCustomer.email ?? '';
+          _customerVendorCodeController.text = existingCustomer.vendorCode ?? '';
+        
+        _shipToNameController.text = existingInvoice.shipToName ?? '';
+        _shipToAddressController.text = existingInvoice.shipToAddress ?? '';
+        _placeOfSupplyController.text = existingInvoice.placeOfSupply ?? '';
+        _poNumberController.text = existingInvoice.poNumber ?? '';
+        _poDate = existingInvoice.poDate;
+        _gpNumberController.text = existingInvoice.gpNumber ?? '';
+        
+        _items.clear();
+        for (final item in existingItems) {
+          final line = _LineItem(type: item.itemSourceType);
+          line.linkedId = item.itemSourceType == ItemSourceType.motorJob ? item.motorJobId : item.copperStockId;
+          line.description = item.description;
+          line.hsnCode = item.hsnCode;
+          line.qty = item.qty ?? 1.0;
+          line.unitPrice = item.unitPrice;
+          line.gstRate = item.gstRate;
+          _items.add(line);
+        }
+      });
     }
   }
 
@@ -229,6 +280,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         type: _selectedType,
         grandTotal: totals.grandTotal,
         date: DateTime.now(),
+        excludeInvoiceId: widget.invoiceId,
       );
 
       if (duplicate != null) {
@@ -348,14 +400,20 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         );
       }).toList();
 
-      final invoiceId = await repo.createInvoiceWithItems(
-        invoiceCompanion,
-        itemCompanions,
-      );
+      int savedInvoiceId = 0;
+      if (widget.invoiceId != null) {
+        await repo.updateInvoiceWithItems(widget.invoiceId!, invoiceCompanion, itemCompanions);
+        savedInvoiceId = widget.invoiceId!;
+      } else {
+        savedInvoiceId = await repo.createInvoiceWithItems(
+          invoiceCompanion,
+          itemCompanions,
+        );
+      }
 
-      if (widget.sourceQuotationId != null) {
+      if (widget.sourceQuotationId != null && widget.invoiceId == null) {
         final quotesRepo = ref.read(quotationsRepositoryProvider);
-        await quotesRepo.markConverted(widget.sourceQuotationId!, invoiceId);
+        await quotesRepo.markConverted(widget.sourceQuotationId!, savedInvoiceId);
       }
 
       if (mounted) {
