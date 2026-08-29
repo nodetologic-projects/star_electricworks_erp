@@ -116,7 +116,6 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.watch(cashbookRepositoryProvider);
 
     return AlertDialog(
       title: const Text('Add Cash Transaction'),

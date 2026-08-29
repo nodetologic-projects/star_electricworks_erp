@@ -36,7 +36,7 @@ class _DailyAttendanceScreenState extends ConsumerState<DailyAttendanceScreen> {
     final normalizedDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
 
     if (existingRecord == null) {
-      await db.into(db.attendanceRecords).insert(AttendanceRecordsCompanion.insert(
+      await db.into(db.attendanceRecords).insertOnConflictUpdate(AttendanceRecordsCompanion.insert(
         employeeId: employeeId,
         date: normalizedDate,
         status: status,
@@ -86,7 +86,10 @@ class _DailyAttendanceScreenState extends ConsumerState<DailyAttendanceScreen> {
                 (List<Employee> employees, List<AttendanceRecord> records) {
                   return {
                     'employees': employees.where((e) => e.isActive).toList(),
-                    'records': records.where((r) => r.date == normalizedDate).toList(),
+                    'records': records.where((r) => 
+                        r.date.year == normalizedDate.year && 
+                        r.date.month == normalizedDate.month && 
+                        r.date.day == normalizedDate.day).toList(),
                   };
                 }
               ),

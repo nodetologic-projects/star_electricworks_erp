@@ -43,6 +43,11 @@ class CustomerLedgerScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  '${result.customer.name} - Ledger',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 24),
                 // Summary Cards
                 Row(
                   children: [

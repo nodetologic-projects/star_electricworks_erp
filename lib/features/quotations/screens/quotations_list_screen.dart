@@ -80,6 +80,7 @@ class QuotationsListScreen extends ConsumerWidget {
     );
     if (res == true && context.mounted) {
       await ref.read(quotationsRepositoryProvider).deleteQuotation(q.quotation.id);
+      ref.invalidate(quotationsListProvider);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Quotation #${q.quotation.id} deleted.')));
     }
   }

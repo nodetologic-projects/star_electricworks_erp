@@ -19,15 +19,35 @@ class PurchasesRepository {
         .watch();
   }
 
-  Future<int> addPurchase(PurchasesCompanion entry) {
-    return db.into(db.purchases).insert(entry);
+  Future<int> addPurchase(PurchasesCompanion entry, List<PurchaseItemsCompanion> items) async {
+    return db.transaction(() async {
+      final id = await db.into(db.purchases).insert(entry);
+      for (final item in items) {
+        await db.into(db.purchaseItems).insert(item.copyWith(purchaseId: Value(id)));
+      }
+      return id;
+    });
   }
 
-  Future<bool> updatePurchase(PurchasesCompanion entry) {
-    return db.update(db.purchases).replace(entry);
+  Stream<List<PurchaseItem>> watchPurchaseItems(int purchaseId) {
+    return (db.select(db.purchaseItems)..where((t) => t.purchaseId.equals(purchaseId))).watch();
   }
 
-  Future<int> deletePurchase(int id) {
-    return (db.delete(db.purchases)..where((t) => t.id.equals(id))).go();
+  Future<void> updatePurchase(PurchasesCompanion entry, List<PurchaseItemsCompanion> items) async {
+    await db.transaction(() async {
+      await db.update(db.purchases).replace(entry);
+      // Delete old items and insert new ones
+      await (db.delete(db.purchaseItems)..where((t) => t.purchaseId.equals(entry.id.value))).go();
+      for (final item in items) {
+        await db.into(db.purchaseItems).insert(item.copyWith(purchaseId: entry.id));
+      }
+    });
+  }
+
+  Future<int> deletePurchase(int id) async {
+    return db.transaction(() async {
+      await (db.delete(db.purchaseItems)..where((t) => t.purchaseId.equals(id))).go();
+      return (db.delete(db.purchases)..where((t) => t.id.equals(id))).go();
+    });
   }
 }

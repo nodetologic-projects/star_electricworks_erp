@@ -97,7 +97,43 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
     );
   }
 
-  Future<void> _signAndFinalize(BuildContext context, InvoiceDetailData data) async {
+
+  Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
+    // If already signed, just print
+    if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
+      await DirectPrintService.printPdf(
+        context,
+        data.invoice.invoiceNo,
+        fallbackGenerate: () => InvoicePdfGenerator.generate(
+          copyLabels: [_selectedCopyType],
+          company: data.companySetting,
+          invoice: data.invoice,
+          items: data.items,
+          customer: data.customer,
+          totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
+        )
+      );
+      return;
+    }
+
+    final success = await _signAndFinalize(context, data);
+    if (success && context.mounted) {
+      await DirectPrintService.printPdf(
+        context,
+        data.invoice.invoiceNo,
+        fallbackGenerate: () => InvoicePdfGenerator.generate(
+          copyLabels: [_selectedCopyType],
+          company: data.companySetting,
+          invoice: data.invoice,
+          items: data.items,
+          customer: data.customer,
+          totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
+        )
+      );
+    }
+  }
+
+  Future<bool> _signAndFinalize(BuildContext context, InvoiceDetailData data) async {
     try {
       final method = data.companySetting.dscSigningMethod ?? DscSigningMethod.fileBased;
       
@@ -110,12 +146,12 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('PKCS#11 DLL Driver Path not set in Settings!')),
           );
-          return;
+          return false;
         }
         
         passwordOrPin = await _promptForPin(context);
         if (passwordOrPin == null || passwordOrPin.isEmpty) {
-          return; // Cancelled
+          return false; // Cancelled
         }
       } else {
         certOrDllPath = data.companySetting.dscCertPath;
@@ -123,7 +159,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('DSC Certificate path not set in Settings!')),
           );
-          return;
+          return false;
         }
 
         const storage = FlutterSecureStorage();
@@ -134,7 +170,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               const SnackBar(content: Text('DSC Password not set in Settings!')),
             );
           }
-          return;
+          return false;
         }
       }
 
@@ -185,16 +221,19 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
 
       passwordOrPin = '';
 
-      if (!context.mounted) return;
+      if (!context.mounted) return false;
 
       if (error == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Signed successfully! Saved to: ${outputPdf.path}')),
         );
+        ref.invalidate(invoiceDetailProvider(widget.invoiceId));
+        return true;
       } else if (error == 'UnsupportedPlatform') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Signing is only supported on Windows. Proceeded with unsigned draft.')),
         );
+        return true;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -208,6 +247,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
             ),
           ),
         );
+        return false;
       }
     } catch (e) {
       if (context.mounted) {
@@ -215,6 +255,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           SnackBar(content: Text('Error during signing: $e')),
         );
       }
+      return false;
     }
   }
 
@@ -268,7 +309,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           StatusBadge(
                             type: data.invoice.status == InvoiceStatus.draft || data.invoice.status == InvoiceStatus.sent
@@ -286,7 +330,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                           const SizedBox(width: 16),
                           Text('Balance Due: ₹${(data.invoice.grandTotal - data.payments.fold<double>(0, (s, p) => s + p.amount)).toStringAsFixed(2)}', 
                                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
-                          const Spacer(),
                           DropdownButton<String>(
                             value: _selectedCopyType,
                             items: _invoiceCopyTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
@@ -334,9 +377,18 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                             icon: const Icon(Icons.download),
                             label: const Text('Save PDF'),
                           ),
+
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            onPressed: () => _signAndPrint(context, data),
+                            icon: const Icon(Icons.print_rounded),
+                            label: const Text('Sign & Print'),
+                            style: FilledButton.styleFrom(backgroundColor: Colors.blue.shade700),
+                          ),
                           const SizedBox(width: 8),
                           FilledButton.icon(
                             onPressed: () => _signAndFinalize(context, data),
+
                             icon: const Icon(Icons.verified),
                             label: const Text('Sign'),
                             style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),

@@ -14,4 +14,5 @@ final List<AppSidebarItem> kSidebarItems = [
   AppSidebarItem(label: 'Purchases', icon: Icons.shopping_cart, route: '/purchases'),
   AppSidebarItem(label: 'Reports', icon: Icons.bar_chart, route: '/reports'),
   AppSidebarItem(label: 'Settings', icon: Icons.settings, route: '/settings'),
+  AppSidebarItem(label: 'Support', icon: Icons.help_outline, route: '/support'),
 ];

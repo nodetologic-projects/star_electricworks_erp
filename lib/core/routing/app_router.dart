@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 
+import 'package:starelectricerp/features/support/screens/support_screen.dart';
 import 'package:starelectricerp/features/settings/settings_screen.dart';
 import 'package:starelectricerp/features/motor_jobs/screens/motor_jobs_list_screen.dart';
 import 'package:starelectricerp/features/motor_jobs/screens/motor_job_form_screen.dart';
@@ -198,6 +199,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reports',
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const ReportsScreen()),
+      ),
+      GoRoute(
+        path: '/support',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const SupportScreen()),
       ),
       GoRoute(
         path: '/settings',

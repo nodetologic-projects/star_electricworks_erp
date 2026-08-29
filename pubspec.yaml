@@ -62,6 +62,7 @@ dependencies:
   rxdart: ^0.28.0
   crypto: ^3.0.7
   package_info_plus: ^10.2.1
+  image_picker: ^1.2.3
 dependency_overrides:
   xml: ^7.0.1
 

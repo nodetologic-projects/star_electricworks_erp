@@ -8,6 +8,7 @@ import 'package:starelectricerp/core/widgets/app_button.dart';
 import 'package:starelectricerp/core/widgets/app_data_table.dart';
 import 'package:starelectricerp/core/widgets/app_select.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
+import 'package:starelectricerp/features/reports/screens/ca_export_dialog.dart';
 import 'package:starelectricerp/core/widgets/status_badge.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/features/billing/providers/invoices_provider.dart';
@@ -48,6 +49,13 @@ class InvoicesListScreen extends ConsumerWidget {
           title: const Text('Delete Draft Invoice?'),
           content: Text('Are you sure you want to delete ${invoice.invoiceNo}?'),
           actions: [
+          IconButton(
+            icon: const Icon(Icons.archive),
+            tooltip: 'Export Invoices for CA',
+            onPressed: () {
+              showDialog(context: context, builder: (_) => const CAExportDialog());
+            },
+          ),
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: Colors.red),

@@ -461,6 +461,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               : TextFormField(
                   key: ValueKey('desc_${index}_${item.linkedId}'),
                   initialValue: item.description,
+                  maxLines: null,
                   decoration: const InputDecoration(
                     labelText: 'Custom Description',
                   ),

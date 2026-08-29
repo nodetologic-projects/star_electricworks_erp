@@ -1,3 +1,4 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:starelectricerp/core/utils/permission_util.dart';
 import 'package:path/path.dart' as p;
 import 'dart:io';
@@ -126,7 +127,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         eInvoiceApplicable: drift.Value(_eInvoiceApplicable),
       ));
 
-      await _storage.write(key: 'dsc_password', value: _passwordController.text);
+      try {
+        await _storage.write(key: 'dsc_password', value: _passwordController.text);
+      } catch (e) {
+        debugPrint('Secure storage write failed (likely keychain error): $e');
+        if (mounted && _passwordController.text.isNotEmpty) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text('Saved settings, but failed to save DSC Password securely (Keychain error).')),
+           );
+        }
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -723,9 +733,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                           const SizedBox(height: 32),
                           Center(
-                            child: Text(
-                              'Made by nodetologic IT Solutions By Taiyeb Khumri',
-                              style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500),
+                            child: InkWell(
+                              onTap: () async {
+                                final uri = Uri.parse('https://www.nodetologic.com');
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                }
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Made by nodetologic IT Solutions By Taiyeb Khumri',
+                                  style: TextStyle(
+                                    color: Colors.blue, 
+                                    fontSize: 13, 
+                                    fontWeight: FontWeight.w500,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 16),

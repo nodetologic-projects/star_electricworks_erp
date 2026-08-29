@@ -47,12 +47,13 @@ part 'database.g.dart';
   Quotations,
   DeletedRecordsLog,
   Purchases,
+  PurchaseItems,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration {
@@ -132,6 +133,35 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 17) {
           try { await m.createTable(purchases); } catch (_) {}
+        }
+        if (from < 18) {
+          try { await m.addColumn(purchases, purchases.billImagePath); } catch (_) {}
+          try { await m.addColumn(purchases, purchases.totalAmount); } catch (_) {}
+          try { await m.createTable(purchaseItems); } catch (_) {}
+          
+          final existing = await customSelect('SELECT * FROM purchases').get();
+          for (final row in existing) {
+            final id = row.read<int>('id');
+            String? category;
+            try { category = row.read<String>('category'); } catch (_) {}
+            
+            if (category != null) {
+              final description = row.read<String>('description');
+              final amount = row.read<double>('amount');
+              final gstAmount = row.read<double?>('gst_amount');
+              final total = amount + (gstAmount ?? 0);
+              
+              await customUpdate('UPDATE purchases SET total_amount = ? WHERE id = ?', variables: [Variable.withReal(total), Variable.withInt(id)]);
+              await into(purchaseItems).insert(PurchaseItemsCompanion.insert(
+                purchaseId: id,
+                category: category,
+                description: description,
+                amount: amount,
+                gstAmount: Value(gstAmount),
+              ));
+            }
+          }
+          await m.alterTable(TableMigration(purchases));
         }
       },
       beforeOpen: (details) async {

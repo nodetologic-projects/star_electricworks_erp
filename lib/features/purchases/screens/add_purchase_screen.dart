@@ -1,15 +1,25 @@
-import 'package:drift/drift.dart' as drift;
-import 'package:flutter/material.dart' hide DateTimeRange;
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:starelectricerp/core/widgets/app_button.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
+import 'package:starelectricerp/core/widgets/app_button.dart';
 import 'package:starelectricerp/data/database.dart';
-import 'package:starelectricerp/data/tables/enums.dart';
-import 'package:starelectricerp/data/repositories/purchases_repository.dart';
 import 'package:starelectricerp/data/repositories/cashbook_repository.dart';
+import 'package:starelectricerp/data/repositories/purchases_repository.dart';
+import 'package:starelectricerp/data/tables/enums.dart';
+import 'package:drift/drift.dart' as drift;
+
+class PurchaseItemData {
+  String category = 'Raw Material';
+  String description = '';
+  double amount = 0.0;
+  double gstAmount = 0.0;
+}
 
 class AddPurchaseScreen extends ConsumerStatefulWidget {
   const AddPurchaseScreen({super.key});
@@ -20,57 +30,88 @@ class AddPurchaseScreen extends ConsumerStatefulWidget {
 
 class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
   final _formKey = GlobalKey<FormState>();
+  
   final _vendorController = TextEditingController();
-  final _descController = TextEditingController();
-  final _amountController = TextEditingController();
-  final _gstController = TextEditingController();
   final _notesController = TextEditingController();
-
+  
   DateTime _purchaseDate = DateTime.now();
-  String _category = 'Tools';
-  PaymentMode? _paymentMode;
-  bool _logInCashbook = false;
+  PaymentMode? _paymentMode = PaymentMode.cash;
+  bool _logInCashbook = true;
+  
+  List<PurchaseItemData> _items = [PurchaseItemData()];
+  
+  List<String> _categories = [
+    'Raw Material',
+    'Consumables',
+    'Office Supplies',
+    'Transport/Freight',
+    'Maintenance',
+    'Other'
+  ];
 
-  final List<String> _categories = ['Tools', 'Consumables', 'Equipment', 'Services'];
+  String? _billImagePath;
 
   @override
   void dispose() {
     _vendorController.dispose();
-    _descController.dispose();
-    _amountController.dispose();
-    _gstController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      final appDir = await getApplicationDocumentsDirectory();
+      final targetDir = Directory('${appDir.path}/StarElectric_PurchaseBills');
+      if (!await targetDir.exists()) await targetDir.create();
+      
+      final ext = picked.path.split('.').last;
+      final fileName = 'bill_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final savedImage = await File(picked.path).copy('${targetDir.path}/$fileName');
+      
+      setState(() {
+        _billImagePath = savedImage.path;
+      });
+    }
+  }
+
+  double get _totalAmount {
+    return _items.fold(0.0, (sum, item) => sum + item.amount + item.gstAmount);
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    _formKey.currentState!.save();
 
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    final gst = double.tryParse(_gstController.text);
-
-    final entry = PurchasesCompanion.insert(
-      vendorName: _vendorController.text,
-      category: _category,
-      description: _descController.text,
-      amount: amount,
-      gstAmount: gst != null ? drift.Value(gst) : const drift.Value.absent(),
+    final purchaseEntry = PurchasesCompanion.insert(
+      vendorName: _vendorController.text.trim(),
       purchaseDate: _purchaseDate,
-      paymentMode: _paymentMode != null ? drift.Value(_paymentMode) : const drift.Value.absent(),
-      notes: _notesController.text.isNotEmpty ? drift.Value(_notesController.text) : const drift.Value.absent(),
+      paymentMode: _paymentMode != null ? drift.Value(_paymentMode!) : const drift.Value.absent(),
+      notes: _notesController.text.trim().isNotEmpty ? drift.Value(_notesController.text.trim()) : const drift.Value.absent(),
+      billImagePath: _billImagePath != null ? drift.Value(_billImagePath!) : const drift.Value.absent(),
+      totalAmount: drift.Value(_totalAmount),
     );
+    
+    final itemEntries = _items.map((item) => PurchaseItemsCompanion.insert(
+      purchaseId: 0,
+      category: item.category,
+      description: item.description,
+      amount: item.amount,
+      gstAmount: item.gstAmount > 0 ? drift.Value(item.gstAmount) : const drift.Value.absent(),
+    )).toList();
 
     final repo = ref.read(purchasesRepositoryProvider);
-    await repo.addPurchase(entry);
+    await repo.addPurchase(purchaseEntry, itemEntries);
 
     if (_logInCashbook && _paymentMode == PaymentMode.cash) {
       final cashRepo = ref.read(cashbookRepositoryProvider);
       await cashRepo.addTransaction(CashTransactionsCompanion.insert(
         transactionDate: _purchaseDate,
-        amount: amount,
+        amount: _totalAmount,
         transactionType: CashTransactionType.expense,
-        category: _category,
-        description: drift.Value('Purchase: ${_descController.text} from ${_vendorController.text}'),
+        category: 'Purchase',
+        description: drift.Value('Purchase from ${_vendorController.text.trim()}'),
       ));
     }
 
@@ -79,14 +120,14 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
       context.pop();
     }
   }
-
+  
   Future<void> _addCategory() async {
     final tc = TextEditingController();
     final res = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Add New Category'),
-        content: AppTextField(label: 'Category Name', controller: tc, ),
+        content: AppTextField(label: 'Category Name', controller: tc),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(ctx, tc.text.trim()), child: const Text('Add')),
@@ -98,8 +139,8 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
         if (!_categories.contains(res)) {
           _categories.add(res);
         }
-        _category = res;
       });
+      return;
     }
   }
 
@@ -153,52 +194,6 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
-                      value: _categories.contains(_category) ? _category : null,
-                      items: [
-                        ..._categories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
-                        const DropdownMenuItem(value: '_add_new_', child: Text('+ Add new category', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-                      ],
-                      onChanged: (val) {
-                        if (val == '_add_new_') {
-                          _addCategory();
-                        } else if (val != null) {
-                          setState(() => _category = val);
-                        }
-                      },
-                      validator: (val) => val == null ? 'Required' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: AppTextField(
-                      label: 'Amount (₹)',
-                      controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      validator: (val) => val == null || val.isEmpty || double.tryParse(val) == null ? 'Invalid amount' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: AppTextField(
-                      label: 'GST Amount (₹) - Optional',
-                      controller: _gstController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              AppTextField(
-                label: 'Description / Items',
-                controller: _descController,
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
                     child: DropdownButtonFormField<PaymentMode>(
                       decoration: const InputDecoration(labelText: 'Payment Mode', border: OutlineInputBorder()),
                       value: _paymentMode,
@@ -216,7 +211,6 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
                     child: _paymentMode == PaymentMode.cash
                       ? CheckboxListTile(
                           title: const Text('Also log in Cash Book'),
-                          subtitle: const Text('Creates an expense entry in cash book'),
                           value: _logInCashbook,
                           onChanged: (val) => setState(() => _logInCashbook = val ?? false),
                           controlAffinity: ListTileControlAffinity.leading,
@@ -226,11 +220,120 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 24),
+              Text('Items', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
-              AppTextField(
-                label: 'Notes (Optional)',
-                controller: _notesController,
-                maxLines: 2,
+              ..._items.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final item = entry.value;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: DropdownButtonFormField<String>(
+                                decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                                value: _categories.contains(item.category) ? item.category : null,
+                                items: [
+                                  ..._categories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                                  const DropdownMenuItem(value: '_add_new_', child: Text('+ Add new', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                                ],
+                                onChanged: (val) async {
+                                  if (val == '_add_new_') {
+                                    await _addCategory();
+                                  } else if (val != null) {
+                                    setState(() => item.category = val);
+                                  }
+                                },
+                                validator: (val) => val == null ? 'Required' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 3,
+                              child: TextFormField(
+                                decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+                                initialValue: item.description,
+                                onChanged: (val) => item.description = val,
+                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                              ),
+                            ),
+                            if (_items.length > 1)
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => setState(() => _items.removeAt(idx)),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                decoration: const InputDecoration(labelText: 'Amount (₹)', border: OutlineInputBorder()),
+                                initialValue: item.amount > 0 ? item.amount.toString() : '',
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (val) => item.amount = double.tryParse(val) ?? 0.0,
+                                validator: (val) => val == null || val.isEmpty || double.tryParse(val) == null ? 'Invalid' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextFormField(
+                                decoration: const InputDecoration(labelText: 'GST Amount (₹)', border: OutlineInputBorder()),
+                                initialValue: item.gstAmount > 0 ? item.gstAmount.toString() : '',
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (val) => item.gstAmount = double.tryParse(val) ?? 0.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              TextButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('Add Item'),
+                onPressed: () => setState(() => _items.add(PurchaseItemData())),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: AppTextField(
+                      label: 'Notes (Optional)',
+                      controller: _notesController,
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('Total Amount: ₹${_totalAmount.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text('Bill Photo', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              if (_billImagePath != null) ...[
+                Image.file(File(_billImagePath!), height: 200),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                icon: const Icon(Icons.camera_alt),
+                label: Text(_billImagePath == null ? 'Attach Bill Image' : 'Change Bill Image'),
+                onPressed: _pickImage,
               ),
               const SizedBox(height: 32),
               AppButton(

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart' as flutter_material;
 import 'package:flutter/material.dart' hide DateTimeRange;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,19 +18,17 @@ class PurchasesListScreen extends ConsumerWidget {
   Future<void> _exportToExcel(BuildContext context, List<Purchase> purchases, DateTimeRange? dateRange) async {
     final dateFormat = DateFormat('dd MMM yyyy');
     final List<List<dynamic>> rows = [
-      ['Date', 'Vendor Name', 'Category', 'Description', 'Amount', 'GST Amount', 'Payment Mode', 'Notes']
+      ['Date', 'Vendor Name', 'Total Amount', 'Payment Mode', 'Notes', 'Has Attachment']
     ];
 
     for (final p in purchases) {
       rows.add([
         dateFormat.format(p.purchaseDate),
         p.vendorName,
-        p.category,
-        p.description,
-        p.amount,
-        p.gstAmount ?? '',
+        p.totalAmount,
         p.paymentMode?.name.toUpperCase() ?? '',
         p.notes ?? '',
+        p.billImagePath != null ? 'Yes' : 'No',
       ]);
     }
 
@@ -45,6 +44,24 @@ class PurchasesListScreen extends ConsumerWidget {
     }
   }
 
+  void _showImageDialog(BuildContext context, String path) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+            ),
+            Image.file(File(path), fit: BoxFit.contain),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final purchasesAsync = ref.watch(filteredPurchasesProvider);
@@ -54,7 +71,7 @@ class PurchasesListScreen extends ConsumerWidget {
 
     double totalAmount = 0;
     if (purchasesAsync.hasValue) {
-      totalAmount = purchasesAsync.value!.fold(0, (sum, p) => sum + p.amount);
+      totalAmount = purchasesAsync.value!.fold(0, (sum, p) => sum + p.totalAmount);
     }
 
     return AppLayout(
@@ -65,8 +82,11 @@ class PurchasesListScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 16,
               children: [
                 Text(
                   'Business Purchases',
@@ -76,6 +96,7 @@ class PurchasesListScreen extends ConsumerWidget {
                 ),
                 Wrap(
                   spacing: 16,
+                  runSpacing: 8,
                   children: [
                     OutlinedButton.icon(
                       icon: const Icon(Icons.date_range),
@@ -142,12 +163,12 @@ class PurchasesListScreen extends ConsumerWidget {
                     columns: const [
                       'Date',
                       'Vendor',
-                      'Category',
-                      'Description',
-                      'Amount',
+                      'Total Amount',
+                      'Payment',
+                      'Attachment',
                     ],
                     data: purchases,
-                    searchHint: 'Search by vendor, category, or description...',
+                    searchHint: 'Search by vendor name...',
                     emptyMessage: 'No purchases found for the selected period.',
                     onSearchChanged: (val) {
                       ref.read(purchasesSearchQueryProvider.notifier).setQuery(val);
@@ -156,16 +177,25 @@ class PurchasesListScreen extends ConsumerWidget {
                       return [
                         Text(dateFormat.format(p.purchaseDate)),
                         Text(p.vendorName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(p.category, style: const TextStyle(fontSize: 12)),
-                        ),
-                        Text(p.description),
-                        Text(currencyFormat.format(p.amount), style: const TextStyle().mono),
+                        Text(currencyFormat.format(p.totalAmount), style: const TextStyle().mono),
+                        Text(p.paymentMode?.name.toUpperCase() ?? ''),
+                        p.billImagePath != null 
+                            ? InkWell(
+                                onTap: () => _showImageDialog(context, p.billImagePath!),
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(4),
+                                    image: DecorationImage(
+                                      image: FileImage(File(p.billImagePath!)),
+                                      fit: BoxFit.cover,
+                                    )
+                                  ),
+                                ),
+                              )
+                            : const Text('-'),
                       ];
                     },
                   );

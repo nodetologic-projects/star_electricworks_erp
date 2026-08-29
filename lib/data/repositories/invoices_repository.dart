@@ -187,18 +187,18 @@ class InvoicesRepository {
 
     final totalSalesQuery = _db.select(_db.invoices)
       ..where((t) => t.invoiceDate.isBetweenValues(startOfMonth, endOfMonth) &
-                     t.status.isIn([InvoiceStatus.sent.name, InvoiceStatus.paid.name]));
+                     t.status.isIn([InvoiceStatus.sent.name, InvoiceStatus.paid.name, InvoiceStatus.delivered.name, InvoiceStatus.partiallyPaid.name, InvoiceStatus.overdue.name]));
     final monthInvoices = await totalSalesQuery.get();
     
     double totalSales = 0.0;
     double gstCollected = 0.0;
     for (var inv in monthInvoices) {
       totalSales += inv.grandTotal;
-      gstCollected += inv.cgstAmount + inv.sgstAmount;
+      gstCollected += inv.cgstAmount + inv.sgstAmount + inv.igstAmount;
     }
 
     final pendingQuery = _db.select(_db.invoices)
-      ..where((t) => t.status.isIn([InvoiceStatus.draft.name, InvoiceStatus.sent.name]));
+      ..where((t) => t.status.isIn([InvoiceStatus.draft.name, InvoiceStatus.sent.name, InvoiceStatus.partiallyPaid.name, InvoiceStatus.overdue.name]));
     final pendingInvoices = await pendingQuery.get();
     
     int pendingCount = pendingInvoices.length;
@@ -331,60 +331,63 @@ class InvoicesRepository {
   }
 
   Future<List<OutstandingSummaryRow>> getOutstandingSummary() async {
-    // We fetch all non-draft/cancelled invoices and group them in dart to avoid complex sqlite date formatting
-    final query = _db.select(_db.invoices).join([
-      innerJoin(_db.customers, _db.customers.id.equalsExp(_db.invoices.customerId)),
-    ])
-      ..where(_db.invoices.status.isIn([InvoiceStatus.sent.name, InvoiceStatus.partiallyPaid.name, InvoiceStatus.overdue.name, InvoiceStatus.delivered.name]));
-
-    final rows = await query.get();
-    
-    // We need payments for these invoices
-    final activeInvoiceIds = rows.map((r) => r.readTable(_db.invoices).id).toSet();
-    final allPayments = await (_db.select(_db.payments)..where((t) => t.invoiceId.isIn(activeInvoiceIds))).get();
+    final customers = await (_db.select(_db.customers)..where((t) => t.isActive.equals(true))).get();
+    final invoices = await (_db.select(_db.invoices)..where((t) => t.status.isNotIn([InvoiceStatus.draft.name]))).get();
+    final payments = await _db.select(_db.payments).get();
     
     final Map<int, OutstandingSummaryRow> summary = {};
     
-    for (var row in rows) {
-      final invoice = row.readTable(_db.invoices);
-      final customer = row.readTable(_db.customers);
+    for (var customer in customers) {
+      summary[customer.id] = OutstandingSummaryRow(
+        customer: customer,
+        openInvoicesCount: 0,
+        totalOutstanding: 0.0,
+        oldestOverdueDate: null,
+      );
+    }
+
+    for (var invoice in invoices) {
+      if (!summary.containsKey(invoice.customerId)) continue;
       
-      final invoicePayments = allPayments.where((p) => p.invoiceId == invoice.id).fold<double>(0.0, (s, p) => s + p.amount);
+      final invoicePayments = payments.where((p) => p.invoiceId == invoice.id).fold<double>(0.0, (s, p) => s + p.amount);
       final balanceDue = invoice.grandTotal - invoicePayments;
       
-      if (balanceDue <= 0) continue; // Actually fully paid but status not updated? Safeguard.
+      final current = summary[invoice.customerId]!;
       
-      if (!summary.containsKey(customer.id)) {
-        summary[customer.id] = OutstandingSummaryRow(
-          customer: customer,
-          openInvoicesCount: 0,
-          totalOutstanding: 0.0,
-          oldestOverdueDate: null,
-        );
-      }
-      
-      final current = summary[customer.id]!;
+      int addedOpen = 0;
+      double addedOut = 0.0;
       DateTime? oldest = current.oldestOverdueDate;
-      if (invoice.status == InvoiceStatus.overdue) {
-        if (oldest == null || invoice.invoiceDate.isBefore(oldest)) {
-          oldest = invoice.invoiceDate;
+      
+      if (balanceDue > 0) {
+        addedOpen = 1;
+        addedOut = balanceDue;
+        if (invoice.status == InvoiceStatus.overdue || (invoice.dueDate != null && invoice.dueDate!.isBefore(DateTime.now()))) {
+          if (oldest == null || invoice.invoiceDate.isBefore(oldest)) {
+            oldest = invoice.invoiceDate;
+          }
         }
       }
       
-      summary[customer.id] = OutstandingSummaryRow(
-        customer: customer,
-        openInvoicesCount: current.openInvoicesCount + 1,
-        totalOutstanding: current.totalOutstanding + balanceDue,
+      summary[invoice.customerId] = OutstandingSummaryRow(
+        customer: current.customer,
+        openInvoicesCount: current.openInvoicesCount + addedOpen,
+        totalOutstanding: current.totalOutstanding + addedOut,
         oldestOverdueDate: oldest,
       );
     }
     
     final sorted = summary.values.toList()
-      ..sort((a, b) => b.totalOutstanding.compareTo(a.totalOutstanding));
+      ..sort((a, b) {
+        if (a.totalOutstanding != b.totalOutstanding) {
+          return b.totalOutstanding.compareTo(a.totalOutstanding);
+        }
+        return a.customer.name.compareTo(b.customer.name);
+      });
     return sorted;
   }
 
   Future<CustomerLedgerResult> getCustomerLedger(int customerId) async {
+    final customer = await (_db.select(_db.customers)..where((t) => t.id.equals(customerId))).getSingle();
     final query = _db.select(_db.invoices)..where((t) => t.customerId.equals(customerId))
       ..orderBy([(t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc)]);
       
@@ -414,6 +417,7 @@ class InvoicesRepository {
     }
     
     return CustomerLedgerResult(
+      customer: customer,
       totalBilled: totalBilled,
       totalPaid: totalPaid,
       totalOutstanding: totalBilled - totalPaid,
@@ -479,12 +483,14 @@ class LedgerInvoiceRow {
 }
 
 class CustomerLedgerResult {
+  final Customer customer;
   final double totalBilled;
   final double totalPaid;
   final double totalOutstanding;
   final List<LedgerInvoiceRow> invoices;
 
   CustomerLedgerResult({
+    required this.customer,
     required this.totalBilled,
     required this.totalPaid,
     required this.totalOutstanding,

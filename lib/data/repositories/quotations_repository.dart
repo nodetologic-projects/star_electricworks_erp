@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' as import_drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/tables/enums.dart';

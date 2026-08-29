@@ -16,30 +16,6 @@ class EmployeeListScreen extends ConsumerStatefulWidget {
 
 class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
 
-  Future<void> _confirmDelete(BuildContext context, Employee employee, WidgetRef ref) async {
-    final res = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Employee?'),
-        content: Text('This will hide ${employee.name} from new selections but keep historical records intact.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
-    );
-    if (res == true && context.mounted) {
-      final db = ref.read(databaseProvider);
-      await (db.update(db.employees)..where((tbl) => tbl.id.equals(employee.id))).write(
-        EmployeesCompanion(isActive: import_drift.Value(false)),
-      );
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${employee.name} deleted.')));
-    }
-  }
 
 
   void _showAddEmployeeDialog() {

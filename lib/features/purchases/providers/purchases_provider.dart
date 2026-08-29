@@ -56,8 +56,7 @@ final filteredPurchasesProvider = Provider<AsyncValue<List<Purchase>>>((ref) {
     if (query.isEmpty) return list;
     return list.where((p) {
       return p.vendorName.toLowerCase().contains(query) ||
-             p.description.toLowerCase().contains(query) ||
-             p.category.toLowerCase().contains(query);
+             (p.notes?.toLowerCase().contains(query) ?? false);
     }).toList();
   });
 });

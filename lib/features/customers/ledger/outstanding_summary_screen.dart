@@ -41,7 +41,7 @@ class OutstandingSummaryScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Outstanding Summary',
+              'Customer List',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -60,7 +60,7 @@ class OutstandingSummaryScreen extends ConsumerWidget {
                     ],
                     data: list,
                     searchHint: 'Search by customer name...',
-                    emptyMessage: 'No outstanding balances found.',
+                    emptyMessage: 'No customers found.',
                     onSearchChanged: (val) {
                       ref.read(ledgerSearchQueryProvider.notifier).setQuery(val);
                     },

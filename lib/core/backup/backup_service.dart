@@ -86,13 +86,24 @@ class BackupService {
       encoder.addFile(logoFile);
     }
 
-    // Add all PDFs from the new directory
+    // Add all PDFs from the invoices directory
     final invoicesDir = Directory(p.join(docsDir.path, 'Star Electric Works Invoices'));
     if (await invoicesDir.exists()) {
       final dirList = invoicesDir.listSync();
       for (var entity in dirList) {
         if (entity is File && entity.path.endsWith('.pdf')) {
-          encoder.addFile(entity);
+          encoder.addFile(entity); // By default addFile puts it in root. We could namespace them, but we'll stick to flat.
+        }
+      }
+    }
+    
+    // Add all files from purchase_bills directory, prefixed so we know how to restore them
+    final billsDir = Directory(p.join(docsDir.path, 'purchase_bills'));
+    if (await billsDir.exists()) {
+      final dirList = billsDir.listSync();
+      for (var entity in dirList) {
+        if (entity is File) {
+          encoder.addFile(entity, 'purchase_bills/${p.basename(entity.path)}');
         }
       }
     }
@@ -132,16 +143,27 @@ class BackupService {
     if (!await invoicesDir.exists()) {
       await invoicesDir.create(recursive: true);
     }
+    
+    final billsDir = Directory(p.join(docsDir.path, 'purchase_bills'));
+    if (!await billsDir.exists()) {
+      await billsDir.create(recursive: true);
+    }
 
     for (final file in archive) {
       if (file.isFile) {
         String outPath;
-        if (file.name.endsWith('.pdf')) {
-          outPath = p.join(invoicesDir.path, file.name);
-        } else {
+        if (file.name.startsWith('purchase_bills/')) {
           outPath = p.join(docsDir.path, file.name);
+        } else if (file.name.endsWith('.pdf')) {
+          outPath = p.join(invoicesDir.path, p.basename(file.name));
+        } else {
+          outPath = p.join(docsDir.path, p.basename(file.name));
         }
         final outFile = File(outPath);
+        // Ensure parent exists (for purchase_bills/)
+        if (!await outFile.parent.exists()) {
+           await outFile.parent.create(recursive: true);
+        }
         await outFile.writeAsBytes(file.content as List<int>);
       }
     }

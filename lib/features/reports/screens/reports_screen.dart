@@ -7,7 +7,7 @@ import 'package:starelectricerp/data/repositories/copper_stock_repository.dart';
 import 'package:starelectricerp/data/repositories/invoices_repository.dart';
 import 'package:starelectricerp/features/reports/utils/excel_export.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
-import 'package:starelectricerp/features/reports/screens/ca_export_tab.dart';
+import 'package:starelectricerp/features/reports/screens/ca_export_dialog.dart';
 
 // State managed internally by StatefulWidget
 
@@ -17,17 +17,26 @@ class ReportsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 4,
+      length: 3,
       child: AppLayout(
         currentRoute: '/reports',
         appBar: AppBar(
           title: const Text('Reports'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.archive),
+              tooltip: 'Export Invoices for CA',
+              onPressed: () {
+                showDialog(context: context, builder: (_) => const CAExportDialog());
+              },
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Sales Report'),
               Tab(text: 'Stock Report'),
               Tab(text: 'GST Summary'),
-              Tab(text: 'CA Export'),
+              
             ],
           ),
         ),
@@ -36,7 +45,7 @@ class ReportsScreen extends ConsumerWidget {
             _SalesReportTab(),
             _StockReportTab(),
             _GstSummaryTab(),
-            CaExportTab(),
+            
           ],
         ),
       ),
