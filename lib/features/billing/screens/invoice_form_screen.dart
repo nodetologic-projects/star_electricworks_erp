@@ -529,6 +529,16 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         ),
         const SizedBox(width: 8),
         SizedBox(
+          width: 90,
+          child: TextFormField(
+            key: ValueKey('hsn_${index}_${item.linkedId}'),
+            initialValue: item.hsnCode ?? '',
+            decoration: const InputDecoration(labelText: 'SAC/HSN'),
+            onChanged: (val) => item.hsnCode = val,
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
           width: 100,
           child: TextFormField(
             key: ValueKey('raters_${index}_${item.linkedId}'),
