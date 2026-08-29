@@ -6,6 +6,7 @@ class Customers extends Table {
   TextColumn get address => text()();
   TextColumn get state => text()();
   TextColumn get gstin => text().nullable()();
+  TextColumn get panNumber => text().nullable()();
   TextColumn get phone => text()();
   TextColumn get email => text()();
   TextColumn get vendorCode => text().nullable()();

@@ -191,19 +191,58 @@ class InvoicePdfGenerator {
       children: [
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Text(
               copyLabel,
               style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
             ),
-            pw.Text(
-              '$typeLabel ${invoice.invoiceNo}',
-              style: pw.TextStyle(
-                color: PdfColor.fromHex('#501817'),
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                letterSpacing: 1.5,
-              ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text(
+                  '$typeLabel ${invoice.invoiceNo}',
+                  style: pw.TextStyle(
+                    color: PdfColor.fromHex('#501817'),
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.RichText(text: pw.TextSpan(children: [
+                  pw.TextSpan(text: 'Date: ', style: const pw.TextStyle(fontSize: 8)),
+                  pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.invoiceDate), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                ])),
+                if (invoice.dueDate != null) ...[
+                  pw.SizedBox(height: 2),
+                  pw.RichText(text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'Due Date: ', style: const pw.TextStyle(fontSize: 8)),
+                    pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.dueDate!), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ])),
+                ],
+                if (invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ...[
+                  pw.SizedBox(height: 2),
+                  pw.RichText(text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'PO No: ', style: const pw.TextStyle(fontSize: 8)),
+                    pw.TextSpan(text: invoice.poNumber!, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ])),
+                ],
+                if (invoice.poDate != null) ...[
+                  pw.SizedBox(height: 2),
+                  pw.RichText(text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'PO Date: ', style: const pw.TextStyle(fontSize: 8)),
+                    pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.poDate!), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ])),
+                ],
+                if (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty) ...[
+                  pw.SizedBox(height: 2),
+                  pw.RichText(text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'GP No: ', style: const pw.TextStyle(fontSize: 8)),
+                    pw.TextSpan(text: invoice.gpNumber!, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ])),
+                ],
+              ],
             ),
           ],
         ),
@@ -324,6 +363,14 @@ class InvoicePdfGenerator {
                           fontWeight: pw.FontWeight.bold,
                         ),
                       ),
+                    if (customer.panNumber != null && customer.panNumber!.isNotEmpty)
+                      pw.Text(
+                        'PAN: ${customer.panNumber}',
+                        style: pw.TextStyle(
+                          fontSize: 7.5,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
                     if (customer.vendorCode != null &&
                         customer.vendorCode!.isNotEmpty)
                       pw.Text(
@@ -378,6 +425,14 @@ class InvoicePdfGenerator {
                     if (customer.gstin != null && customer.gstin!.isNotEmpty)
                       pw.Text(
                         'GSTIN: ${customer.gstin}',
+                        style: pw.TextStyle(
+                          fontSize: 7.5,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    if (customer.panNumber != null && customer.panNumber!.isNotEmpty)
+                      pw.Text(
+                        'PAN: ${customer.panNumber}',
                         style: pw.TextStyle(
                           fontSize: 7.5,
                           fontWeight: pw.FontWeight.bold,
@@ -674,29 +729,32 @@ class InvoicePdfGenerator {
   }
 
   static pw.Widget _buildDescriptionWidget(String description) {
-    if (!description.contains('\n')) {
-      return pw.Text(
-        description,
-        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
-      );
+    List<pw.TextSpan> spans = [];
+    final pattern = RegExp(r'\*\*(.*?)\*\*');
+    int lastMatchEnd = 0;
+    
+    for (final match in pattern.allMatches(description)) {
+      if (match.start > lastMatchEnd) {
+        spans.add(pw.TextSpan(
+          text: description.substring(lastMatchEnd, match.start),
+          style: const pw.TextStyle(fontSize: 8),
+        ));
+      }
+      spans.add(pw.TextSpan(
+        text: match.group(1),
+        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+      ));
+      lastMatchEnd = match.end;
     }
-    final lines = description.split('\n');
-    final firstLine = lines.first;
-    final otherLines = lines.skip(1).join('\n');
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          firstLine,
-          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
-        ),
-        pw.SizedBox(height: 2),
-        pw.Text(
-          otherLines,
-          style: const pw.TextStyle(fontSize: 7),
-        ),
-      ],
-    );
+    
+    if (lastMatchEnd < description.length) {
+      spans.add(pw.TextSpan(
+        text: description.substring(lastMatchEnd),
+        style: const pw.TextStyle(fontSize: 8),
+      ));
+    }
+    
+    return pw.RichText(text: pw.TextSpan(children: spans));
   }
 
   static pw.Widget _buildTotalsRow(
@@ -787,208 +845,6 @@ class InvoicePdfGenerator {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              if (!isBillOfSupply && rateTaxableValue.keys.isNotEmpty) ...[
-                // Rate Breakdown Table
-                pw.Container(
-                  padding: const pw.EdgeInsets.only(bottom: 8),
-                  child: pw.Table(
-                    border: pw.TableBorder.all(
-                      color: PdfColors.black,
-                      width: 0.5,
-                    ),
-                    children: [
-                      pw.TableRow(
-                        children: [
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              'Rate',
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                              textAlign: pw.TextAlign.center,
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              'Taxable',
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              'CGST',
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              'SGST',
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              'Amount',
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                        ],
-                      ),
-                      for (final rate in rateTaxableValue.keys)
-                        pw.TableRow(
-                          children: [
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(3),
-                              child: pw.Text(
-                                '@${rate.toStringAsFixed(1)}%',
-                                style: pw.TextStyle(
-                                  fontSize: 7.5,
-                                  font: monoFont,
-                                ),
-                                textAlign: pw.TextAlign.center,
-                              ),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(3),
-                              child: pw.Text(
-                                rateTaxableValue[rate]!.toStringAsFixed(2),
-                                style: pw.TextStyle(
-                                  fontSize: 7.5,
-                                  font: monoFont,
-                                ),
-                                textAlign: pw.TextAlign.right,
-                              ),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(3),
-                              child: pw.Text(
-                                (rateCgst[rate] ?? 0).toStringAsFixed(2),
-                                style: pw.TextStyle(
-                                  fontSize: 7.5,
-                                  font: monoFont,
-                                ),
-                                textAlign: pw.TextAlign.right,
-                              ),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(3),
-                              child: pw.Text(
-                                (rateSgst[rate] ?? 0).toStringAsFixed(2),
-                                style: pw.TextStyle(
-                                  fontSize: 7.5,
-                                  font: monoFont,
-                                ),
-                                textAlign: pw.TextAlign.right,
-                              ),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(3),
-                              child: pw.Text(
-                                rateTotal[rate]!.toStringAsFixed(2),
-                                style: pw.TextStyle(
-                                  fontSize: 7.5,
-                                  font: monoFont,
-                                ),
-                                textAlign: pw.TextAlign.right,
-                              ),
-                            ),
-                          ],
-                        ),
-                      pw.TableRow(
-                        children: [
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              'TOTAL',
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                              textAlign: pw.TextAlign.center,
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              (invoice.subtotal - invoice.discountAmount)
-                                  .toStringAsFixed(2),
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                                font: monoFont,
-                              ),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              invoice.cgstAmount.toStringAsFixed(2),
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                                font: monoFont,
-                              ),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              invoice.sgstAmount.toStringAsFixed(2),
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                                font: monoFont,
-                              ),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(3),
-                            child: pw.Text(
-                              ((invoice.subtotal - invoice.discountAmount) +
-                                      invoice.cgstAmount +
-                                      invoice.sgstAmount)
-                                  .toStringAsFixed(2),
-                              style: pw.TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: pw.FontWeight.bold,
-                                font: monoFont,
-                              ),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              pw.SizedBox(height: 2),
               _buildTotalsLine(
                 'Total Before Tax:',
                 (invoice.subtotal - invoice.discountAmount),

@@ -704,6 +704,17 @@ class $CustomersTable extends Customers
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _panNumberMeta = const VerificationMeta(
+    'panNumber',
+  );
+  @override
+  late final GeneratedColumn<String> panNumber = GeneratedColumn<String>(
+    'pan_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
   @override
   late final GeneratedColumn<String> phone = GeneratedColumn<String>(
@@ -767,6 +778,7 @@ class $CustomersTable extends Customers
     address,
     state,
     gstin,
+    panNumber,
     phone,
     email,
     vendorCode,
@@ -816,6 +828,12 @@ class $CustomersTable extends Customers
       context.handle(
         _gstinMeta,
         gstin.isAcceptableOrUnknown(data['gstin']!, _gstinMeta),
+      );
+    }
+    if (data.containsKey('pan_number')) {
+      context.handle(
+        _panNumberMeta,
+        panNumber.isAcceptableOrUnknown(data['pan_number']!, _panNumberMeta),
       );
     }
     if (data.containsKey('phone')) {
@@ -881,6 +899,10 @@ class $CustomersTable extends Customers
         DriftSqlType.string,
         data['${effectivePrefix}gstin'],
       ),
+      panNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pan_number'],
+      ),
       phone: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}phone'],
@@ -916,6 +938,7 @@ class Customer extends DataClass implements Insertable<Customer> {
   final String address;
   final String state;
   final String? gstin;
+  final String? panNumber;
   final String phone;
   final String email;
   final String? vendorCode;
@@ -927,6 +950,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     required this.address,
     required this.state,
     this.gstin,
+    this.panNumber,
     required this.phone,
     required this.email,
     this.vendorCode,
@@ -942,6 +966,9 @@ class Customer extends DataClass implements Insertable<Customer> {
     map['state'] = Variable<String>(state);
     if (!nullToAbsent || gstin != null) {
       map['gstin'] = Variable<String>(gstin);
+    }
+    if (!nullToAbsent || panNumber != null) {
+      map['pan_number'] = Variable<String>(panNumber);
     }
     map['phone'] = Variable<String>(phone);
     map['email'] = Variable<String>(email);
@@ -962,6 +989,9 @@ class Customer extends DataClass implements Insertable<Customer> {
       gstin: gstin == null && nullToAbsent
           ? const Value.absent()
           : Value(gstin),
+      panNumber: panNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(panNumber),
       phone: Value(phone),
       email: Value(email),
       vendorCode: vendorCode == null && nullToAbsent
@@ -983,6 +1013,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       address: serializer.fromJson<String>(json['address']),
       state: serializer.fromJson<String>(json['state']),
       gstin: serializer.fromJson<String?>(json['gstin']),
+      panNumber: serializer.fromJson<String?>(json['panNumber']),
       phone: serializer.fromJson<String>(json['phone']),
       email: serializer.fromJson<String>(json['email']),
       vendorCode: serializer.fromJson<String?>(json['vendorCode']),
@@ -999,6 +1030,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       'address': serializer.toJson<String>(address),
       'state': serializer.toJson<String>(state),
       'gstin': serializer.toJson<String?>(gstin),
+      'panNumber': serializer.toJson<String?>(panNumber),
       'phone': serializer.toJson<String>(phone),
       'email': serializer.toJson<String>(email),
       'vendorCode': serializer.toJson<String?>(vendorCode),
@@ -1013,6 +1045,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     String? address,
     String? state,
     Value<String?> gstin = const Value.absent(),
+    Value<String?> panNumber = const Value.absent(),
     String? phone,
     String? email,
     Value<String?> vendorCode = const Value.absent(),
@@ -1024,6 +1057,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     address: address ?? this.address,
     state: state ?? this.state,
     gstin: gstin.present ? gstin.value : this.gstin,
+    panNumber: panNumber.present ? panNumber.value : this.panNumber,
     phone: phone ?? this.phone,
     email: email ?? this.email,
     vendorCode: vendorCode.present ? vendorCode.value : this.vendorCode,
@@ -1037,6 +1071,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       address: data.address.present ? data.address.value : this.address,
       state: data.state.present ? data.state.value : this.state,
       gstin: data.gstin.present ? data.gstin.value : this.gstin,
+      panNumber: data.panNumber.present ? data.panNumber.value : this.panNumber,
       phone: data.phone.present ? data.phone.value : this.phone,
       email: data.email.present ? data.email.value : this.email,
       vendorCode: data.vendorCode.present
@@ -1055,6 +1090,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           ..write('address: $address, ')
           ..write('state: $state, ')
           ..write('gstin: $gstin, ')
+          ..write('panNumber: $panNumber, ')
           ..write('phone: $phone, ')
           ..write('email: $email, ')
           ..write('vendorCode: $vendorCode, ')
@@ -1071,6 +1107,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     address,
     state,
     gstin,
+    panNumber,
     phone,
     email,
     vendorCode,
@@ -1086,6 +1123,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           other.address == this.address &&
           other.state == this.state &&
           other.gstin == this.gstin &&
+          other.panNumber == this.panNumber &&
           other.phone == this.phone &&
           other.email == this.email &&
           other.vendorCode == this.vendorCode &&
@@ -1099,6 +1137,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
   final Value<String> address;
   final Value<String> state;
   final Value<String?> gstin;
+  final Value<String?> panNumber;
   final Value<String> phone;
   final Value<String> email;
   final Value<String?> vendorCode;
@@ -1110,6 +1149,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.address = const Value.absent(),
     this.state = const Value.absent(),
     this.gstin = const Value.absent(),
+    this.panNumber = const Value.absent(),
     this.phone = const Value.absent(),
     this.email = const Value.absent(),
     this.vendorCode = const Value.absent(),
@@ -1122,6 +1162,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     required String address,
     required String state,
     this.gstin = const Value.absent(),
+    this.panNumber = const Value.absent(),
     required String phone,
     required String email,
     this.vendorCode = const Value.absent(),
@@ -1138,6 +1179,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Expression<String>? address,
     Expression<String>? state,
     Expression<String>? gstin,
+    Expression<String>? panNumber,
     Expression<String>? phone,
     Expression<String>? email,
     Expression<String>? vendorCode,
@@ -1150,6 +1192,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       if (address != null) 'address': address,
       if (state != null) 'state': state,
       if (gstin != null) 'gstin': gstin,
+      if (panNumber != null) 'pan_number': panNumber,
       if (phone != null) 'phone': phone,
       if (email != null) 'email': email,
       if (vendorCode != null) 'vendor_code': vendorCode,
@@ -1164,6 +1207,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Value<String>? address,
     Value<String>? state,
     Value<String?>? gstin,
+    Value<String?>? panNumber,
     Value<String>? phone,
     Value<String>? email,
     Value<String?>? vendorCode,
@@ -1176,6 +1220,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       address: address ?? this.address,
       state: state ?? this.state,
       gstin: gstin ?? this.gstin,
+      panNumber: panNumber ?? this.panNumber,
       phone: phone ?? this.phone,
       email: email ?? this.email,
       vendorCode: vendorCode ?? this.vendorCode,
@@ -1201,6 +1246,9 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     }
     if (gstin.present) {
       map['gstin'] = Variable<String>(gstin.value);
+    }
+    if (panNumber.present) {
+      map['pan_number'] = Variable<String>(panNumber.value);
     }
     if (phone.present) {
       map['phone'] = Variable<String>(phone.value);
@@ -1228,6 +1276,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
           ..write('address: $address, ')
           ..write('state: $state, ')
           ..write('gstin: $gstin, ')
+          ..write('panNumber: $panNumber, ')
           ..write('phone: $phone, ')
           ..write('email: $email, ')
           ..write('vendorCode: $vendorCode, ')
@@ -11560,6 +11609,7 @@ typedef $$CustomersTableCreateCompanionBuilder =
       required String address,
       required String state,
       Value<String?> gstin,
+      Value<String?> panNumber,
       required String phone,
       required String email,
       Value<String?> vendorCode,
@@ -11573,6 +11623,7 @@ typedef $$CustomersTableUpdateCompanionBuilder =
       Value<String> address,
       Value<String> state,
       Value<String?> gstin,
+      Value<String?> panNumber,
       Value<String> phone,
       Value<String> email,
       Value<String?> vendorCode,
@@ -11671,6 +11722,11 @@ class $$CustomersTableFilterComposer
 
   ColumnFilters<String> get gstin => $composableBuilder(
     column: $table.gstin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get panNumber => $composableBuilder(
+    column: $table.panNumber,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11809,6 +11865,11 @@ class $$CustomersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get panNumber => $composableBuilder(
+    column: $table.panNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get phone => $composableBuilder(
     column: $table.phone,
     builder: (column) => ColumnOrderings(column),
@@ -11858,6 +11919,9 @@ class $$CustomersTableAnnotationComposer
 
   GeneratedColumn<String> get gstin =>
       $composableBuilder(column: $table.gstin, builder: (column) => column);
+
+  GeneratedColumn<String> get panNumber =>
+      $composableBuilder(column: $table.panNumber, builder: (column) => column);
 
   GeneratedColumn<String> get phone =>
       $composableBuilder(column: $table.phone, builder: (column) => column);
@@ -11989,6 +12053,7 @@ class $$CustomersTableTableManager
                 Value<String> address = const Value.absent(),
                 Value<String> state = const Value.absent(),
                 Value<String?> gstin = const Value.absent(),
+                Value<String?> panNumber = const Value.absent(),
                 Value<String> phone = const Value.absent(),
                 Value<String> email = const Value.absent(),
                 Value<String?> vendorCode = const Value.absent(),
@@ -12000,6 +12065,7 @@ class $$CustomersTableTableManager
                 address: address,
                 state: state,
                 gstin: gstin,
+                panNumber: panNumber,
                 phone: phone,
                 email: email,
                 vendorCode: vendorCode,
@@ -12013,6 +12079,7 @@ class $$CustomersTableTableManager
                 required String address,
                 required String state,
                 Value<String?> gstin = const Value.absent(),
+                Value<String?> panNumber = const Value.absent(),
                 required String phone,
                 required String email,
                 Value<String?> vendorCode = const Value.absent(),
@@ -12024,6 +12091,7 @@ class $$CustomersTableTableManager
                 address: address,
                 state: state,
                 gstin: gstin,
+                panNumber: panNumber,
                 phone: phone,
                 email: email,
                 vendorCode: vendorCode,

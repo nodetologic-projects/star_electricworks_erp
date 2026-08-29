@@ -288,14 +288,45 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
                             setState(() => _selectedPhase = val),
                       ),
                       const SizedBox(height: 16),
-                      AppTextField(
-                        label: 'Job Description *',
-                        hintText: 'Describe the work to be done...',
-                        controller: _jobDescController,
-                        maxLines: 4,
-                        validator: (val) => val == null || val.isEmpty
-                            ? 'Job description is required'
-                            : null,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Job Description *',
+                              hintText: 'Describe the work to be done...',
+                              controller: _jobDescController,
+                              maxLines: 4,
+                              validator: (val) => val == null || val.isEmpty
+                                  ? 'Job description is required'
+                                  : null,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.format_bold),
+                            tooltip: 'Bold Selected Text',
+                            onPressed: () {
+                              final ctrl = _jobDescController;
+                              final text = ctrl.text;
+                              final selection = ctrl.selection;
+                              if (selection.isValid && selection.start != selection.end) {
+                                final selected = text.substring(selection.start, selection.end);
+                                final newText = text.replaceRange(selection.start, selection.end, '**$selected**');
+                                ctrl.value = ctrl.value.copyWith(
+                                  text: newText,
+                                  selection: TextSelection.collapsed(offset: selection.end + 4),
+                                );
+                              } else {
+                                final cursor = selection.isValid ? selection.start : text.length;
+                                final newText = text.replaceRange(cursor, cursor, '****');
+                                ctrl.value = ctrl.value.copyWith(
+                                  text: newText,
+                                  selection: TextSelection.collapsed(offset: cursor + 2),
+                                );
+                              }
+                            },
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       AppTextField(

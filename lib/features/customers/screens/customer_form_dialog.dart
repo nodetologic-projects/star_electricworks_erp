@@ -22,6 +22,7 @@ class _CustomerFormDialogState extends ConsumerState<CustomerFormDialog> {
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
   late TextEditingController _gstinController;
+  late TextEditingController _panController;
   
   bool _isLoading = true;
 
@@ -34,6 +35,7 @@ class _CustomerFormDialogState extends ConsumerState<CustomerFormDialog> {
     _phoneController = TextEditingController();
     _emailController = TextEditingController();
     _gstinController = TextEditingController();
+    _panController = TextEditingController();
     
     _loadCustomer();
   }
@@ -49,6 +51,7 @@ class _CustomerFormDialogState extends ConsumerState<CustomerFormDialog> {
         _phoneController.text = customer.phone;
         _emailController.text = customer.email;
         _gstinController.text = customer.gstin ?? '';
+        _panController.text = customer.panNumber ?? '';
       }
     }
     if (mounted) {
@@ -64,6 +67,7 @@ class _CustomerFormDialogState extends ConsumerState<CustomerFormDialog> {
     _phoneController.dispose();
     _emailController.dispose();
     _gstinController.dispose();
+    _panController.dispose();
     super.dispose();
   }
 
@@ -78,6 +82,7 @@ class _CustomerFormDialogState extends ConsumerState<CustomerFormDialog> {
         phone: drift.Value(_phoneController.text.trim()),
         email: drift.Value(_emailController.text.trim()),
         gstin: drift.Value(_gstinController.text.trim()),
+        panNumber: drift.Value(_panController.text.trim()),
       );
 
       if (widget.customerId == null) {

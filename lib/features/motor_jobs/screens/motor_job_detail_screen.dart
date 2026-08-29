@@ -1,3 +1,4 @@
+import 'package:starelectricerp/core/widgets/parsed_rich_text.dart';
 import 'package:starelectricerp/data/repositories/invoices_repository.dart';
 import 'package:starelectricerp/features/billing/providers/invoice_detail_provider.dart';
 import 'package:starelectricerp/features/billing/pdf/invoice_pdf.dart';
@@ -92,8 +93,8 @@ class _MotorJobDetailScreenState extends ConsumerState<MotorJobDetailScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
+          ParsedRichText(
+            text: value,
             style: const TextStyle(fontSize: 15),
           ),
         ],

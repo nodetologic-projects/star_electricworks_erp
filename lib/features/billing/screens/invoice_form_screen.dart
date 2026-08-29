@@ -24,6 +24,7 @@ class _LineItem {
   ItemSourceType type;
   int? linkedId;
   String description = '';
+  TextEditingController? descController;
   String? hsnCode;
   double qty = 1;
   double unitPrice = 0;
@@ -165,6 +166,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           final line = _LineItem(type: item.itemSourceType);
           line.linkedId = item.itemSourceType == ItemSourceType.motorJob ? item.motorJobId : item.copperStockId;
           line.description = item.description;
+          line.descController = TextEditingController(text: item.description);
           line.hsnCode = item.hsnCode;
           line.qty = item.qty ?? 1.0;
           line.unitPrice = item.unitPrice;
@@ -198,7 +200,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   void _addLineItem(ItemSourceType type) {
     setState(() {
-      _items.add(_LineItem(type: type));
+      final line = _LineItem(type: type);
+      line.descController = TextEditingController();
+      _items.add(line);
     });
   }
 
@@ -387,7 +391,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           copperStockId: drift.Value(
             i.type == ItemSourceType.copperStock ? i.linkedId : null,
           ),
-          description: i.description,
+          description: i.descController?.text ?? i.description,
           hsnCode: drift.Value(
             i.hsnCode != null && i.hsnCode!.trim().isNotEmpty
                 ? i.hsnCode!.trim()
@@ -516,14 +520,48 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     _recalculate();
                   },
                 )
-              : TextFormField(
-                  key: ValueKey('desc_${index}_${item.linkedId}'),
-                  initialValue: item.description,
-                  maxLines: null,
-                  decoration: const InputDecoration(
-                    labelText: 'Custom Description',
-                  ),
-                  onChanged: (val) => item.description = val,
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        key: ValueKey('desc_${index}_${item.linkedId}'),
+                        controller: item.descController,
+                        maxLines: null,
+                        decoration: const InputDecoration(
+                          labelText: 'Custom Description',
+                        ),
+                        onChanged: (val) => item.description = val,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.format_bold),
+                      tooltip: 'Bold Selected Text',
+                      onPressed: () {
+                        final ctrl = item.descController!;
+                        final text = ctrl.text;
+                        final selection = ctrl.selection;
+                        if (selection.isValid && selection.start != selection.end) {
+                          final selected = text.substring(selection.start, selection.end);
+                          final newText = text.replaceRange(selection.start, selection.end, '**$selected**');
+                          ctrl.value = ctrl.value.copyWith(
+                            text: newText,
+                            selection: TextSelection.collapsed(offset: selection.end + 4),
+                          );
+                          item.description = newText;
+                        } else {
+                           // If no selection, just insert ** ** at cursor
+                           final cursor = selection.isValid ? selection.start : text.length;
+                           final newText = text.replaceRange(cursor, cursor, '****');
+                           ctrl.value = ctrl.value.copyWith(
+                             text: newText,
+                             selection: TextSelection.collapsed(offset: cursor + 2),
+                           );
+                           item.description = newText;
+                        }
+                      },
+                    ),
+                  ],
                 ),
         ),
         const SizedBox(width: 8),
