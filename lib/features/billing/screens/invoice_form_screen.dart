@@ -166,6 +166,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           final line = _LineItem(type: item.itemSourceType);
           line.linkedId = item.itemSourceType == ItemSourceType.motorJob ? item.motorJobId : item.copperStockId;
           line.description = item.description;
+          line.rateRs = item.rateRs;
           line.hsnCode = item.hsnCode;
           line.qty = item.qty ?? 1.0;
           line.unitPrice = item.unitPrice;
@@ -389,6 +390,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             i.type == ItemSourceType.copperStock ? i.linkedId : null,
           ),
           description: i.description,
+          rateRs: drift.Value(i.rateRs),
           hsnCode: drift.Value(
             i.hsnCode != null && i.hsnCode!.trim().isNotEmpty
                 ? i.hsnCode!.trim()

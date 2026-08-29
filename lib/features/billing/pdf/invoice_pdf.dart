@@ -772,7 +772,16 @@ class InvoicePdfGenerator {
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-              pw.SizedBox(height: 60), // space for stamp/signature
+              pw.SizedBox(height: 4),
+              pw.Text(
+                '(e-Signed)',
+                style: pw.TextStyle(
+                  fontSize: 8,
+                  color: PdfColors.grey700,
+                  fontStyle: pw.FontStyle.italic,
+                ),
+              ),
+              pw.SizedBox(height: 40), // space for stamp/signature
             ],
           ),
         ),

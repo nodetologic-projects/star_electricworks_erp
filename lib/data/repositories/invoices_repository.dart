@@ -58,10 +58,16 @@ class InvoicesRepository {
   }) async {
     final cutoff = date.subtract(const Duration(hours: 24));
     final query = _db.select(_db.invoices)
-      ..where((t) => t.customerId.equals(customerId) &
+      ..where((t) {
+        var expr = t.customerId.equals(customerId) &
                      t.invoiceType.equals(type.name) &
                      t.grandTotal.equals(grandTotal) &
-                     t.invoiceDate.isBetweenValues(cutoff, date))
+                     t.invoiceDate.isBetweenValues(cutoff, date);
+        if (excludeInvoiceId != null) {
+          expr = expr & t.id.isNotValue(excludeInvoiceId);
+        }
+        return expr;
+      })
       ..orderBy([(t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc)])
       ..limit(1);
 
