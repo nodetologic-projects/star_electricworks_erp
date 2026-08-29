@@ -24,7 +24,6 @@ class _LineItem {
   ItemSourceType type;
   int? linkedId;
   String description = '';
-  String? rateRs;
   String? hsnCode;
   double qty = 1;
   double unitPrice = 0;
@@ -166,7 +165,6 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           final line = _LineItem(type: item.itemSourceType);
           line.linkedId = item.itemSourceType == ItemSourceType.motorJob ? item.motorJobId : item.copperStockId;
           line.description = item.description;
-          line.rateRs = item.rateRs;
           line.hsnCode = item.hsnCode;
           line.qty = item.qty ?? 1.0;
           line.unitPrice = item.unitPrice;
@@ -390,7 +388,6 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             i.type == ItemSourceType.copperStock ? i.linkedId : null,
           ),
           description: i.description,
-          rateRs: drift.Value(i.rateRs),
           hsnCode: drift.Value(
             i.hsnCode != null && i.hsnCode!.trim().isNotEmpty
                 ? i.hsnCode!.trim()
@@ -539,16 +536,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             onChanged: (val) => item.hsnCode = val,
           ),
         ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 100,
-          child: TextFormField(
-            key: ValueKey('raters_${index}_${item.linkedId}'),
-            initialValue: item.rateRs ?? '',
-            decoration: const InputDecoration(labelText: 'Rate/RS'),
-            onChanged: (val) => item.rateRs = val,
-          ),
-        ),
+
         const SizedBox(width: 8),
         SizedBox(
           width: 80,
