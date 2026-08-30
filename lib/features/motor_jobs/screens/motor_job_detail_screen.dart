@@ -17,7 +17,7 @@ import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/motor_jobs_repository.dart';
 import 'package:starelectricerp/features/customers/providers/customers_provider.dart';
 
-final motorJobDetailProvider = FutureProvider.family<MotorJob, int>((ref, id) async {
+final motorJobDetailProvider = FutureProvider.autoDispose.family<MotorJob, int>((ref, id) async {
   final repo = ref.watch(motorJobsRepositoryProvider);
   return repo.getMotorJobById(id);
 });

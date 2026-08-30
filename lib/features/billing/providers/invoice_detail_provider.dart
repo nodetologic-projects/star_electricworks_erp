@@ -20,7 +20,7 @@ class InvoiceDetailData {
   });
 }
 
-final invoiceDetailProvider = FutureProvider.family<InvoiceDetailData, int>((ref, invoiceId) async {
+final invoiceDetailProvider = FutureProvider.autoDispose.family<InvoiceDetailData, int>((ref, invoiceId) async {
   final invoiceRepo = ref.watch(invoicesRepositoryProvider);
   final customerRepo = ref.watch(customersRepositoryProvider);
   final settingsRepo = ref.watch(settingsRepositoryProvider);

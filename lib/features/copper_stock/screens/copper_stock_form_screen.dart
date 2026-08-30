@@ -10,7 +10,7 @@ import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/copper_stock_repository.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 
-final copperStockDetailProvider = FutureProvider.family<CopperStockData?, int?>((ref, id) async {
+final copperStockDetailProvider = FutureProvider.autoDispose.family<CopperStockData?, int?>((ref, id) async {
   if (id == null) return null;
   final repo = ref.watch(copperStockRepositoryProvider);
   return repo.getCopperStockById(id);

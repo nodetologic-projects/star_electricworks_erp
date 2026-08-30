@@ -30,7 +30,7 @@ final filteredMotorJobsProvider = StreamProvider<List<Map<String, dynamic>>>((re
   });
 });
 
-final motorJobAutoNumberProvider = FutureProvider<String>((ref) async {
+final motorJobAutoNumberProvider = FutureProvider.autoDispose<String>((ref) async {
   final repo = ref.watch(motorJobsRepositoryProvider);
   final jobs = await repo.getAllMotorJobs();
   if (jobs.isEmpty) return 'JOB-0001';
