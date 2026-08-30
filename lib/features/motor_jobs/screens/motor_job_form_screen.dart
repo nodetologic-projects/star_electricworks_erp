@@ -7,6 +7,7 @@ import 'package:starelectricerp/core/widgets/app_button.dart';
 import 'package:starelectricerp/core/widgets/app_select.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
+import 'package:starelectricerp/core/widgets/rich_text_input.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/motor_jobs_repository.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
@@ -243,10 +244,11 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
                             Text('Error loading customers: $err'),
                       ),
                       const SizedBox(height: 16),
-                      AppTextField(
+                      RichTextInput(
                         label: 'Motor Description *',
                         hintText: 'e.g. 10HP 3-phase induction motor',
                         controller: _motorDescController,
+                        maxLines: 2,
                         validator: (val) => val == null || val.isEmpty
                             ? 'Description is required'
                             : null,
@@ -288,45 +290,14 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
                             setState(() => _selectedPhase = val),
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              label: 'Job Description *',
-                              hintText: 'Describe the work to be done...',
-                              controller: _jobDescController,
-                              maxLines: 4,
-                              validator: (val) => val == null || val.isEmpty
-                                  ? 'Job description is required'
-                                  : null,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.format_bold),
-                            tooltip: 'Bold Selected Text',
-                            onPressed: () {
-                              final ctrl = _jobDescController;
-                              final text = ctrl.text;
-                              final selection = ctrl.selection;
-                              if (selection.isValid && selection.start != selection.end) {
-                                final selected = text.substring(selection.start, selection.end);
-                                final newText = text.replaceRange(selection.start, selection.end, '**$selected**');
-                                ctrl.value = ctrl.value.copyWith(
-                                  text: newText,
-                                  selection: TextSelection.collapsed(offset: selection.start + selected.length + 4),
-                                );
-                              } else {
-                                final cursor = selection.isValid ? selection.start : text.length;
-                                final newText = text.replaceRange(cursor, cursor, '****');
-                                ctrl.value = ctrl.value.copyWith(
-                                  text: newText,
-                                  selection: TextSelection.collapsed(offset: cursor + 2),
-                                );
-                              }
-                            },
-                          ),
-                        ],
+                      RichTextInput(
+                        label: 'Job Description *',
+                        hintText: 'Describe the work to be done...',
+                        controller: _jobDescController,
+                        maxLines: 4,
+                        validator: (val) => val == null || val.isEmpty
+                            ? 'Job description is required'
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       AppTextField(

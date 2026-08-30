@@ -29,6 +29,7 @@ class UpdaterService {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
 
+      print("UpdaterService: Fetching version from $_versionUrl");
       final response = await http.get(Uri.parse(_versionUrl)).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
@@ -46,11 +47,15 @@ class UpdaterService {
           downloadUrl: downloadUrl,
           releaseNotes: releaseNotes,
         );
+      } else {
+        print("UpdaterService: HTTP Error ${response.statusCode}");
+        throw Exception("HTTP Error ${response.statusCode}");
       }
-    } catch (e) {
-      // Silent failure as requested
+    } catch (e, st) {
+      print("UpdaterService Error: $e");
+      print(st);
+      rethrow;
     }
-    return null;
   }
 
   Future<void> launchDownloadUrl(String url) async {

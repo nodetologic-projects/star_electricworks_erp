@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
+import 'package:starelectricerp/core/widgets/rich_text_input.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/quotations_repository.dart';
 import 'package:starelectricerp/features/customers/providers/customers_provider.dart';
@@ -145,7 +146,7 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                     children: [
                       const Text('Quotation Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 16),
-                      AppTextField(
+                      RichTextInput(
                         controller: _descCtrl,
                         label: 'Description / Scope of Work',
                         hintText: 'Rewinding of 10HP Motor...',
