@@ -242,6 +242,13 @@ class InvoicePdfGenerator {
                     pw.TextSpan(text: invoice.gpNumber!, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                   ])),
                 ],
+                if (invoice.gpDate != null) ...[
+                  pw.SizedBox(height: 2),
+                  pw.RichText(text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'GP Date: ', style: const pw.TextStyle(fontSize: 8)),
+                    pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.gpDate!), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ])),
+                ],
               ],
             ),
           ],
@@ -482,7 +489,9 @@ class InvoicePdfGenerator {
               pw.SizedBox(width: 16),
             ],
             if ((invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ||
-                (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty)) ...[
+                (invoice.poDate != null) ||
+                (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty) ||
+                (invoice.gpDate != null)) ...[
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(
                   horizontal: 12,
@@ -530,8 +539,7 @@ class InvoicePdfGenerator {
                     ],
                     if (invoice.gpNumber != null &&
                         invoice.gpNumber!.isNotEmpty) ...[
-                      if (invoice.poNumber != null &&
-                          invoice.poNumber!.isNotEmpty)
+                      if ((invoice.poNumber != null && invoice.poNumber!.isNotEmpty) || invoice.poDate != null)
                         pw.SizedBox(width: 16),
                       pw.Text(
                         'GP No: ',
@@ -542,6 +550,24 @@ class InvoicePdfGenerator {
                       ),
                       pw.Text(
                         invoice.gpNumber!,
+                        style: pw.TextStyle(
+                          fontSize: 8,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                    if (invoice.gpDate != null) ...[
+                      if ((invoice.poNumber != null && invoice.poNumber!.isNotEmpty) || invoice.poDate != null || (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty))
+                        pw.SizedBox(width: 16),
+                      pw.Text(
+                        'GP Date: ',
+                        style: const pw.TextStyle(
+                          fontSize: 8,
+                          color: PdfColors.black,
+                        ),
+                      ),
+                      pw.Text(
+                        PdfDateFormatter.formatDate(invoice.gpDate!),
                         style: pw.TextStyle(
                           fontSize: 8,
                           fontWeight: pw.FontWeight.bold,
