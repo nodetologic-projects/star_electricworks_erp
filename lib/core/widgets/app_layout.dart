@@ -39,8 +39,9 @@ class _AppLayoutState extends ConsumerState<AppLayout> {
 
   Future<void> _checkForUpdates() async {
     final updater = ref.read(updaterServiceProvider);
-    final updateInfo = await updater.checkForUpdates();
-    if (updateInfo != null && updateInfo.hasUpdate && mounted) {
+    try {
+      final updateInfo = await updater.checkForUpdates();
+      if (updateInfo != null && updateInfo.hasUpdate && mounted) {
       ScaffoldMessenger.of(context).showMaterialBanner(
         MaterialBanner(
           content: Text('A new version (${updateInfo.latestVersion}) is available - ${updateInfo.releaseNotes}'),
@@ -61,6 +62,10 @@ class _AppLayoutState extends ConsumerState<AppLayout> {
           ],
         ),
       );
+      }
+    } catch (e) {
+      // Ignore background update check failures
+      debugPrint("Background update check failed: $e");
     }
   }
 

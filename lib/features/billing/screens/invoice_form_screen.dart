@@ -113,16 +113,17 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     } else {
       if (widget.prefillJobId != null) {
         // We prepopulate later when async data loads, for now just add a row
-        _items.add(
-          _LineItem(type: ItemSourceType.motorJob)
-            ..linkedId = widget.prefillJobId,
-        );
+        final item = _LineItem(type: ItemSourceType.motorJob)
+            ..linkedId = widget.prefillJobId;
+        item.descController = TextEditingController(text: item.description);
+        _items.add(item);
       } else {
         final item = _LineItem(type: ItemSourceType.custom);
         if (widget.prefillDescription != null)
           item.description = widget.prefillDescription!;
         if (widget.prefillAmount != null)
           item.unitPrice = widget.prefillAmount!;
+        item.descController = TextEditingController(text: item.description);
         _items.add(item);
       }
     }
