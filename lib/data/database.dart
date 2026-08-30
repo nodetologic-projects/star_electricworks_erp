@@ -53,7 +53,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration {
@@ -89,6 +89,10 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 22) {
           try { await m.addColumn(invoices, invoices.gpDate); } catch (_) {}
+        }
+        if (from < 23) {
+          try { await m.addColumn(invoices, invoices.isDiscountPercentage); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.discountRate); } catch (_) {}
         }
         if (from < 3) {
           try { await m.createTable(employees); } catch (_) {}

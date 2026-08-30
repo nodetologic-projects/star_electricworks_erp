@@ -97,6 +97,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   double _discountAmount = 0;
   bool _isDiscountPercentage = false;
+  final _discountController = TextEditingController(text: '0');
   double _deliveryCharge = 0;
 
   bool _isSaving = false;
@@ -144,9 +145,10 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         _dueDate = existingInvoice.dueDate ?? existingInvoice.invoiceDate;
         _paymentTermDays = existingInvoice.paymentTermDays ?? 0;
         _deliveryCharge = existingInvoice.deliveryCharge ?? 0;
-        _discountAmount = existingInvoice.discountAmount;
+        _isDiscountPercentage = existingInvoice.isDiscountPercentage;
+        _discountAmount = _isDiscountPercentage ? (existingInvoice.discountRate ?? 0) : existingInvoice.discountAmount;
         _notes = existingInvoice.notes ?? '';
-        _isDiscountPercentage = false; // it is stored as absolute amount
+        _discountController.text = _discountAmount.toString();
         
           _customerNameController.text = existingCustomer.name;
           _customerAddressController.text = existingCustomer.address ?? '';
@@ -198,6 +200,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _placeOfSupplyController.dispose();
     _poNumberController.dispose();
     _gpNumberController.dispose();
+    _discountController.dispose();
     super.dispose();
   }
 
@@ -349,6 +352,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         paymentTermDays: drift.Value(_paymentTermDays),
         subtotal: totals.subtotal,
         discountAmount: totals.discountAmount,
+        isDiscountPercentage: drift.Value(_isDiscountPercentage),
+        discountRate: drift.Value(_isDiscountPercentage ? _discountAmount : null),
         cgstAmount: totals.cgstAmount,
         sgstAmount: totals.sgstAmount,
         igstAmount: drift.Value(totals.igstAmount),
@@ -1193,7 +1198,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               children: [
                 Expanded(
                   child: TextFormField(
-                    initialValue: _discountAmount.toString(),
+                    controller: _discountController,
                     keyboardType: TextInputType.number,
                     onChanged: (val) {
                       setState(

@@ -3112,6 +3112,31 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _isDiscountPercentageMeta =
+      const VerificationMeta('isDiscountPercentage');
+  @override
+  late final GeneratedColumn<bool> isDiscountPercentage = GeneratedColumn<bool>(
+    'is_discount_percentage',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_discount_percentage" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _discountRateMeta = const VerificationMeta(
+    'discountRate',
+  );
+  @override
+  late final GeneratedColumn<double> discountRate = GeneratedColumn<double>(
+    'discount_rate',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _deliveryChargeMeta = const VerificationMeta(
     'deliveryCharge',
   );
@@ -3336,6 +3361,8 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     sgstAmount,
     igstAmount,
     discountAmount,
+    isDiscountPercentage,
+    discountRate,
     deliveryCharge,
     grandTotal,
     amountInWords,
@@ -3444,6 +3471,24 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
       );
     } else if (isInserting) {
       context.missing(_discountAmountMeta);
+    }
+    if (data.containsKey('is_discount_percentage')) {
+      context.handle(
+        _isDiscountPercentageMeta,
+        isDiscountPercentage.isAcceptableOrUnknown(
+          data['is_discount_percentage']!,
+          _isDiscountPercentageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('discount_rate')) {
+      context.handle(
+        _discountRateMeta,
+        discountRate.isAcceptableOrUnknown(
+          data['discount_rate']!,
+          _discountRateMeta,
+        ),
+      );
     }
     if (data.containsKey('delivery_charge')) {
       context.handle(
@@ -3642,6 +3687,14 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.double,
         data['${effectivePrefix}discount_amount'],
       )!,
+      isDiscountPercentage: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_discount_percentage'],
+      )!,
+      discountRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}discount_rate'],
+      ),
       deliveryCharge: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}delivery_charge'],
@@ -3750,6 +3803,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   /// but required for the 3-column GST breakup on PDFs.
   final double igstAmount;
   final double discountAmount;
+  final bool isDiscountPercentage;
+  final double? discountRate;
   final double? deliveryCharge;
   final double grandTotal;
   final String amountInWords;
@@ -3781,6 +3836,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     required this.sgstAmount,
     required this.igstAmount,
     required this.discountAmount,
+    required this.isDiscountPercentage,
+    this.discountRate,
     this.deliveryCharge,
     required this.grandTotal,
     required this.amountInWords,
@@ -3821,6 +3878,10 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     map['sgst_amount'] = Variable<double>(sgstAmount);
     map['igst_amount'] = Variable<double>(igstAmount);
     map['discount_amount'] = Variable<double>(discountAmount);
+    map['is_discount_percentage'] = Variable<bool>(isDiscountPercentage);
+    if (!nullToAbsent || discountRate != null) {
+      map['discount_rate'] = Variable<double>(discountRate);
+    }
     if (!nullToAbsent || deliveryCharge != null) {
       map['delivery_charge'] = Variable<double>(deliveryCharge);
     }
@@ -3888,6 +3949,10 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       sgstAmount: Value(sgstAmount),
       igstAmount: Value(igstAmount),
       discountAmount: Value(discountAmount),
+      isDiscountPercentage: Value(isDiscountPercentage),
+      discountRate: discountRate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discountRate),
       deliveryCharge: deliveryCharge == null && nullToAbsent
           ? const Value.absent()
           : Value(deliveryCharge),
@@ -3955,6 +4020,10 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       sgstAmount: serializer.fromJson<double>(json['sgstAmount']),
       igstAmount: serializer.fromJson<double>(json['igstAmount']),
       discountAmount: serializer.fromJson<double>(json['discountAmount']),
+      isDiscountPercentage: serializer.fromJson<bool>(
+        json['isDiscountPercentage'],
+      ),
+      discountRate: serializer.fromJson<double?>(json['discountRate']),
       deliveryCharge: serializer.fromJson<double?>(json['deliveryCharge']),
       grandTotal: serializer.fromJson<double>(json['grandTotal']),
       amountInWords: serializer.fromJson<String>(json['amountInWords']),
@@ -3997,6 +4066,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'sgstAmount': serializer.toJson<double>(sgstAmount),
       'igstAmount': serializer.toJson<double>(igstAmount),
       'discountAmount': serializer.toJson<double>(discountAmount),
+      'isDiscountPercentage': serializer.toJson<bool>(isDiscountPercentage),
+      'discountRate': serializer.toJson<double?>(discountRate),
       'deliveryCharge': serializer.toJson<double?>(deliveryCharge),
       'grandTotal': serializer.toJson<double>(grandTotal),
       'amountInWords': serializer.toJson<String>(amountInWords),
@@ -4033,6 +4104,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     double? sgstAmount,
     double? igstAmount,
     double? discountAmount,
+    bool? isDiscountPercentage,
+    Value<double?> discountRate = const Value.absent(),
     Value<double?> deliveryCharge = const Value.absent(),
     double? grandTotal,
     String? amountInWords,
@@ -4064,6 +4137,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     sgstAmount: sgstAmount ?? this.sgstAmount,
     igstAmount: igstAmount ?? this.igstAmount,
     discountAmount: discountAmount ?? this.discountAmount,
+    isDiscountPercentage: isDiscountPercentage ?? this.isDiscountPercentage,
+    discountRate: discountRate.present ? discountRate.value : this.discountRate,
     deliveryCharge: deliveryCharge.present
         ? deliveryCharge.value
         : this.deliveryCharge,
@@ -4123,6 +4198,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       discountAmount: data.discountAmount.present
           ? data.discountAmount.value
           : this.discountAmount,
+      isDiscountPercentage: data.isDiscountPercentage.present
+          ? data.isDiscountPercentage.value
+          : this.isDiscountPercentage,
+      discountRate: data.discountRate.present
+          ? data.discountRate.value
+          : this.discountRate,
       deliveryCharge: data.deliveryCharge.present
           ? data.deliveryCharge.value
           : this.deliveryCharge,
@@ -4181,6 +4262,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('sgstAmount: $sgstAmount, ')
           ..write('igstAmount: $igstAmount, ')
           ..write('discountAmount: $discountAmount, ')
+          ..write('isDiscountPercentage: $isDiscountPercentage, ')
+          ..write('discountRate: $discountRate, ')
           ..write('deliveryCharge: $deliveryCharge, ')
           ..write('grandTotal: $grandTotal, ')
           ..write('amountInWords: $amountInWords, ')
@@ -4217,6 +4300,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     sgstAmount,
     igstAmount,
     discountAmount,
+    isDiscountPercentage,
+    discountRate,
     deliveryCharge,
     grandTotal,
     amountInWords,
@@ -4252,6 +4337,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.sgstAmount == this.sgstAmount &&
           other.igstAmount == this.igstAmount &&
           other.discountAmount == this.discountAmount &&
+          other.isDiscountPercentage == this.isDiscountPercentage &&
+          other.discountRate == this.discountRate &&
           other.deliveryCharge == this.deliveryCharge &&
           other.grandTotal == this.grandTotal &&
           other.amountInWords == this.amountInWords &&
@@ -4285,6 +4372,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<double> sgstAmount;
   final Value<double> igstAmount;
   final Value<double> discountAmount;
+  final Value<bool> isDiscountPercentage;
+  final Value<double?> discountRate;
   final Value<double?> deliveryCharge;
   final Value<double> grandTotal;
   final Value<String> amountInWords;
@@ -4316,6 +4405,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.sgstAmount = const Value.absent(),
     this.igstAmount = const Value.absent(),
     this.discountAmount = const Value.absent(),
+    this.isDiscountPercentage = const Value.absent(),
+    this.discountRate = const Value.absent(),
     this.deliveryCharge = const Value.absent(),
     this.grandTotal = const Value.absent(),
     this.amountInWords = const Value.absent(),
@@ -4348,6 +4439,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     required double sgstAmount,
     this.igstAmount = const Value.absent(),
     required double discountAmount,
+    this.isDiscountPercentage = const Value.absent(),
+    this.discountRate = const Value.absent(),
     this.deliveryCharge = const Value.absent(),
     required double grandTotal,
     required String amountInWords,
@@ -4390,6 +4483,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<double>? sgstAmount,
     Expression<double>? igstAmount,
     Expression<double>? discountAmount,
+    Expression<bool>? isDiscountPercentage,
+    Expression<double>? discountRate,
     Expression<double>? deliveryCharge,
     Expression<double>? grandTotal,
     Expression<String>? amountInWords,
@@ -4422,6 +4517,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (sgstAmount != null) 'sgst_amount': sgstAmount,
       if (igstAmount != null) 'igst_amount': igstAmount,
       if (discountAmount != null) 'discount_amount': discountAmount,
+      if (isDiscountPercentage != null)
+        'is_discount_percentage': isDiscountPercentage,
+      if (discountRate != null) 'discount_rate': discountRate,
       if (deliveryCharge != null) 'delivery_charge': deliveryCharge,
       if (grandTotal != null) 'grand_total': grandTotal,
       if (amountInWords != null) 'amount_in_words': amountInWords,
@@ -4456,6 +4554,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<double>? sgstAmount,
     Value<double>? igstAmount,
     Value<double>? discountAmount,
+    Value<bool>? isDiscountPercentage,
+    Value<double?>? discountRate,
     Value<double?>? deliveryCharge,
     Value<double>? grandTotal,
     Value<String>? amountInWords,
@@ -4488,6 +4588,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       sgstAmount: sgstAmount ?? this.sgstAmount,
       igstAmount: igstAmount ?? this.igstAmount,
       discountAmount: discountAmount ?? this.discountAmount,
+      isDiscountPercentage: isDiscountPercentage ?? this.isDiscountPercentage,
+      discountRate: discountRate ?? this.discountRate,
       deliveryCharge: deliveryCharge ?? this.deliveryCharge,
       grandTotal: grandTotal ?? this.grandTotal,
       amountInWords: amountInWords ?? this.amountInWords,
@@ -4547,6 +4649,14 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     }
     if (discountAmount.present) {
       map['discount_amount'] = Variable<double>(discountAmount.value);
+    }
+    if (isDiscountPercentage.present) {
+      map['is_discount_percentage'] = Variable<bool>(
+        isDiscountPercentage.value,
+      );
+    }
+    if (discountRate.present) {
+      map['discount_rate'] = Variable<double>(discountRate.value);
     }
     if (deliveryCharge.present) {
       map['delivery_charge'] = Variable<double>(deliveryCharge.value);
@@ -4624,6 +4734,8 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('sgstAmount: $sgstAmount, ')
           ..write('igstAmount: $igstAmount, ')
           ..write('discountAmount: $discountAmount, ')
+          ..write('isDiscountPercentage: $isDiscountPercentage, ')
+          ..write('discountRate: $discountRate, ')
           ..write('deliveryCharge: $deliveryCharge, ')
           ..write('grandTotal: $grandTotal, ')
           ..write('amountInWords: $amountInWords, ')
@@ -13609,6 +13721,8 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       required double sgstAmount,
       Value<double> igstAmount,
       required double discountAmount,
+      Value<bool> isDiscountPercentage,
+      Value<double?> discountRate,
       Value<double?> deliveryCharge,
       required double grandTotal,
       required String amountInWords,
@@ -13642,6 +13756,8 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<double> sgstAmount,
       Value<double> igstAmount,
       Value<double> discountAmount,
+      Value<bool> isDiscountPercentage,
+      Value<double?> discountRate,
       Value<double?> deliveryCharge,
       Value<double> grandTotal,
       Value<String> amountInWords,
@@ -13814,6 +13930,16 @@ class $$InvoicesTableFilterComposer
 
   ColumnFilters<double> get discountAmount => $composableBuilder(
     column: $table.discountAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDiscountPercentage => $composableBuilder(
+    column: $table.isDiscountPercentage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get discountRate => $composableBuilder(
+    column: $table.discountRate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14096,6 +14222,16 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isDiscountPercentage => $composableBuilder(
+    column: $table.isDiscountPercentage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get discountRate => $composableBuilder(
+    column: $table.discountRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get deliveryCharge => $composableBuilder(
     column: $table.deliveryCharge,
     builder: (column) => ColumnOrderings(column),
@@ -14264,6 +14400,16 @@ class $$InvoicesTableAnnotationComposer
 
   GeneratedColumn<double> get discountAmount => $composableBuilder(
     column: $table.discountAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isDiscountPercentage => $composableBuilder(
+    column: $table.isDiscountPercentage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get discountRate => $composableBuilder(
+    column: $table.discountRate,
     builder: (column) => column,
   );
 
@@ -14515,6 +14661,8 @@ class $$InvoicesTableTableManager
                 Value<double> sgstAmount = const Value.absent(),
                 Value<double> igstAmount = const Value.absent(),
                 Value<double> discountAmount = const Value.absent(),
+                Value<bool> isDiscountPercentage = const Value.absent(),
+                Value<double?> discountRate = const Value.absent(),
                 Value<double?> deliveryCharge = const Value.absent(),
                 Value<double> grandTotal = const Value.absent(),
                 Value<String> amountInWords = const Value.absent(),
@@ -14546,6 +14694,8 @@ class $$InvoicesTableTableManager
                 sgstAmount: sgstAmount,
                 igstAmount: igstAmount,
                 discountAmount: discountAmount,
+                isDiscountPercentage: isDiscountPercentage,
+                discountRate: discountRate,
                 deliveryCharge: deliveryCharge,
                 grandTotal: grandTotal,
                 amountInWords: amountInWords,
@@ -14579,6 +14729,8 @@ class $$InvoicesTableTableManager
                 required double sgstAmount,
                 Value<double> igstAmount = const Value.absent(),
                 required double discountAmount,
+                Value<bool> isDiscountPercentage = const Value.absent(),
+                Value<double?> discountRate = const Value.absent(),
                 Value<double?> deliveryCharge = const Value.absent(),
                 required double grandTotal,
                 required String amountInWords,
@@ -14610,6 +14762,8 @@ class $$InvoicesTableTableManager
                 sgstAmount: sgstAmount,
                 igstAmount: igstAmount,
                 discountAmount: discountAmount,
+                isDiscountPercentage: isDiscountPercentage,
+                discountRate: discountRate,
                 deliveryCharge: deliveryCharge,
                 grandTotal: grandTotal,
                 amountInWords: amountInWords,
