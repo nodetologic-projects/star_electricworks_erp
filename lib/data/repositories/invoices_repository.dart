@@ -377,6 +377,12 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       InvoicesCompanion(status: Value(status)),
     );
   }
+
+  Future<int> updateSignedPdfPath(int id, String path) {
+    return (_db.update(_db.invoices)..where((t) => t.id.equals(id))).write(
+      InvoicesCompanion(signedPdfPath: Value(path)),
+    );
+  }
   Future<List<Payment>> getPaymentsForInvoice(int invoiceId) {
     return (_db.select(_db.payments)..where((t) => t.invoiceId.equals(invoiceId))
       ..orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)])

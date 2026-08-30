@@ -4,6 +4,7 @@ import 'package:starelectricerp/core/utils/permission_util.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:starelectricerp/data/repositories/invoices_repository.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
@@ -238,15 +239,27 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
       print("RESULT of DscSigner (null means success): $error");
       
       if (error == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Signed successfully! Saved to: ${outputPdf.path}')),
-        );
+        final repo = ref.read(invoicesRepositoryProvider);
+        await repo.updateInvoiceStatus(data.invoice.id, InvoiceStatus.sent);
+        await repo.updateSignedPdfPath(data.invoice.id, outputPdf.path);
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Signed successfully! Saved to: ${outputPdf.path}')),
+          );
+        }
         ref.invalidate(invoiceDetailProvider(widget.invoiceId));
         return true;
       } else if (error == 'UnsupportedPlatform') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Signing is only supported on Windows. Proceeded with unsigned draft.')),
-        );
+        final repo = ref.read(invoicesRepositoryProvider);
+        await repo.updateInvoiceStatus(data.invoice.id, InvoiceStatus.sent);
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Signing is only supported on Windows. Invoice finalized without signature.')),
+          );
+        }
+        ref.invalidate(invoiceDetailProvider(widget.invoiceId));
         return true;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
