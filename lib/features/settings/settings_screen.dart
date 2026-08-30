@@ -606,10 +606,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Checking for updates...')),
                               );
-                              final updateInfo = await updater.checkForUpdates();
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                if (updateInfo == null) {
+                              try {
+                                final updateInfo = await updater.checkForUpdates();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  if (updateInfo == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('Failed to check for updates. Check your connection.')),
                                   );
@@ -634,6 +635,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('You are up to date!')),
+                                  );
+                                }
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed to check for updates: $e')),
                                   );
                                 }
                               }

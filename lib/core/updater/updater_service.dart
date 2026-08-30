@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 
 class UpdateInfo {
   final bool hasUpdate;
@@ -53,7 +54,9 @@ class UpdaterService {
       }
     } catch (e, st) {
       print("UpdaterService Error: $e");
-      print(st);
+      if (e is TimeoutException) {
+        throw Exception("Update check timed out after 10 seconds. Check your connection.");
+      }
       rethrow;
     }
   }

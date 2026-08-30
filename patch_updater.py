@@ -3,45 +3,25 @@ import sys
 with open("lib/core/updater/updater_service.dart", "r") as f:
     content = f.read()
 
-target = """    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version;
-
-      final response = await http.get(Uri.parse(_versionUrl)).timeout(const Duration(seconds: 10));
-      
-      if (response.statusCode == 200) {"""
-
-patch = """    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version;
-
-      print("UpdaterService: Fetching version from $_versionUrl");
-      final response = await http.get(Uri.parse(_versionUrl)).timeout(const Duration(seconds: 10));
-      
-      if (response.statusCode == 200) {"""
-content = content.replace(target, patch)
-
-
-target2 = """        );
-      }
-    } catch (e) {
-      // Silent failure as requested
-    }
-    return null;"""
-
-patch2 = """        );
-      } else {
-        print("UpdaterService: HTTP Error ${response.statusCode}");
-        throw Exception("HTTP Error ${response.statusCode}");
-      }
-    } catch (e, st) {
+target = """    } catch (e, st) {
       print("UpdaterService Error: $e");
       print(st);
       rethrow;
     }"""
-content = content.replace(target2, patch2)
 
+patch = """    } catch (e, st) {
+      print("UpdaterService Error: $e");
+      if (e is TimeoutException) {
+        throw Exception("Update check timed out after 10 seconds. Check your connection.");
+      }
+      rethrow;
+    }"""
 
-with open("lib/core/updater/updater_service.dart", "w") as f:
-    f.write(content)
-
+if target in content:
+    content = content.replace("import 'package:url_launcher/url_launcher.dart';", "import 'package:url_launcher/url_launcher.dart';\nimport 'dart:async';")
+    content = content.replace(target, patch)
+    with open("lib/core/updater/updater_service.dart", "w") as f:
+        f.write(content)
+    print("Patched updater_service.dart")
+else:
+    print("Could not find target")
