@@ -129,7 +129,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         dscSigningMethod: drift.Value(_signingMethod),
         dscPkcs11DllPath: drift.Value(_dllController.text),
         eInvoiceApplicable: drift.Value(_eInvoiceApplicable),
+        isRegistered: drift.Value(_isRegistered),
       ));
+      debugPrint("Settings saved successfully to DB. isRegistered=${_isRegistered}");
 
       try {
         await _storage.write(key: 'dsc_password', value: _passwordController.text);
