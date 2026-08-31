@@ -33,6 +33,8 @@ void main() {
       invoiceDate: DateTime.now(),
       subtotal: 100.0,
       discountAmount: 0.0,
+      isDiscountPercentage: false,
+      distributeDiscountAcrossItems: true,
       cgstAmount: 9.0,
       sgstAmount: 9.0,
       igstAmount: 0.0,

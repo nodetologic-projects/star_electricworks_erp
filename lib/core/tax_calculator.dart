@@ -1,8 +1,10 @@
 import 'package:starelectricerp/data/tables/enums.dart';
 
 class TaxCalculationResult {
-  final double subtotal;
-  final double discountAmount;
+  final double subtotal; // Raw subtotal before ANY discounts
+  final double itemDiscountAmount; // Sum of all per-item discounts
+  final double bundleDiscountAmount; // The overall bundle discount amount
+  final double discountAmount; // Total discount (item + bundle)
   final double taxableAmount;
   final double cgstAmount;
   final double sgstAmount;
@@ -12,6 +14,8 @@ class TaxCalculationResult {
 
   TaxCalculationResult({
     required this.subtotal,
+    required this.itemDiscountAmount,
+    required this.bundleDiscountAmount,
     required this.discountAmount,
     required this.taxableAmount,
     required this.cgstAmount,
@@ -23,81 +27,90 @@ class TaxCalculationResult {
 }
 
 class InvoiceLineItemInput {
-  final double lineTotal; // qty * unitPrice
+  final double lineTotal; // qty * unitPrice (pre-discount)
+  final double? discountPercent; // per-item discount %
   final double? gstRate;
 
   InvoiceLineItemInput({
     required this.lineTotal,
+    this.discountPercent,
     this.gstRate,
   });
 }
 
 class TaxCalculator {
-  /// Pure function to calculate taxes and totals.
-  /// Standard GST rounding: round grand total to nearest integer.
+  /// Pure function to calculate taxes and totals with compounded discounts.
   static TaxCalculationResult calculate({
     required InvoiceType invoiceType,
     required List<InvoiceLineItemInput> items,
-    double discountAmount = 0.0,
-    bool isDiscountPercentage = false,
+    double bundleDiscountValue = 0.0,
+    bool isBundleDiscountPercentage = false,
+    bool distributeBundleDiscount = true,
     double deliveryCharge = 0.0,
   }) {
-    double subtotal = 0.0;
-    
-    // 1. Calculate raw subtotal
+    double rawSubtotal = 0.0;
+    double sumItemDiscounts = 0.0;
+    double postItemDiscountBaseline = 0.0;
+
+    // 1. Calculate item-level reductions
     for (final item in items) {
-      subtotal += item.lineTotal;
+      rawSubtotal += item.lineTotal;
+      final itemDiscount = item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
+      sumItemDiscounts += itemDiscount;
+      postItemDiscountBaseline += (item.lineTotal - itemDiscount);
     }
 
-    // 2. Apply discount to get overall taxable baseline
-    // If discount is percentage, it's applied on the subtotal.
-    double actualDiscount = discountAmount;
-    if (isDiscountPercentage) {
-      actualDiscount = subtotal * (discountAmount / 100.0);
+    // 2. Calculate bundle discount (applied on the post-item-discount baseline)
+    double bundleDiscountAmount = bundleDiscountValue;
+    if (isBundleDiscountPercentage) {
+      bundleDiscountAmount = postItemDiscountBaseline * (bundleDiscountValue / 100.0);
     }
     
-    // Ensure discount doesn't exceed subtotal
-    if (actualDiscount > subtotal) {
-      actualDiscount = subtotal;
+    if (bundleDiscountAmount > postItemDiscountBaseline) {
+      bundleDiscountAmount = postItemDiscountBaseline;
     }
 
-    // Taxable amount includes delivery charge (which is generally taxable at the highest rate in the invoice, 
-    // but for simplicity here we assume delivery charge is non-taxable or already tax-inclusive unless specified otherwise.
-    // Actually, usually delivery charge is added to taxable value. Let's just calculate tax on line items proportionally,
-    // or assume delivery charge is a flat addition without its own GST calculation to keep it simple for now).
-    // The prompt: "discount toggles", "Delivery charge shown...". We will apply discount proportionally across items for tax, 
-    // or just calculate total tax based on the discounted value. 
-    // The most accurate way is to calculate tax per line item, subtracting the proportional discount from that line item's taxable value.
-    
+    double totalDiscount = sumItemDiscounts + bundleDiscountAmount;
+
+    // 3. Tax Calculation
     double totalCgst = 0.0;
     double totalSgst = 0.0;
-
     final skipTax = invoiceType == InvoiceType.billOfSupply || invoiceType == InvoiceType.deliveryChallan;
 
-    if (!skipTax && subtotal > 0) {
-      final discountFactor = (subtotal - actualDiscount) / subtotal;
+    if (!skipTax && postItemDiscountBaseline > 0) {
+      // If distribute is TRUE, GST is calculated on the remaining value after the bundle discount is stripped.
+      // If distribute is FALSE, GST is calculated on the post-item-discount baseline directly.
+      final distributionFactor = distributeBundleDiscount 
+          ? (postItemDiscountBaseline - bundleDiscountAmount) / postItemDiscountBaseline 
+          : 1.0;
 
       for (final item in items) {
-        final lineTaxableValue = item.lineTotal * discountFactor;
+        final itemDiscount = item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
+        final itemPostDiscount = item.lineTotal - itemDiscount;
+        final finalTaxableValue = itemPostDiscount * distributionFactor;
         
         if (item.gstRate != null && item.gstRate! > 0) {
-          final gstAmount = lineTaxableValue * (item.gstRate! / 100.0);
-          // Split GST into CGST and SGST (Gujarat intra-state)
+          final gstAmount = finalTaxableValue * (item.gstRate! / 100.0);
           totalCgst += gstAmount / 2.0;
           totalSgst += gstAmount / 2.0;
         }
       }
     }
 
-    final taxableAmount = subtotal - actualDiscount;
+    final taxableAmount = postItemDiscountBaseline - bundleDiscountAmount;
+    // Note: taxableAmount is just for display summary. 
+    // If distribute is false, the GST was calculated on a LARGER amount than this taxableAmount, 
+    // but the grand total still subtracts the bundle discount at the bottom line.
     final rawGrandTotal = taxableAmount + totalCgst + totalSgst + deliveryCharge;
     
     // Round to nearest rupee
     final grandTotal = rawGrandTotal.roundToDouble();
 
     return TaxCalculationResult(
-      subtotal: subtotal,
-      discountAmount: actualDiscount,
+      subtotal: rawSubtotal,
+      itemDiscountAmount: sumItemDiscounts,
+      bundleDiscountAmount: bundleDiscountAmount,
+      discountAmount: totalDiscount,
       taxableAmount: taxableAmount,
       cgstAmount: totalCgst,
       sgstAmount: totalSgst,

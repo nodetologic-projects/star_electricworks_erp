@@ -15,6 +15,7 @@ class InvoiceItems extends Table {
   TextColumn get hsnCode => text().nullable()();
   RealColumn get qty => real().nullable()();
   RealColumn get unitPrice => real()();
+  RealColumn get discountPercent => real().nullable()();
   RealColumn get gstRate => real().nullable()();
   RealColumn get lineTotal => real()();
 }

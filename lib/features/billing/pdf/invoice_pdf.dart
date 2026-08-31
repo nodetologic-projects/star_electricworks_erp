@@ -726,16 +726,37 @@ class InvoicePdfGenerator {
       'Total',
     ];
 
-    double actualDiscount = invoice.discountAmount;
-    if (invoice.isDiscountPercentage) {
-      actualDiscount = invoice.subtotal * (invoice.discountRate ?? 0) / 100.0;
+    double sumItemDiscounts = 0.0;
+    double postItemDiscountBaseline = 0.0;
+    for (final item in items) {
+      final itemDiscount = item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
+      sumItemDiscounts += itemDiscount;
+      postItemDiscountBaseline += (item.lineTotal - itemDiscount);
     }
-    final discountFactor = invoice.subtotal > 0 ? (invoice.subtotal - actualDiscount) / invoice.subtotal : 1.0;
+    
+    double bundleDiscountAmount = invoice.isDiscountPercentage 
+        ? (postItemDiscountBaseline * (invoice.discountRate ?? 0.0) / 100.0) 
+        : invoice.discountAmount;
+    
+    if (bundleDiscountAmount > postItemDiscountBaseline) {
+      bundleDiscountAmount = postItemDiscountBaseline;
+    }
+
+    final distributionFactor = invoice.distributeDiscountAcrossItems && postItemDiscountBaseline > 0
+        ? (postItemDiscountBaseline - bundleDiscountAmount) / postItemDiscountBaseline
+        : 1.0;
 
     final data = items.map((item) {
       final rate = item.gstRate ?? 0.0;
-      final lineDiscount = item.lineTotal * (1.0 - discountFactor);
-      final lineTaxableValue = item.lineTotal - lineDiscount;
+      final itemDiscount = item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
+      final itemPostDiscount = item.lineTotal - itemDiscount;
+      final bundleDiscountShare = invoice.distributeDiscountAcrossItems 
+          ? itemPostDiscount * (1.0 - distributionFactor)
+          : 0.0;
+      final totalDiscount = itemDiscount + bundleDiscountShare;
+      final effectivePct = item.lineTotal > 0 ? (totalDiscount / item.lineTotal) * 100 : 0.0;
+      
+      final lineTaxableValue = itemPostDiscount * distributionFactor;
       
       final gstAmount = showGst ? (lineTaxableValue * (rate / 100)) : 0.0;
       final cgstAmount = gstAmount / 2;
@@ -756,8 +777,9 @@ class InvoicePdfGenerator {
           style: pw.TextStyle(font: monoFont),
         ),
         pw.Text(
-          lineDiscount > 0 ? '-' + lineDiscount.toStringAsFixed(2) : '0.00',
+          totalDiscount > 0 ? '-' + totalDiscount.toStringAsFixed(2) + '\n(' + effectivePct.toStringAsFixed(1) + '%)' : '0.00',
           style: pw.TextStyle(font: monoFont),
+          textAlign: pw.TextAlign.right,
         ),
         if (showGst)
           pw.Column(

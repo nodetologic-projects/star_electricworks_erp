@@ -53,7 +53,7 @@ void main() {
         items: [
           InvoiceLineItemInput(lineTotal: 1000.0, gstRate: 18.0), // 180 total tax originally
         ],
-        discountAmount: 100.0, // taxable becomes 900
+        bundleDiscountValue: 100.0, // taxable becomes 900
       );
 
       expect(result.subtotal, 1000.0);
@@ -70,8 +70,8 @@ void main() {
         items: [
           InvoiceLineItemInput(lineTotal: 2000.0, gstRate: 12.0),
         ],
-        discountAmount: 10.0,
-        isDiscountPercentage: true,
+        bundleDiscountValue: 10.0,
+        isBundleDiscountPercentage: true,
       );
 
       expect(result.subtotal, 2000.0);

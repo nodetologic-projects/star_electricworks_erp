@@ -20,6 +20,7 @@ class Invoices extends Table {
   RealColumn get discountAmount => real()();
   BoolColumn get isDiscountPercentage => boolean().withDefault(const Constant(false))();
   RealColumn get discountRate => real().nullable()();
+  BoolColumn get distributeDiscountAcrossItems => boolean().withDefault(const Constant(true))();
   RealColumn get deliveryCharge => real().nullable()();
   RealColumn get grandTotal => real()();
   TextColumn get amountInWords => text()();
