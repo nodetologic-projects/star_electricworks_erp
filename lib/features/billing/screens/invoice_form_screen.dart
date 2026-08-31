@@ -596,11 +596,41 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           ),
         const SizedBox(width: 8),
         SizedBox(
+          width: 80,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 24.0),
+            child: Text(
+              (() {
+                double actualDiscount = _discountAmount;
+                double subtotal = _items.fold(0.0, (s, i) => s + i.lineTotal);
+                if (_isDiscountPercentage) {
+                  actualDiscount = subtotal * (_discountAmount / 100.0);
+                }
+                final discountFactor = subtotal > 0 ? (subtotal - actualDiscount) / subtotal : 1.0;
+                final lineDiscount = item.lineTotal * (1.0 - discountFactor);
+                return lineDiscount > 0 ? '-₹${lineDiscount.toStringAsFixed(2)}' : '';
+              })(),
+              style: const TextStyle(fontSize: 12, color: Colors.red),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
           width: 150,
           child: Padding(
             padding: const EdgeInsets.only(top: 16.0),
             child: Text(
-              '₹${(showGst ? (item.lineTotal * (1 + ((item.gstRate ?? 0) / 100))) : item.lineTotal).toStringAsFixed(2)}',
+              (() {
+                double actualDiscount = _discountAmount;
+                double subtotal = _items.fold(0.0, (s, i) => s + i.lineTotal);
+                if (_isDiscountPercentage) {
+                  actualDiscount = subtotal * (_discountAmount / 100.0);
+                }
+                final discountFactor = subtotal > 0 ? (subtotal - actualDiscount) / subtotal : 1.0;
+                final lineTaxableValue = item.lineTotal * discountFactor;
+                final gstAmount = showGst ? (lineTaxableValue * ((item.gstRate ?? 0) / 100)) : 0.0;
+                return '₹${(lineTaxableValue + gstAmount).toStringAsFixed(2)}';
+              })(),
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,

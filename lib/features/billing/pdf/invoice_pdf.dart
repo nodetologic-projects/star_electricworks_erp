@@ -107,8 +107,6 @@ class InvoicePdfGenerator {
                 ),
               ],
 
-
-
               if (invoice.notes != null && invoice.notes!.isNotEmpty) ...[
                 pw.SizedBox(height: 12),
                 pw.Container(
@@ -195,7 +193,7 @@ class InvoicePdfGenerator {
           children: [
             pw.Text(
               copyLabel,
-              style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
+              style: pw.TextStyle(fontSize: 12, fontStyle: pw.FontStyle.italic, fontWeight: pw.FontWeight.bold),
             ),
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -210,45 +208,71 @@ class InvoicePdfGenerator {
                   ),
                 ),
                 pw.SizedBox(height: 4),
-                pw.RichText(text: pw.TextSpan(children: [
-                  pw.TextSpan(text: 'Date: ', style: const pw.TextStyle(fontSize: 8)),
-                  pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.invoiceDate), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                ])),
+                pw.RichText(
+                  text: pw.TextSpan(
+                    children: [
+                      pw.TextSpan(
+                        text: 'Date: ',
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
+                      pw.TextSpan(
+                        text: PdfDateFormatter.formatDate(invoice.invoiceDate),
+                        style: pw.TextStyle(
+                          fontSize: 8,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 if (invoice.dueDate != null) ...[
                   pw.SizedBox(height: 2),
-                  pw.RichText(text: pw.TextSpan(children: [
-                    pw.TextSpan(text: 'Due Date: ', style: const pw.TextStyle(fontSize: 8)),
-                    pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.dueDate!), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ])),
+                  pw.RichText(
+                    text: pw.TextSpan(
+                      children: [
+                        pw.TextSpan(
+                          text: 'Due Date: ',
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
+                        pw.TextSpan(
+                          text: PdfDateFormatter.formatDate(invoice.dueDate!),
+                          style: pw.TextStyle(
+                            fontSize: 8,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-                if (invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ...[
-                  pw.SizedBox(height: 2),
-                  pw.RichText(text: pw.TextSpan(children: [
-                    pw.TextSpan(text: 'PO No: ', style: const pw.TextStyle(fontSize: 8)),
-                    pw.TextSpan(text: invoice.poNumber!, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ])),
-                ],
-                if (invoice.poDate != null) ...[
-                  pw.SizedBox(height: 2),
-                  pw.RichText(text: pw.TextSpan(children: [
-                    pw.TextSpan(text: 'PO Date: ', style: const pw.TextStyle(fontSize: 8)),
-                    pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.poDate!), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ])),
-                ],
-                if (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty) ...[
-                  pw.SizedBox(height: 2),
-                  pw.RichText(text: pw.TextSpan(children: [
-                    pw.TextSpan(text: 'GP No: ', style: const pw.TextStyle(fontSize: 8)),
-                    pw.TextSpan(text: invoice.gpNumber!, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ])),
-                ],
-                if (invoice.gpDate != null) ...[
-                  pw.SizedBox(height: 2),
-                  pw.RichText(text: pw.TextSpan(children: [
-                    pw.TextSpan(text: 'GP Date: ', style: const pw.TextStyle(fontSize: 8)),
-                    pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.gpDate!), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ])),
-                ],
+                // if (invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ...[
+                //   pw.SizedBox(height: 2),
+                //   pw.RichText(text: pw.TextSpan(children: [
+                //     pw.TextSpan(text: 'PO No: ', style: const pw.TextStyle(fontSize: 8)),
+                //     pw.TextSpan(text: invoice.poNumber!, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                //   ])),
+                // ],
+                // if (invoice.poDate != null) ...[
+                //   pw.SizedBox(height: 2),
+                //   pw.RichText(text: pw.TextSpan(children: [
+                //     pw.TextSpan(text: 'PO Date: ', style: const pw.TextStyle(fontSize: 8)),
+                //     pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.poDate!), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                //   ])),
+                // ],
+                // if (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty) ...[
+                //   pw.SizedBox(height: 2),
+                //   pw.RichText(text: pw.TextSpan(children: [
+                //     pw.TextSpan(text: 'GP No: ', style: const pw.TextStyle(fontSize: 8)),
+                //     pw.TextSpan(text: invoice.gpNumber!, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                //   ])),
+                // ],
+                // if (invoice.gpDate != null) ...[
+                //   pw.SizedBox(height: 2),
+                //   pw.RichText(text: pw.TextSpan(children: [
+                //     pw.TextSpan(text: 'GP Date: ', style: const pw.TextStyle(fontSize: 8)),
+                //     pw.TextSpan(text: PdfDateFormatter.formatDate(invoice.gpDate!), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                //   ])),
+                // ],
               ],
             ),
           ],
@@ -370,7 +394,8 @@ class InvoicePdfGenerator {
                           fontWeight: pw.FontWeight.bold,
                         ),
                       ),
-                    if (customer.panNumber != null && customer.panNumber!.isNotEmpty)
+                    if (customer.panNumber != null &&
+                        customer.panNumber!.isNotEmpty)
                       pw.Text(
                         'PAN: ${customer.panNumber}',
                         style: pw.TextStyle(
@@ -390,7 +415,6 @@ class InvoicePdfGenerator {
                         'Place of Supply: ${invoice.placeOfSupply}',
                         style: const pw.TextStyle(fontSize: 7.5),
                       ),
-
                   ],
                 ),
               ),
@@ -437,7 +461,8 @@ class InvoicePdfGenerator {
                           fontWeight: pw.FontWeight.bold,
                         ),
                       ),
-                    if (customer.panNumber != null && customer.panNumber!.isNotEmpty)
+                    if (customer.panNumber != null &&
+                        customer.panNumber!.isNotEmpty)
                       pw.Text(
                         'PAN: ${customer.panNumber}',
                         style: pw.TextStyle(
@@ -456,7 +481,8 @@ class InvoicePdfGenerator {
               ),
             ),
           ],
-        )      ],
+        ),
+      ],
     );
   }
 
@@ -474,20 +500,20 @@ class InvoicePdfGenerator {
         pw.Row(
           mainAxisSize: pw.MainAxisSize.min,
           children: [
-            _buildMetaCol(
-              'Date',
-              PdfDateFormatter.formatDate(invoice.invoiceDate),
-              bold: true,
-            ),
-            pw.SizedBox(width: 16),
-            if (invoice.dueDate != null) ...[
-              _buildMetaCol(
-                'Due Date',
-                PdfDateFormatter.formatDate(invoice.dueDate!),
-                bold: true,
-              ),
-              pw.SizedBox(width: 16),
-            ],
+            // _buildMetaCol(
+            //   'Date',
+            //   PdfDateFormatter.formatDate(invoice.invoiceDate),
+            //   bold: true,
+            // ),
+            // pw.SizedBox(width: 16),
+            // if (invoice.dueDate != null) ...[
+            //   _buildMetaCol(
+            //     'Due Date',
+            //     PdfDateFormatter.formatDate(invoice.dueDate!),
+            //     bold: true,
+            //   ),
+            //   pw.SizedBox(width: 16),
+            // ],
             if ((invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ||
                 (invoice.poDate != null) ||
                 (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty) ||
@@ -539,7 +565,9 @@ class InvoicePdfGenerator {
                     ],
                     if (invoice.gpNumber != null &&
                         invoice.gpNumber!.isNotEmpty) ...[
-                      if ((invoice.poNumber != null && invoice.poNumber!.isNotEmpty) || invoice.poDate != null)
+                      if ((invoice.poNumber != null &&
+                              invoice.poNumber!.isNotEmpty) ||
+                          invoice.poDate != null)
                         pw.SizedBox(width: 16),
                       pw.Text(
                         'GP No: ',
@@ -557,7 +585,11 @@ class InvoicePdfGenerator {
                       ),
                     ],
                     if (invoice.gpDate != null) ...[
-                      if ((invoice.poNumber != null && invoice.poNumber!.isNotEmpty) || invoice.poDate != null || (invoice.gpNumber != null && invoice.gpNumber!.isNotEmpty))
+                      if ((invoice.poNumber != null &&
+                              invoice.poNumber!.isNotEmpty) ||
+                          invoice.poDate != null ||
+                          (invoice.gpNumber != null &&
+                              invoice.gpNumber!.isNotEmpty))
                         pw.SizedBox(width: 16),
                       pw.Text(
                         'GP Date: ',
@@ -667,6 +699,7 @@ class InvoicePdfGenerator {
 
     return _buildStandardTable(
       items,
+      invoice: invoice,
       showGst: showGst,
       isPurchase: isPurchase,
       isDeliveryChallan: isDeliveryChallan,
@@ -674,9 +707,9 @@ class InvoicePdfGenerator {
     );
   }
 
-
   static pw.Widget _buildStandardTable(
     List<InvoiceItem> items, {
+    required Invoice invoice,
     required bool showGst,
     bool isPurchase = false,
     bool isDeliveryChallan = false,
@@ -687,39 +720,67 @@ class InvoicePdfGenerator {
       if (!isDeliveryChallan) 'SAC/HSN',
       'Qty',
       'Rate',
+      'Discount',
       if (showGst) 'CGST',
       if (showGst) 'SGST',
       'Total',
     ];
 
+    double actualDiscount = invoice.discountAmount;
+    if (invoice.isDiscountPercentage) {
+      actualDiscount = invoice.subtotal * (invoice.discountRate ?? 0) / 100.0;
+    }
+    final discountFactor = invoice.subtotal > 0 ? (invoice.subtotal - actualDiscount) / invoice.subtotal : 1.0;
+
     final data = items.map((item) {
       final rate = item.gstRate ?? 0.0;
-      final gstAmount = showGst ? (item.lineTotal * (rate / 100)) : 0.0;
+      final lineDiscount = item.lineTotal * (1.0 - discountFactor);
+      final lineTaxableValue = item.lineTotal - lineDiscount;
+      
+      final gstAmount = showGst ? (lineTaxableValue * (rate / 100)) : 0.0;
       final cgstAmount = gstAmount / 2;
       final sgstAmount = gstAmount / 2;
-      final total = showGst ? (item.lineTotal + gstAmount) : item.lineTotal;
-      
+      final total = showGst ? (lineTaxableValue + gstAmount) : lineTaxableValue;
+
       final halfRateStr = (rate / 2).toStringAsFixed(1).replaceAll('.0', '');
 
       return [
         _buildDescriptionWidget(item.description),
         if (!isDeliveryChallan) item.hsnCode ?? '',
-        pw.Text(item.qty?.toString() ?? '1', style: pw.TextStyle(font: monoFont)),
-        pw.Text(item.unitPrice.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
-        if (showGst) pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.end,
-          children: [
-            pw.Text(cgstAmount.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
-            pw.Text('($halfRateStr%)', style: pw.TextStyle(fontSize: 7)),
-          ]
+        pw.Text(
+          item.qty?.toString() ?? '1',
+          style: pw.TextStyle(font: monoFont),
         ),
-        if (showGst) pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.end,
-          children: [
-            pw.Text(sgstAmount.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
-            pw.Text('($halfRateStr%)', style: pw.TextStyle(fontSize: 7)),
-          ]
+        pw.Text(
+          item.unitPrice.toStringAsFixed(2),
+          style: pw.TextStyle(font: monoFont),
         ),
+        pw.Text(
+          lineDiscount > 0 ? '-' + lineDiscount.toStringAsFixed(2) : '0.00',
+          style: pw.TextStyle(font: monoFont),
+        ),
+        if (showGst)
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text(
+                cgstAmount.toStringAsFixed(2),
+                style: pw.TextStyle(font: monoFont),
+              ),
+              pw.Text('($halfRateStr%)', style: pw.TextStyle(fontSize: 7)),
+            ],
+          ),
+        if (showGst)
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text(
+                sgstAmount.toStringAsFixed(2),
+                style: pw.TextStyle(font: monoFont),
+              ),
+              pw.Text('($halfRateStr%)', style: pw.TextStyle(fontSize: 7)),
+            ],
+          ),
         pw.Text(total.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
       ];
     }).toList();
@@ -732,6 +793,7 @@ class InvoicePdfGenerator {
       4: pw.Alignment.centerRight,
       5: pw.Alignment.centerRight,
       6: pw.Alignment.centerRight,
+      7: pw.Alignment.centerRight,
     };
 
     if (isDeliveryChallan) {
@@ -740,6 +802,7 @@ class InvoicePdfGenerator {
         1: pw.Alignment.center,
         2: pw.Alignment.centerRight,
         3: pw.Alignment.centerRight,
+        4: pw.Alignment.centerRight,
       };
     } else if (!showGst) {
       alignments = {
@@ -748,6 +811,7 @@ class InvoicePdfGenerator {
         2: pw.Alignment.center,
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
+        5: pw.Alignment.centerRight,
       };
     }
 
@@ -771,28 +835,34 @@ class InvoicePdfGenerator {
     List<pw.TextSpan> spans = [];
     final pattern = RegExp(r'\*\*(.*?)\*\*');
     int lastMatchEnd = 0;
-    
+
     for (final match in pattern.allMatches(description)) {
       if (match.start > lastMatchEnd) {
-        spans.add(pw.TextSpan(
-          text: description.substring(lastMatchEnd, match.start),
-          style: const pw.TextStyle(fontSize: 8),
-        ));
+        spans.add(
+          pw.TextSpan(
+            text: description.substring(lastMatchEnd, match.start),
+            style: const pw.TextStyle(fontSize: 8),
+          ),
+        );
       }
-      spans.add(pw.TextSpan(
-        text: match.group(1),
-        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-      ));
+      spans.add(
+        pw.TextSpan(
+          text: match.group(1),
+          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+        ),
+      );
       lastMatchEnd = match.end;
     }
-    
+
     if (lastMatchEnd < description.length) {
-      spans.add(pw.TextSpan(
-        text: description.substring(lastMatchEnd),
-        style: const pw.TextStyle(fontSize: 8),
-      ));
+      spans.add(
+        pw.TextSpan(
+          text: description.substring(lastMatchEnd),
+          style: const pw.TextStyle(fontSize: 8),
+        ),
+      );
     }
-    
+
     return pw.RichText(text: pw.TextSpan(children: spans));
   }
 
@@ -983,7 +1053,7 @@ class InvoicePdfGenerator {
     );
   }
 
-static pw.Widget _buildFooter(
+  static pw.Widget _buildFooter(
     CompanySetting company,
     Invoice invoice,
     double totalPaid,
@@ -993,7 +1063,10 @@ static pw.Widget _buildFooter(
     print('DIAGNOSTICS - invoice.grandTotal: ${invoice.grandTotal}');
     print('DIAGNOSTICS - totalPaid: $totalPaid');
 
-    final bool shouldShowQr = company.upiId != null && company.upiId!.isNotEmpty && (invoice.grandTotal - totalPaid) > 0;
+    final bool shouldShowQr =
+        company.upiId != null &&
+        company.upiId!.isNotEmpty &&
+        (invoice.grandTotal - totalPaid) > 0;
     print('DIAGNOSTICS - QR condition evaluates to: $shouldShowQr');
 
     final type = invoice.invoiceType;
