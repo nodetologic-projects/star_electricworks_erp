@@ -313,7 +313,7 @@ namespace InvoicePdfSigner
                 lastPage = locatorDoc.GetNumberOfPages();
                 var locator = new SignLocator();
                 PdfCanvasProcessor processor = new PdfCanvasProcessor(locator);
-                processor.ProcessPage(locatorDoc.GetPage(lastPage));
+                processor.ProcessPageContent(locatorDoc.GetPage(lastPage));
                 targetX = locator.TargetX;
                 targetY = locator.TargetY;
             }
