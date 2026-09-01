@@ -105,18 +105,18 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
     // If already signed, just print
     if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
       print("INFO: Invoice already signed (path: ${data.invoice.signedPdfPath}), skipping to print step");
-      await _executePrintStep(context, data);
+      await _executePrintStep(context, data, explicitPdfPath: data.invoice.signedPdfPath);
       return;
     }
 
     print("ACTION: Starting Sign step...");
-    final success = await _signAndFinalize(context, data);
-    print("RESULT: Sign step returned success=$success");
+    final resultPath = await _signAndFinalize(context, data);
+    print("RESULT: Sign step returned path=$resultPath");
     
-    if (success) {
+    if (resultPath != null) {
       print("ACTION: Starting Print step...");
       if (context.mounted) {
-        await _executePrintStep(context, data);
+        await _executePrintStep(context, data, explicitPdfPath: resultPath);
       } else {
         print("ERROR: Cannot execute print step - context is no longer mounted after signing");
       }
@@ -125,12 +125,13 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
     }
   }
 
-  Future<void> _executePrintStep(BuildContext context, InvoiceDetailData data) async {
+  Future<void> _executePrintStep(BuildContext context, InvoiceDetailData data, {String? explicitPdfPath}) async {
     try {
-      print("ACTION: Calling DirectPrintService.printPdf");
+      print("ACTION: Calling DirectPrintService.printPdf with explicitPdfPath=$explicitPdfPath");
       await DirectPrintService.printPdf(
         context,
         data.invoice.invoiceNo,
+        explicitPdfPath: explicitPdfPath,
         fallbackGenerate: () => InvoicePdfGenerator.generate(
           copyLabels: [_selectedCopyType],
           company: data.companySetting,
@@ -146,7 +147,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
     }
   }
 
-  Future<bool> _signAndFinalize(BuildContext context, InvoiceDetailData data) async {
+  Future<String?> _signAndFinalize(BuildContext context, InvoiceDetailData data) async {
     try {
       final method = data.companySetting.dscSigningMethod ?? DscSigningMethod.fileBased;
       
@@ -159,12 +160,12 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('PKCS#11 DLL Driver Path not set in Settings!')),
           );
-          return false;
+          return null;
         }
         
         passwordOrPin = await _promptForPin(context);
         if (passwordOrPin == null || passwordOrPin.isEmpty) {
-          return false; // Cancelled
+          return null; // Cancelled
         }
       } else {
         certOrDllPath = data.companySetting.dscCertPath;
@@ -172,7 +173,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('DSC Certificate path not set in Settings!')),
           );
-          return false;
+          return null;
         }
 
         const storage = FlutterSecureStorage();
@@ -183,7 +184,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
               const SnackBar(content: Text('DSC Password not set in Settings!')),
             );
           }
-          return false;
+          return null;
         }
       }
 
@@ -234,7 +235,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
 
       passwordOrPin = '';
 
-      if (!context.mounted) return false;
+      if (!context.mounted) return null;
 
       print("RESULT of DscSigner (null means success): $error");
       
@@ -249,7 +250,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
           );
         }
         ref.invalidate(invoiceDetailProvider(widget.invoiceId));
-        return true;
+        return outputPdf.path;
       } else if (error == 'UnsupportedPlatform') {
         final repo = ref.read(invoicesRepositoryProvider);
         await repo.updateInvoiceStatus(data.invoice.id, InvoiceStatus.sent);
@@ -260,7 +261,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
           );
         }
         ref.invalidate(invoiceDetailProvider(widget.invoiceId));
-        return true;
+        return inputPdf.path;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -274,7 +275,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
             ),
           ),
         );
-        return false;
+        return null;
       }
     } catch (e) {
       if (context.mounted) {
@@ -282,7 +283,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
           SnackBar(content: Text('Error during signing: $e')),
         );
       }
-      return false;
+      return null;
     }
   }
 

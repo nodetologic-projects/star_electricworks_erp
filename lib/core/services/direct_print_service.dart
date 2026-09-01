@@ -8,7 +8,12 @@ import 'package:path_provider/path_provider.dart';
 class DirectPrintService {
   static const String _printerKey = 'last_used_printer';
 
-  static Future<void> printPdf(BuildContext context, String fileName, {required Future<Uint8List> Function() fallbackGenerate}) async {
+  static Future<void> printPdf(
+    BuildContext context, 
+    String fileName, {
+    required Future<Uint8List> Function() fallbackGenerate,
+    String? explicitPdfPath,
+  }) async {
     if (context.mounted) {
       showDialog(
         context: context,
@@ -18,23 +23,33 @@ class DirectPrintService {
     }
 
     try {
-      final docsDir = await getApplicationDocumentsDirectory();
-      // Use Quotations folder if it's a quotation, else Invoices
-      final folderName = fileName.startsWith('QT-') ? 'Star Electric Works Quotations' : 'Star Electric Works Invoices';
-      final dir = Directory('${docsDir.path}/$folderName');
-      
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-      }
-      
-      final file = File('${dir.path}/$fileName.pdf');
-
       Uint8List bytes;
-      if (await file.exists()) {
-        bytes = await file.readAsBytes();
+      
+      if (explicitPdfPath != null && explicitPdfPath.isNotEmpty) {
+        final explicitFile = File(explicitPdfPath);
+        if (await explicitFile.exists()) {
+          bytes = await explicitFile.readAsBytes();
+        } else {
+          throw Exception('Explicit PDF path provided but file does not exist: $explicitPdfPath');
+        }
       } else {
-        bytes = await fallbackGenerate();
-        await file.writeAsBytes(bytes);
+        final docsDir = await getApplicationDocumentsDirectory();
+        // Use Quotations folder if it's a quotation, else Invoices
+        final folderName = fileName.startsWith('QT-') ? 'Star Electric Works Quotations' : 'Star Electric Works Invoices';
+        final dir = Directory('${docsDir.path}/$folderName');
+        
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+        
+        final file = File('${dir.path}/$fileName.pdf');
+
+        if (await file.exists()) {
+          bytes = await file.readAsBytes();
+        } else {
+          bytes = await fallbackGenerate();
+          await file.writeAsBytes(bytes);
+        }
       }
 
       final printers = await Printing.listPrinters();
