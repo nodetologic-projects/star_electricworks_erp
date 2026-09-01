@@ -107,6 +107,10 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           );
         },
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddEmployeeDialog,
+        child: const Icon(Icons.person_add),
+      ),
     );
   }
 }
