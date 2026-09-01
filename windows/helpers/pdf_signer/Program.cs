@@ -15,6 +15,9 @@ using iText.Bouncycastleconnector;
 using iText.Bouncycastle.X509;
 using iText.Commons.Bouncycastle.Cert;
 using iText.Commons.Bouncycastle.Crypto;
+using iText.Kernel.Pdf.Canvas.Parser;
+using iText.Kernel.Pdf.Canvas.Parser.Listener;
+using iText.Kernel.Pdf.Canvas.Parser.Data;
 
 namespace InvoicePdfSigner
 {
@@ -253,16 +256,74 @@ namespace InvoicePdfSigner
             }
         }
 
+        class SignLocator : IEventListener
+        {
+            public float TargetX = 400;
+            public float TargetY = 50;
+            
+            private string _accumulatedText = "";
+            private float _currentX = 0;
+            private float _currentY = 0;
+            private float _lastY = 0;
+
+            public void EventOccurred(IEventData data, EventType type)
+            {
+                if (type == EventType.RENDER_TEXT)
+                {
+                    var renderInfo = (TextRenderInfo)data;
+                    string text = renderInfo.GetText();
+                    if (text != null)
+                    {
+                        var rect = renderInfo.GetBaseline().GetBoundingRectangle();
+                        // If Y changed significantly, it's a new line
+                        if (Math.Abs(rect.GetY() - _lastY) > 2) 
+                        {
+                            _accumulatedText = "";
+                            _currentX = rect.GetX();
+                            _currentY = rect.GetY();
+                        }
+                        
+                        _accumulatedText += text;
+                        _lastY = rect.GetY();
+
+                        if (_accumulatedText.Contains("AUTHORIZED SIGNATORY"))
+                        {
+                            TargetX = _currentX;
+                            TargetY = _currentY - 55;
+                        }
+                    }
+                }
+            }
+
+            public ICollection<EventType> GetSupportedEvents()
+            {
+                return new List<EventType> { EventType.RENDER_TEXT };
+            }
+        }
+
         static void ApplySignature(string inputPdf, string outputPdf, IX509Certificate[] chain, IExternalSignature signature, string commonName)
         {
-
+            float targetX = 400;
+            float targetY = 50;
+            int lastPage = 1;
+            
+            using (PdfReader locatorReader = new PdfReader(inputPdf))
+            using (PdfDocument locatorDoc = new PdfDocument(locatorReader))
+            {
+                lastPage = locatorDoc.GetNumberOfPages();
+                var locator = new SignLocator();
+                PdfCanvasProcessor processor = new PdfCanvasProcessor(locator);
+                processor.ProcessPage(locatorDoc.GetPage(lastPage));
+                targetX = locator.TargetX;
+                targetY = locator.TargetY;
+            }
 
             using (PdfReader reader = new PdfReader(inputPdf))
             using (FileStream os = new FileStream(outputPdf, FileMode.Create))
             {
                 PdfSigner signer = new PdfSigner(reader, os, new StampingProperties());
-                int lastPage = signer.GetDocument().GetNumberOfPages();
-                Rectangle rect = new Rectangle(400, 50, 150, 50);
+                
+                Rectangle rect = new Rectangle(targetX, targetY, 150, 50);
 
                 PdfSignatureAppearance appearance = signer.GetSignatureAppearance();
                 appearance
