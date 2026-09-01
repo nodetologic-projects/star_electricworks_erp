@@ -950,6 +950,14 @@ class InvoicePdfGenerator {
               ),
               pw.SizedBox(height: 50),
               pw.Text(
+                'SIG_LOC',
+                style: pw.TextStyle(
+                  font: pw.Font.helvetica(),
+                  fontSize: 1,
+                  color: PdfColors.white,
+                ),
+              ),
+              pw.Text(
                 'AUTHORIZED SIGNATORY',
                 style: pw.TextStyle(
                   fontSize: 8,

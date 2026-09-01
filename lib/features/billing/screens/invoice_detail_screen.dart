@@ -475,6 +475,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                 ),
               Expanded(
                 child: PdfPreview(
+                  key: ValueKey(data.invoice.signedPdfPath ?? 'unsigned'),
                   build: (format) async {
                     if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
                       final file = File(data.invoice.signedPdfPath!);

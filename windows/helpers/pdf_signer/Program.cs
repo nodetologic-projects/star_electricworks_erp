@@ -275,21 +275,20 @@ namespace InvoicePdfSigner
                     if (text != null)
                     {
                         var rect = renderInfo.GetBaseline().GetBoundingRectangle();
-                        // If Y changed significantly, it's a new line
-                        if (Math.Abs(rect.GetY() - _lastY) > 2) 
+                        if (Math.Abs(rect.GetY() - _lastY) > 5) 
                         {
                             _accumulatedText = "";
                             _currentX = rect.GetX();
                             _currentY = rect.GetY();
                         }
                         
-                        _accumulatedText += text;
+                        _accumulatedText += text.Replace(" ", "").ToUpper();
                         _lastY = rect.GetY();
 
-                        if (_accumulatedText.Contains("AUTHORIZED SIGNATORY"))
+                        if (_accumulatedText.Contains("SIG_LOC"))
                         {
                             TargetX = _currentX;
-                            TargetY = _currentY - 55;
+                            TargetY = _currentY - 70;
                         }
                     }
                 }
