@@ -196,6 +196,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const AddPurchaseScreen()),
       ),
       GoRoute(
+        path: '/purchases/edit/:id',
+        pageBuilder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          return _fadeTransitionPage(context, state, AddPurchaseScreen(purchaseId: id));
+        },
+      ),
+      GoRoute(
         path: '/purchases',
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const PurchasesListScreen()),
       ),

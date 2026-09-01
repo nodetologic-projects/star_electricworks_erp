@@ -540,6 +540,42 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     return _db.transaction(() async {
       final invoice = await getInvoiceById(id);
       
+      if (invoice.status != InvoiceStatus.draft) {
+        throw Exception("Only draft invoices can be deleted.");
+      }
+      
+      final existingItems = await (_db.select(_db.invoiceItems)..where((t) => t.invoiceId.equals(id))).get();
+      for (var oldItem in existingItems) {
+        if (oldItem.itemSourceType == ItemSourceType.copperStock && oldItem.copperStockId != null) {
+          final stockId = oldItem.copperStockId!;
+          final qty = oldItem.qty ?? 0.0;
+          if (qty > 0) {
+            MovementType movementType;
+            if (invoice.invoiceType == InvoiceType.purchaseVoucher) {
+              movementType = MovementType.purchaseIn;
+            } else {
+              movementType = MovementType.saleOut;
+            }
+
+            final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(stockId))).getSingleOrNull();
+            if (currentStock != null) {
+              double revertedQty = currentStock.stockQtyKg;
+              if (movementType == MovementType.purchaseIn) {
+                revertedQty -= qty; 
+              } else {
+                revertedQty += qty; 
+              }
+              await (_db.update(_db.copperStock)..where((t) => t.id.equals(stockId)))
+                  .write(CopperStockCompanion(stockQtyKg: Value(revertedQty)));
+            }
+
+            await (_db.delete(_db.stockMovements)
+                  ..where((t) => t.referenceInvoiceId.equals(id) & t.copperStockId.equals(stockId) & t.movementType.equals(movementType.name)))
+                .go();
+          }
+        }
+      }
+
       await _db.into(_db.deletedRecordsLog).insert(
         DeletedRecordsLogCompanion.insert(
           entityType: 'Invoice',

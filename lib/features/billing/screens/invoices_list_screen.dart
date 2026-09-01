@@ -49,13 +49,6 @@ class InvoicesListScreen extends ConsumerWidget {
           title: const Text('Delete Draft Invoice?'),
           content: Text('Are you sure you want to delete ${invoice.invoiceNo}?'),
           actions: [
-          IconButton(
-            icon: const Icon(Icons.archive),
-            tooltip: 'Export Invoices for CA',
-            onPressed: () {
-              showDialog(context: context, builder: (_) => const CAExportDialog());
-            },
-          ),
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -70,42 +63,16 @@ class InvoicesListScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${invoice.invoiceNo} deleted.')));
       }
     } else {
-      String typedText = '';
-      final res = await showDialog<bool>(
+      showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Delete Finalized Invoice?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Invoice ${invoice.invoiceNo} is not a draft. Deleting it may cause compliance issues.'),
-              const SizedBox(height: 16),
-              const Text('Type "DELETE" below to confirm:'),
-              TextField(
-                autofocus: true,
-                onChanged: (val) => typedText = val,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-              )
-            ],
-          ),
+          title: const Text('Cannot Delete Finalized Invoice'),
+          content: const Text("Finalized invoices can't be edited or deleted — create a credit note or new entry for corrections instead."),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {
-                if (typedText.trim() == 'DELETE') {
-                  Navigator.pop(ctx, true);
-                }
-              },
-              child: const Text('CONFIRM DELETE'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
           ],
         ),
       );
-      if (res == true && context.mounted) {
-        await ref.read(invoicesRepositoryProvider).deleteInvoice(invoice.id);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${invoice.invoiceNo} deleted.')));
-      }
     }
   }
 

@@ -22,7 +22,8 @@ class PurchaseItemData {
 }
 
 class AddPurchaseScreen extends ConsumerStatefulWidget {
-  const AddPurchaseScreen({super.key});
+  final int? purchaseId;
+  const AddPurchaseScreen({super.key, this.purchaseId});
 
   @override
   ConsumerState<AddPurchaseScreen> createState() => _AddPurchaseScreenState();
@@ -37,8 +38,44 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
   DateTime _purchaseDate = DateTime.now();
   PaymentMode? _paymentMode = PaymentMode.cash;
   bool _logInCashbook = true;
+  bool _isEditing = false;
   
   List<PurchaseItemData> _items = [PurchaseItemData()];
+  
+  @override
+  void initState() {
+    super.initState();
+    if (widget.purchaseId != null) {
+      _isEditing = true;
+      _loadPurchase();
+    }
+  }
+
+  Future<void> _loadPurchase() async {
+    final db = ref.read(databaseProvider);
+    final purchase = await (db.select(db.purchases)..where((t) => t.id.equals(widget.purchaseId!))).getSingle();
+    final items = await (db.select(db.purchaseItems)..where((t) => t.purchaseId.equals(widget.purchaseId!))).get();
+
+    if (mounted) {
+      setState(() {
+        _vendorController.text = purchase.vendorName ?? '';
+        _notesController.text = purchase.notes ?? '';
+        _purchaseDate = purchase.purchaseDate;
+        _paymentMode = purchase.paymentMode;
+        _logInCashbook = false;
+        _billImagePath = purchase.billImagePath;
+        
+        if (items.isNotEmpty) {
+          _items = items.map((e) => PurchaseItemData()
+            ..category = e.category
+            ..description = e.description
+            ..amount = e.amount
+            ..gstAmount = e.gstAmount ?? 0.0
+          ).toList();
+        }
+      });
+    }
+  }
   
   List<String> _categories = [
     'Raw Material',
@@ -102,17 +139,20 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
     )).toList();
 
     final repo = ref.read(purchasesRepositoryProvider);
-    await repo.addPurchase(purchaseEntry, itemEntries);
-
-    if (_logInCashbook && _paymentMode == PaymentMode.cash) {
-      final cashRepo = ref.read(cashbookRepositoryProvider);
-      await cashRepo.addTransaction(CashTransactionsCompanion.insert(
-        transactionDate: _purchaseDate,
-        amount: _totalAmount,
-        transactionType: CashTransactionType.expense,
-        category: 'Purchase',
-        description: drift.Value('Purchase from ${_vendorController.text.trim()}'),
-      ));
+    if (_isEditing) {
+      await repo.updatePurchase(purchaseEntry.copyWith(id: drift.Value(widget.purchaseId!)), itemEntries);
+    } else {
+      await repo.addPurchase(purchaseEntry, itemEntries);
+      if (_logInCashbook && _paymentMode == PaymentMode.cash) {
+        final cashRepo = ref.read(cashbookRepositoryProvider);
+        await cashRepo.addTransaction(CashTransactionsCompanion.insert(
+          transactionDate: _purchaseDate,
+          amount: _totalAmount,
+          transactionType: CashTransactionType.expense,
+          category: 'Purchase',
+          description: drift.Value('Purchase from ${_vendorController.text.trim()}'),
+        ));
+      }
     }
 
     if (mounted) {

@@ -11,9 +11,82 @@ import 'package:starelectricerp/core/theme/app_theme.dart';
 import 'package:starelectricerp/features/purchases/providers/purchases_provider.dart';
 import 'package:starelectricerp/features/reports/utils/excel_export.dart';
 import 'package:starelectricerp/data/database.dart';
+import 'package:drift/drift.dart' as drift;
+
+import 'package:starelectricerp/data/repositories/cashbook_repository.dart';
+import 'package:starelectricerp/data/repositories/purchases_repository.dart';
 
 class PurchasesListScreen extends ConsumerWidget {
   const PurchasesListScreen({super.key});
+
+  Future<void> _confirmDeletePurchase(BuildContext context, WidgetRef ref, Purchase p) async {
+    final db = ref.read(databaseProvider);
+    
+    // Check for linked cashbook entries heuristically
+    final cashRepo = ref.read(cashbookRepositoryProvider);
+    final linkedCashbookEntries = await (db.select(db.cashTransactions)..where((t) => 
+      t.transactionDate.equals(p.purchaseDate) & 
+      t.amount.equals(p.totalAmount) & 
+      t.category.equals('Purchase') &
+      t.description.equals('Purchase from ${p.vendorName}')
+    )).get();
+
+    bool deleteCashbookAlso = false;
+
+    if (context.mounted) {
+      final res = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('Delete Purchase?'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Delete this purchase record? This cannot be undone.'),
+                    if (linkedCashbookEntries.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text('This purchase seems to have a linked Cash Book entry.', style: TextStyle(fontWeight: FontWeight.bold)),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Also delete linked Cash Book entry'),
+                        value: deleteCashbookAlso,
+                        onChanged: (val) => setState(() => deleteCashbookAlso = val ?? false),
+                      )
+                    ]
+                  ],
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+                  FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('DELETE'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      );
+
+      if (res == true && context.mounted) {
+        await ref.read(purchasesRepositoryProvider).deletePurchase(p.id);
+        
+        if (deleteCashbookAlso && linkedCashbookEntries.isNotEmpty) {
+          for (final c in linkedCashbookEntries) {
+            await cashRepo.deleteTransaction(c.id);
+          }
+        }
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Purchase deleted.')));
+        }
+      }
+    }
+  }
 
   Future<void> _exportToExcel(BuildContext context, List<Purchase> purchases, DateTimeRange? dateRange) async {
     final dateFormat = DateFormat('dd MMM yyyy');
@@ -166,6 +239,7 @@ class PurchasesListScreen extends ConsumerWidget {
                       'Total Amount',
                       'Payment',
                       'Attachment',
+                      'Actions'
                     ],
                     data: purchases,
                     searchHint: 'Search by vendor name...',
@@ -196,6 +270,21 @@ class PurchasesListScreen extends ConsumerWidget {
                                 ),
                               )
                             : const Text('-'),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 20),
+                              tooltip: 'Edit Purchase',
+                              onPressed: () => context.push('/purchases/edit/${p.id}'),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                              tooltip: 'Delete Purchase',
+                              onPressed: () => _confirmDeletePurchase(context, ref, p),
+                            ),
+                          ],
+                        ),
                       ];
                     },
                   );
