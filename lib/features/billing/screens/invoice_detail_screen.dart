@@ -475,14 +475,22 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                 ),
               Expanded(
                 child: PdfPreview(
-                  build: (format) => InvoicePdfGenerator.generate(
-                    copyLabels: [_selectedCopyType],
-                    company: data.companySetting,
-                    invoice: data.invoice,
-                    items: data.items,
-                    customer: data.customer,
-                    totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
-                  ),
+                  build: (format) async {
+                    if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
+                      final file = File(data.invoice.signedPdfPath!);
+                      if (await file.exists()) {
+                        return await file.readAsBytes();
+                      }
+                    }
+                    return await InvoicePdfGenerator.generate(
+                      copyLabels: [_selectedCopyType],
+                      company: data.companySetting,
+                      invoice: data.invoice,
+                      items: data.items,
+                      customer: data.customer,
+                      totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
+                    );
+                  },
                   allowPrinting: true,
                   allowSharing: true,
                   canChangeOrientation: false,
