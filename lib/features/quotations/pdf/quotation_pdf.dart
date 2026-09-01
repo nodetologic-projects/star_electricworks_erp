@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/quotations_repository.dart';
 import 'package:starelectricerp/core/date_formatting.dart';
+import 'package:starelectricerp/features/billing/pdf/invoice_pdf.dart';
 
 class QuotationPdfGenerator {
   static Future<Uint8List> generate({
@@ -15,35 +16,54 @@ class QuotationPdfGenerator {
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
+        margin: pw.EdgeInsets.only(
+          top: InvoicePdfGenerator.letterheadTopMarginCm * PdfPageFormat.cm,
+          bottom: 32,
+          left: 32,
+          right: 32,
+        ),
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Header
+              pw.Center(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      'QUOTATION',
+                      style: pw.TextStyle(
+                        color: PdfColor.fromHex('#501817'),
+                        fontSize: 24,
+                        fontWeight: pw.FontWeight.bold,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      data.quotation.quoteNo,
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 16),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(company.companyName, style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                      pw.Text(company.address),
-                      pw.Text('Phone: ${company.phone}'),
-                      pw.Text('Email: ${company.email}'),
-                    ],
-                  ),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text('QUOTATION', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                      pw.Text('Quote No: ${data.quotation.quoteNo}'),
-                      pw.Text('Date: ${PdfDateFormatter.formatDate(data.quotation.createdAt)}'),
-                      if (data.quotation.validUntil != null)
-                        pw.Text('Valid Until: ${PdfDateFormatter.formatDate(data.quotation.validUntil!)}',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.red700)),
-                    ],
-                  ),
+                  pw.Text('Date: ${PdfDateFormatter.formatDate(data.quotation.createdAt)}'),
+                  if (data.quotation.validUntil != null)
+                    pw.Text(
+                      'Valid Until: ${PdfDateFormatter.formatDate(data.quotation.validUntil!)}',
+                      style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.red700,
+                      ),
+                    ),
                 ],
               ),
               pw.SizedBox(height: 24),
