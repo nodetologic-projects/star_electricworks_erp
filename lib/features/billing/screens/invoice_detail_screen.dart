@@ -34,10 +34,24 @@ class InvoiceDetailScreen extends ConsumerStatefulWidget {
 class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
   String _selectedCopyType = 'Original for Recipient';
 
+  String? _getSignedSinglePdfPath(String? baseSignedPath, String copyType) {
+    if (baseSignedPath == null || baseSignedPath.isEmpty) return null;
+    if (baseSignedPath.endsWith('_signed_all.pdf')) {
+      return baseSignedPath.replaceAll('_signed_all.pdf', '_signed_${copyType.replaceAll(' ', '_')}.pdf');
+    }
+    if (baseSignedPath.endsWith('_draft_all.pdf')) { // Mac fallback
+      return baseSignedPath.replaceAll('_draft_all.pdf', '_draft_${copyType.replaceAll(' ', '_')}.pdf');
+    }
+    return baseSignedPath; // Fallback for old invoices
+  }
+
   Future<void> _downloadPdf(BuildContext context, InvoiceDetailData data) async {
     try {
       Uint8List bytes;
-      if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
+      final singlePath = _getSignedSinglePdfPath(data.invoice.signedPdfPath, _selectedCopyType);
+      if (singlePath != null && await File(singlePath).exists()) {
+        bytes = await File(singlePath).readAsBytes();
+      } else if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
         bytes = await File(data.invoice.signedPdfPath!).readAsBytes();
       } else {
         bytes = await InvoicePdfGenerator.generate(
@@ -195,17 +209,6 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
         }
       }
 
-      // Generate base PDF
-      final bytes = await InvoicePdfGenerator.generate(
-        copyLabels: [_selectedCopyType],
-        company: data.companySetting,
-        invoice: data.invoice,
-        items: data.items,
-        customer: data.customer,
-        totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
-      );
-
-
       final hasPermission = await PermissionUtil.requestStoragePermission();
       if (!hasPermission) throw Exception('Storage permission denied');
 
@@ -215,10 +218,45 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
         await dir.create(recursive: true);
       }
 
-      final inputPdf = File('${dir.path}/${data.invoice.invoiceNo}_draft.pdf');
-      final outputPdf = File('${dir.path}/${data.invoice.invoiceNo}_signed.pdf');
-      
-      await inputPdf.writeAsBytes(bytes);
+      // Generate base PDFs for batch signing
+      List<String> inputPaths = [];
+      List<String> outputPaths = [];
+
+      // Generate all 3 copies in one PDF
+      final bytesAll = await InvoicePdfGenerator.generate(
+        copyLabels: _invoiceCopyTypes,
+        company: data.companySetting,
+        invoice: data.invoice,
+        items: data.items,
+        customer: data.customer,
+        totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
+      );
+      final draftAll = File('${dir.path}/${data.invoice.invoiceNo}_draft_all.pdf');
+      final signedAll = File('${dir.path}/${data.invoice.invoiceNo}_signed_all.pdf');
+      await draftAll.writeAsBytes(bytesAll);
+      inputPaths.add(draftAll.path);
+      outputPaths.add(signedAll.path);
+
+      // Generate individual PDFs for the dropdown/save
+      for (final label in _invoiceCopyTypes) {
+        final bytesSingle = await InvoicePdfGenerator.generate(
+          copyLabels: [label],
+          company: data.companySetting,
+          invoice: data.invoice,
+          items: data.items,
+          customer: data.customer,
+          totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
+        );
+        final labelSafe = label.replaceAll(' ', '_');
+        final draftSingle = File('${dir.path}/${data.invoice.invoiceNo}_draft_${labelSafe}.pdf');
+        final signedSingle = File('${dir.path}/${data.invoice.invoiceNo}_signed_${labelSafe}.pdf');
+        await draftSingle.writeAsBytes(bytesSingle);
+        inputPaths.add(draftSingle.path);
+        outputPaths.add(signedSingle.path);
+      }
+
+      final inputPdfPath = inputPaths.join('|');
+      final outputPdfPath = outputPaths.join('|');
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -228,14 +266,14 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
 
       final error = method == DscSigningMethod.usbToken 
         ? await DscSigner.signPdfToken(
-            inputPdfPath: inputPdf.path,
-            outputPdfPath: outputPdf.path,
+            inputPdfPath: inputPdfPath,
+            outputPdfPath: outputPdfPath,
             dllPath: certOrDllPath,
             pin: passwordOrPin,
           )
         : await DscSigner.signPdf(
-            inputPdfPath: inputPdf.path,
-            outputPdfPath: outputPdf.path,
+            inputPdfPath: inputPdfPath,
+            outputPdfPath: outputPdfPath,
             certPath: certOrDllPath,
             password: passwordOrPin,
           );
@@ -249,18 +287,19 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
       if (error == null) {
         final repo = ref.read(invoicesRepositoryProvider);
         await repo.updateInvoiceStatus(data.invoice.id, InvoiceStatus.sent);
-        await repo.updateSignedPdfPath(data.invoice.id, outputPdf.path);
+        await repo.updateSignedPdfPath(data.invoice.id, signedAll.path);
         
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Signed successfully! Saved to: ${outputPdf.path}')),
+            SnackBar(content: Text('Signed successfully! Saved to: ${signedAll.path}')),
           );
         }
         ref.invalidate(invoiceDetailProvider(widget.invoiceId));
-        return outputPdf.path;
+        return signedAll.path;
       } else if (error == 'UnsupportedPlatform') {
         final repo = ref.read(invoicesRepositoryProvider);
         await repo.updateInvoiceStatus(data.invoice.id, InvoiceStatus.sent);
+        await repo.updateSignedPdfPath(data.invoice.id, draftAll.path); // Fallback for Mac
         
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -268,7 +307,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
           );
         }
         ref.invalidate(invoiceDetailProvider(widget.invoiceId));
-        return inputPdf.path;
+        return draftAll.path;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -393,7 +432,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                             onPressed: () => DirectPrintService.printPdf(
                               context, 
                               data.invoice.invoiceNo, 
-                              explicitPdfPath: data.invoice.signedPdfPath,
+                              explicitPdfPath: _getSignedSinglePdfPath(data.invoice.signedPdfPath, _selectedCopyType) ?? data.invoice.signedPdfPath,
                               fallbackGenerate: () => InvoicePdfGenerator.generate(
                                 copyLabels: [_selectedCopyType],
                                 company: data.companySetting,
@@ -484,8 +523,12 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                 ),
               Expanded(
                 child: PdfPreview(
-                  key: ValueKey(data.invoice.signedPdfPath ?? 'unsigned'),
+                  key: ValueKey('${data.invoice.signedPdfPath ?? 'unsigned'}_${_selectedCopyType}'),
                   build: (format) async {
+                    final singlePath = _getSignedSinglePdfPath(data.invoice.signedPdfPath, _selectedCopyType);
+                    if (singlePath != null && await File(singlePath).exists()) {
+                      return await File(singlePath).readAsBytes();
+                    }
                     if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
                       final file = File(data.invoice.signedPdfPath!);
                       if (await file.exists()) {

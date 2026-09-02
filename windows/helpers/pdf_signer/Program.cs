@@ -156,7 +156,11 @@ namespace InvoicePdfSigner
                         if (part.Trim().StartsWith("CN=")) { commonName = part.Trim().Substring(3); break; }
                     }
                 } catch { }
-                ApplySignature(inputPdf, outputPdf, chain, new PrivateKeySignature(new PrivateKeyBC(pk.Key), DigestAlgorithms.SHA256), commonName);
+                for (int i = 0; i < inputs.Length; i++) {
+                    if (i < outputs.Length) {
+                        ApplySignature(inputs[i], outputs[i], chain, new PrivateKeySignature(new PrivateKeyBC(pk.Key), DigestAlgorithms.SHA256), commonName);
+                    }
+                }
                 return 0;
             }
             catch (IOException ex)
@@ -171,8 +175,48 @@ namespace InvoicePdfSigner
             }
         }
 
+        static int StampLabel(string inputPdf, string outputPdf, string labelText)
+        {
+            try
+            {
+                using (PdfReader reader = new PdfReader(inputPdf))
+                using (FileStream os = new FileStream(outputPdf, FileMode.Create))
+                using (PdfDocument pdfDoc = new PdfDocument(reader, new PdfWriter(os), new StampingProperties().UseAppendMode()))
+                {
+                    int n = pdfDoc.GetNumberOfPages();
+                    var font = iText.Kernel.Font.PdfFontFactory.CreateFont(iText.IO.Font.Constants.StandardFonts.HELVETICA_OBLIQUE);
+                    for (int i = 1; i <= n; i++)
+                    {
+                        var page = pdfDoc.GetPage(i);
+                        var canvas = new iText.Kernel.Pdf.Canvas.PdfCanvas(page);
+                        // A4 width is 595. Right margin is 32. We can right align the text.
+                        // Wait, easier to use Canvas layout object.
+                        var layoutCanvas = new iText.Layout.Canvas(canvas, page.GetPageSize());
+                        var p = new iText.Layout.Element.Paragraph(labelText)
+                            .SetFont(font)
+                            .SetFontSize(10)
+                            .SetTextAlignment(iText.Layout.Properties.TextAlignment.RIGHT);
+                        
+                        // ShowTextAligned is easier
+                        layoutCanvas.ShowTextAligned(p, 595 - 32, 842 - 32 - 10, iText.Layout.Properties.TextAlignment.RIGHT);
+                        layoutCanvas.Close();
+                    }
+                }
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                return 1;
+            }
+        }
+
         static int SignToken(string inputPdf, string outputPdf, string dllPath, string pin)
         {
+            // If inputPdf contains multiple files separated by '|', process all
+            string[] inputs = inputPdf.Split('|');
+            string[] outputs = outputPdf.Split('|');
+            
             try
             {
                 if (!File.Exists(dllPath))
@@ -241,7 +285,11 @@ namespace InvoicePdfSigner
                                 if (part.Trim().StartsWith("CN=")) { commonName = part.Trim().Substring(3); break; }
                             }
                         } catch { }
-                        ApplySignature(inputPdf, outputPdf, chain, signature, commonName);
+                        for (int i = 0; i < inputs.Length; i++) {
+                            if (i < outputs.Length) {
+                                ApplySignature(inputs[i], outputs[i], chain, signature, commonName);
+                            }
+                        }
                         
                         session.Logout();
                     }
