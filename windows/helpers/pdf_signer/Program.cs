@@ -107,7 +107,7 @@ namespace InvoicePdfSigner
             string credentialPath = args[3]; // pfx_path or dll_path
             string secret = args[4];         // password or pin
 
-            if (!File.Exists(inputPdf)) return 2;
+            // We removed File.Exists(inputPdf) here because inputPdf is now a pipe-separated list of files.
 
             if (mode == "file")
             {
