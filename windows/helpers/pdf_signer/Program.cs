@@ -320,7 +320,7 @@ namespace InvoicePdfSigner
             using (PdfReader reader = new PdfReader(inputPdf))
             using (FileStream os = new FileStream(outputPdf, FileMode.Create))
             {
-                PdfSigner signer = new PdfSigner(reader, os, new StampingProperties());
+                PdfSigner signer = new PdfSigner(reader, os, new StampingProperties().UseAppendMode());
                 
                 Rectangle rect = new Rectangle(targetX, targetY, 150, 50);
 
