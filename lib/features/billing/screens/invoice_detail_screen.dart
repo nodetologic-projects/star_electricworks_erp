@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:starelectricerp/core/services/direct_print_service.dart';
 
 import 'package:starelectricerp/core/utils/permission_util.dart';
