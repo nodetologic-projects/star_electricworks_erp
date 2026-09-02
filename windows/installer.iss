@@ -8,7 +8,7 @@ OutputDir=..\build\windows\installer
 OutputBaseFilename=StarElectricERP-Setup-{#MyAppVersion}
 SetupIconFile=runner\resources\app_icon.ico
 Compression=lzma
-SolidCompression=yes
+SolidCompression=no
 WizardStyle=modern
 
 [Languages]
