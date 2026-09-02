@@ -123,6 +123,8 @@ namespace InvoicePdfSigner
 
         static int SignFile(string inputPdf, string outputPdf, string pfxPath, string password)
         {
+            string[] inputs = inputPdf.Split('|');
+            string[] outputs = outputPdf.Split('|');
             try
             {
                 if (!File.Exists(pfxPath)) return 2;
