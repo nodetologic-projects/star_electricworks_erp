@@ -317,7 +317,25 @@ namespace InvoicePdfSigner
                 targetY = locator.TargetY;
             }
 
+            string tempPdf = inputPdf + ".tmp";
             using (PdfReader reader = new PdfReader(inputPdf))
+            using (PdfWriter writer = new PdfWriter(tempPdf))
+            using (PdfDocument pdfDoc = new PdfDocument(reader, writer, new StampingProperties().UseAppendMode()))
+            {
+                var page = pdfDoc.GetPage(lastPage);
+                var canvas = new iText.Kernel.Pdf.Canvas.PdfCanvas(page);
+                var font = iText.Kernel.Font.PdfFontFactory.CreateFont(iText.IO.Font.Constants.StandardFonts.HELVETICA);
+                canvas.BeginText();
+                canvas.SetFontAndSize(font, 8);
+                canvas.SetFillColor(iText.Kernel.Colors.ColorConstants.BLACK);
+                canvas.MoveText(targetX, targetY + 30);
+                canvas.ShowText("Digitally signed by " + commonName);
+                canvas.MoveText(0, -15);
+                canvas.ShowText("Date: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " +05'30'");
+                canvas.EndText();
+            }
+
+            using (PdfReader reader = new PdfReader(tempPdf))
             using (FileStream os = new FileStream(outputPdf, FileMode.Create))
             {
                 PdfSigner signer = new PdfSigner(reader, os, new StampingProperties().UseAppendMode());
@@ -335,6 +353,7 @@ namespace InvoicePdfSigner
                 signer.SetFieldName("AuthorizedSignatory");
                 signer.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
             }
+            try { System.IO.File.Delete(tempPdf); } catch { }
         }
     }
 }
