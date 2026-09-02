@@ -34,14 +34,19 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
 
   Future<void> _downloadPdf(BuildContext context, InvoiceDetailData data) async {
     try {
-      final bytes = await InvoicePdfGenerator.generate(
-        copyLabels: [_selectedCopyType],
-        company: data.companySetting,
-        invoice: data.invoice,
-        items: data.items,
-        customer: data.customer,
-        totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
-      );
+      Uint8List bytes;
+      if (data.invoice.signedPdfPath != null && data.invoice.signedPdfPath!.isNotEmpty) {
+        bytes = await File(data.invoice.signedPdfPath!).readAsBytes();
+      } else {
+        bytes = await InvoicePdfGenerator.generate(
+          copyLabels: [_selectedCopyType],
+          company: data.companySetting,
+          invoice: data.invoice,
+          items: data.items,
+          customer: data.customer,
+          totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
+        );
+      }
 
 
       final hasPermission = await PermissionUtil.requestStoragePermission();
@@ -386,6 +391,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                             onPressed: () => DirectPrintService.printPdf(
                               context, 
                               data.invoice.invoiceNo, 
+                              explicitPdfPath: data.invoice.signedPdfPath,
                               fallbackGenerate: () => InvoicePdfGenerator.generate(
                                 copyLabels: [_selectedCopyType],
                                 company: data.companySetting,
@@ -403,6 +409,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                             onPressed: () => DirectPrintService.printPdf(
                               context, 
                               data.invoice.invoiceNo, 
+                              explicitPdfPath: data.invoice.signedPdfPath,
                               fallbackGenerate: () => InvoicePdfGenerator.generate(
                                 copyLabels: _invoiceCopyTypes,
                                 company: data.companySetting,
