@@ -106,5 +106,170 @@ void main() {
       // Raw = 100.49 + 18.0882 = 118.5782 -> 119
       expect(result2.grandTotal, 119.0);
     });
+
+    test('No discount: line sums == totals', () {
+      final items = [
+        InvoiceLineItemInput(lineTotal: 1000.0, gstRate: 18.0),
+        InvoiceLineItemInput(lineTotal: 2500.0, gstRate: 12.0),
+        InvoiceLineItemInput(lineTotal: 500.0, gstRate: 0.0),
+      ];
+
+      final result = TaxCalculator.calculate(
+        invoiceType: InvoiceType.salesTaxInvoice,
+        items: items,
+      );
+
+      final sumLineDiscount =
+          items.fold(0.0, (acc, i) => acc + i.discountAmount);
+      final sumLineTaxable = items.fold(0.0, (acc, i) => acc + i.taxableAmount);
+      final sumLineCgst = items.fold(0.0, (acc, i) => acc + i.cgstAmount);
+      final sumLineSgst = items.fold(0.0, (acc, i) => acc + i.sgstAmount);
+      final sumLineTotals = items.fold(0.0, (acc, i) => acc + i.totalWithTax);
+
+      expect(sumLineDiscount, 0.0);
+      expect(result.discountAmount, 0.0);
+      expect(sumLineTaxable, result.taxableAmount);
+      expect(sumLineCgst, result.cgstAmount);
+      expect(sumLineSgst, result.sgstAmount);
+      expect(sumLineCgst + sumLineSgst, result.cgstAmount + result.sgstAmount);
+      expect(
+        sumLineTotals,
+        result.taxableAmount + result.cgstAmount + result.sgstAmount,
+      );
+      expect(sumLineTotals, result.grandTotal);
+    });
+
+    test('Single line with discount: line sums == totals', () {
+      final items = [
+        InvoiceLineItemInput(
+          lineTotal: 100000.0,
+          discountPercent: 10.0,
+          gstRate: 28.0,
+        ),
+      ];
+
+      final result = TaxCalculator.calculate(
+        invoiceType: InvoiceType.salesTaxInvoice,
+        items: items,
+      );
+
+      final item = items.first;
+      expect(item.discountAmount, 10000.0);
+      expect(item.taxableAmount, 90000.0);
+      expect(item.cgstAmount, closeTo(12600.0, 0.01));
+      expect(item.sgstAmount, closeTo(12600.0, 0.01));
+      expect(item.totalGst, closeTo(25200.0, 0.01));
+      expect(item.totalWithTax, closeTo(115200.0, 0.01));
+
+      final sumLineDiscount =
+          items.fold(0.0, (acc, i) => acc + i.discountAmount);
+      final sumLineTaxable = items.fold(0.0, (acc, i) => acc + i.taxableAmount);
+      final sumLineCgst = items.fold(0.0, (acc, i) => acc + i.cgstAmount);
+      final sumLineSgst = items.fold(0.0, (acc, i) => acc + i.sgstAmount);
+      final sumLineTotals = items.fold(0.0, (acc, i) => acc + i.totalWithTax);
+
+      expect(sumLineDiscount, result.discountAmount);
+      expect(sumLineTaxable, result.taxableAmount);
+      expect(sumLineCgst, result.cgstAmount);
+      expect(sumLineSgst, result.sgstAmount);
+      expect(sumLineCgst + sumLineSgst, result.cgstAmount + result.sgstAmount);
+      expect(
+        sumLineTotals,
+        result.taxableAmount + result.cgstAmount + result.sgstAmount,
+      );
+      expect(sumLineTotals, result.grandTotal);
+    });
+
+    test(
+      'Multiple lines with different GST rates and different discounts: line sums == totals',
+      () {
+        final items = [
+          InvoiceLineItemInput(
+            lineTotal: 5000.0,
+            discountPercent: 5.0,
+            gstRate: 18.0,
+          ),
+          InvoiceLineItemInput(
+            lineTotal: 12000.0,
+            discountPercent: 10.0,
+            gstRate: 28.0,
+          ),
+          InvoiceLineItemInput(
+            lineTotal: 3000.0,
+            discountPercent: 0.0,
+            gstRate: 5.0,
+          ),
+          InvoiceLineItemInput(
+            lineTotal: 1500.0,
+            discountPercent: 15.0,
+            gstRate: 0.0,
+          ),
+        ];
+
+        final result = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: items,
+        );
+
+        final sumLineDiscount =
+            items.fold(0.0, (acc, i) => acc + i.discountAmount);
+        final sumLineTaxable =
+            items.fold(0.0, (acc, i) => acc + i.taxableAmount);
+        final sumLineCgst = items.fold(0.0, (acc, i) => acc + i.cgstAmount);
+        final sumLineSgst = items.fold(0.0, (acc, i) => acc + i.sgstAmount);
+        final sumLineTotals = items.fold(0.0, (acc, i) => acc + i.totalWithTax);
+
+        expect(sumLineDiscount, result.discountAmount);
+        expect(sumLineTaxable, result.taxableAmount);
+        expect(sumLineCgst, result.cgstAmount);
+        expect(sumLineSgst, result.sgstAmount);
+        expect(sumLineCgst + sumLineSgst, result.cgstAmount + result.sgstAmount);
+        expect(
+          sumLineTotals,
+          result.taxableAmount + result.cgstAmount + result.sgstAmount,
+        );
+        expect(sumLineTotals.roundToDouble(), result.grandTotal);
+      },
+    );
+
+    test('Rounding case: line sums == totals (+- rounded off)', () {
+      final items = [
+        InvoiceLineItemInput(
+          lineTotal: 99.50,
+          discountPercent: 7.0,
+          gstRate: 18.0,
+        ),
+        InvoiceLineItemInput(
+          lineTotal: 149.25,
+          discountPercent: 3.5,
+          gstRate: 12.0,
+        ),
+      ];
+
+      final result = TaxCalculator.calculate(
+        invoiceType: InvoiceType.salesTaxInvoice,
+        items: items,
+      );
+
+      final sumLineDiscount =
+          items.fold(0.0, (acc, i) => acc + i.discountAmount);
+      final sumLineTaxable = items.fold(0.0, (acc, i) => acc + i.taxableAmount);
+      final sumLineCgst = items.fold(0.0, (acc, i) => acc + i.cgstAmount);
+      final sumLineSgst = items.fold(0.0, (acc, i) => acc + i.sgstAmount);
+      final sumLineTotals = items.fold(0.0, (acc, i) => acc + i.totalWithTax);
+
+      expect(sumLineDiscount, result.discountAmount);
+      expect(sumLineTaxable, result.taxableAmount);
+      expect(sumLineCgst, result.cgstAmount);
+      expect(sumLineSgst, result.sgstAmount);
+      expect(sumLineCgst + sumLineSgst, result.cgstAmount + result.sgstAmount);
+
+      final rawTotal =
+          result.taxableAmount + result.cgstAmount + result.sgstAmount;
+      final roundedOff = result.grandTotal - rawTotal;
+
+      expect(sumLineTotals, closeTo(rawTotal, 0.0001));
+      expect(sumLineTotals + roundedOff, result.grandTotal);
+    });
   });
 }

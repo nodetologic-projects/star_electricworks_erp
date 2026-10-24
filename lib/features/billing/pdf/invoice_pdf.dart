@@ -616,29 +616,6 @@ class InvoicePdfGenerator {
     );
   }
 
-  static pw.Widget _buildMetaCol(
-    String label,
-    String value, {
-    bool bold = false,
-  }) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          label,
-          style: const pw.TextStyle(color: PdfColors.black, fontSize: 8),
-        ),
-        pw.SizedBox(height: 2),
-        pw.Text(
-          value,
-          style: pw.TextStyle(
-            fontSize: 10,
-            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
 
   static pw.Widget _buildDeliveryDetails(Invoice invoice, Customer customer) {
     return pw.Container(
@@ -734,12 +711,16 @@ class InvoicePdfGenerator {
       postItemDiscountBaseline += (item.lineTotal - itemDiscount);
     }
     
-    double bundleDiscountAmount = invoice.isDiscountPercentage 
-        ? (postItemDiscountBaseline * (invoice.discountRate ?? 0.0) / 100.0) 
-        : invoice.discountAmount;
-    
-    if (bundleDiscountAmount > postItemDiscountBaseline) {
-      bundleDiscountAmount = postItemDiscountBaseline;
+    double bundleDiscountAmount = 0.0;
+    // Only apply bundle discount for legacy invoices that have no per-item discounts
+    if (sumItemDiscounts == 0 && invoice.discountAmount > 0) {
+      bundleDiscountAmount = invoice.isDiscountPercentage
+          ? (postItemDiscountBaseline * (invoice.discountRate ?? 0.0) / 100.0)
+          : invoice.discountAmount;
+
+      if (bundleDiscountAmount > postItemDiscountBaseline) {
+        bundleDiscountAmount = postItemDiscountBaseline;
+      }
     }
 
     final distributionFactor = invoice.distributeDiscountAcrossItems && postItemDiscountBaseline > 0
@@ -777,7 +758,9 @@ class InvoicePdfGenerator {
           style: pw.TextStyle(font: monoFont),
         ),
         pw.Text(
-          totalDiscount > 0 ? '-' + totalDiscount.toStringAsFixed(2) + '\n(' + effectivePct.toStringAsFixed(1) + '%)' : '0.00',
+          totalDiscount > 0
+              ? '-${totalDiscount.toStringAsFixed(2)}\n(${effectivePct.toStringAsFixed(1)}%)'
+              : '0.00',
           style: pw.TextStyle(font: monoFont),
           textAlign: pw.TextAlign.right,
         ),
@@ -897,36 +880,19 @@ class InvoicePdfGenerator {
   ) {
     final bool isBillOfSupply = invoice.invoiceType == InvoiceType.billOfSupply;
 
-    // Grouping by tax rates
-    Map<double, double> rateTaxableValue = {};
-    Map<double, double> rateCgst = {};
-    Map<double, double> rateSgst = {};
-    Map<double, double> rateTotal = {};
-
-    double totalTaxVal = 0.0;
-
-    if (!isBillOfSupply && invoice.subtotal > 0) {
-      final discountFactor =
-          (invoice.subtotal - invoice.discountAmount) / invoice.subtotal;
-      for (var item in items) {
-        final rate = item.gstRate ?? 0.0;
-        final taxable = item.lineTotal * discountFactor;
-        rateTaxableValue[rate] = (rateTaxableValue[rate] ?? 0.0) + taxable;
-
-        if (rate > 0) {
-          final gstAmount = taxable * (rate / 100.0);
-          rateCgst[rate] = (rateCgst[rate] ?? 0.0) + gstAmount / 2.0;
-          rateSgst[rate] = (rateSgst[rate] ?? 0.0) + gstAmount / 2.0;
-          rateTotal[rate] = (rateTotal[rate] ?? 0.0) + taxable + gstAmount;
-        } else {
-          rateTotal[rate] = (rateTotal[rate] ?? 0.0) + taxable;
-        }
-      }
+    double sumItemDiscounts = 0.0;
+    for (final item in items) {
+      final itemDiscount =
+          item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
+      sumItemDiscounts += itemDiscount;
     }
+    final discountToShow =
+        sumItemDiscounts > 0 ? sumItemDiscounts : invoice.discountAmount;
 
-    totalTaxVal = invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
+    final totalTaxVal =
+        invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
     final exactGrandTotal =
-        (invoice.subtotal - invoice.discountAmount) +
+        (invoice.subtotal - discountToShow) +
         totalTaxVal +
         (invoice.deliveryCharge ?? 0);
     final roundedOff = invoice.grandTotal - exactGrandTotal;
@@ -990,17 +956,17 @@ class InvoicePdfGenerator {
                 monoFont,
                 monoFontBold,
               ),
-              if (invoice.discountAmount > 0)
+              if (discountToShow > 0)
                 _buildTotalsLine(
                   'Discount:',
-                  -invoice.discountAmount,
+                  -discountToShow,
                   monoFont,
                   monoFontBold,
                 ),
-              if (invoice.discountAmount > 0)
+              if (discountToShow > 0)
                 _buildTotalsLine(
                   'Total Before Tax:',
-                  (invoice.subtotal - invoice.discountAmount),
+                  (invoice.subtotal - discountToShow),
                   monoFont,
                   monoFontBold,
                 ),

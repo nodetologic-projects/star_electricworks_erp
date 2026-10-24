@@ -101,10 +101,6 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   final List<_LineItem> _items = [];
   String _notes = '';
 
-  double _discountAmount = 0;
-  bool _isDiscountPercentage = false;
-  bool _distributeDiscountAcrossItems = true;
-  final _discountController = TextEditingController(text: '0');
   double _deliveryCharge = 0;
 
   bool _isSaving = false;
@@ -174,18 +170,14 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         _dueDate = existingInvoice.dueDate ?? existingInvoice.invoiceDate;
         _paymentTermDays = existingInvoice.paymentTermDays ?? 0;
         _deliveryCharge = existingInvoice.deliveryCharge ?? 0;
-        _isDiscountPercentage = existingInvoice.isDiscountPercentage;
-        _distributeDiscountAcrossItems = existingInvoice.distributeDiscountAcrossItems;
-        _discountAmount = _isDiscountPercentage ? (existingInvoice.discountRate ?? 0) : existingInvoice.discountAmount;
         _notes = existingInvoice.notes ?? '';
-        _discountController.text = _discountAmount.toString();
         
           _customerNameController.text = existingCustomer.name;
-          _customerAddressController.text = existingCustomer.address ?? '';
-          _customerStateController.text = existingCustomer.state ?? '';
+          _customerAddressController.text = existingCustomer.address;
+          _customerStateController.text = existingCustomer.state;
           _customerGstinController.text = existingCustomer.gstin ?? '';
-          _customerPhoneController.text = existingCustomer.phone ?? '';
-          _customerEmailController.text = existingCustomer.email ?? '';
+          _customerPhoneController.text = existingCustomer.phone;
+          _customerEmailController.text = existingCustomer.email;
           _customerVendorCodeController.text = existingCustomer.vendorCode ?? '';
         
         _shipToNameController.text = existingInvoice.shipToName ?? '';
@@ -232,7 +224,6 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _placeOfSupplyController.dispose();
     _poNumberController.dispose();
     _gpNumberController.dispose();
-    _discountController.dispose();
     super.dispose();
   }
 
@@ -313,9 +304,6 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       final totals = TaxCalculator.calculate(
         invoiceType: _selectedType,
         items: inputs,
-        bundleDiscountValue: _discountAmount,
-        isBundleDiscountPercentage: _isDiscountPercentage,
-        distributeBundleDiscount: _distributeDiscountAcrossItems,
         deliveryCharge: _deliveryCharge,
       );
 
@@ -412,9 +400,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         paymentTermDays: drift.Value(_paymentTermDays),
         subtotal: totals.subtotal,
         discountAmount: totals.discountAmount,
-        isDiscountPercentage: drift.Value(_isDiscountPercentage),
-        discountRate: drift.Value(_isDiscountPercentage ? _discountAmount : null),
-        distributeDiscountAcrossItems: drift.Value(_distributeDiscountAcrossItems),
+        isDiscountPercentage: const drift.Value(false),
+        discountRate: const drift.Value(null),
+        distributeDiscountAcrossItems: const drift.Value(false),
         cgstAmount: totals.cgstAmount,
         sgstAmount: totals.sgstAmount,
         igstAmount: drift.Value(totals.igstAmount),
@@ -689,26 +677,10 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             padding: const EdgeInsets.only(top: 24.0),
             child: Text(
               (() {
-                double postItemDiscountBaseline = 0.0;
-                for (final i in _items) {
-                  postItemDiscountBaseline += i.lineTotal * (1.0 - ((i.discountPercent ?? 0) / 100.0));
-                }
-                double bundleDiscountAmount = _discountAmount;
-                if (_isDiscountPercentage) {
-                  bundleDiscountAmount = postItemDiscountBaseline * (_discountAmount / 100.0);
-                }
-                final distributionFactor = _distributeDiscountAcrossItems && postItemDiscountBaseline > 0
-                    ? (postItemDiscountBaseline - bundleDiscountAmount) / postItemDiscountBaseline
-                    : 1.0;
-                
-                final itemDiscount = item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
-                final itemPostDiscount = item.lineTotal - itemDiscount;
-                final bundleDiscountShare = itemPostDiscount * (1.0 - distributionFactor);
-                final totalDiscount = itemDiscount + bundleDiscountShare;
-                
-                if (totalDiscount > 0) {
-                  final effectivePct = (totalDiscount / item.lineTotal) * 100;
-                  return '-₹${totalDiscount.toStringAsFixed(2)} (${effectivePct.toStringAsFixed(1)}%)';
+                final itemDiscount =
+                    item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
+                if (itemDiscount > 0) {
+                  return '-₹${itemDiscount.toStringAsFixed(2)} (${item.discountPercent}%)';
                 }
                 return '';
               })(),
@@ -723,24 +695,12 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             padding: const EdgeInsets.only(top: 16.0),
             child: Text(
               (() {
-                double postItemDiscountBaseline = 0.0;
-                for (final i in _items) {
-                  postItemDiscountBaseline += i.lineTotal * (1.0 - ((i.discountPercent ?? 0) / 100.0));
-                }
-                double bundleDiscountAmount = _discountAmount;
-                if (_isDiscountPercentage) {
-                  bundleDiscountAmount = postItemDiscountBaseline * (_discountAmount / 100.0);
-                }
-                final distributionFactor = _distributeDiscountAcrossItems && postItemDiscountBaseline > 0
-                    ? (postItemDiscountBaseline - bundleDiscountAmount) / postItemDiscountBaseline
-                    : 1.0;
-                
-                final itemDiscount = item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
-                final itemPostDiscount = item.lineTotal - itemDiscount;
-                final finalTaxableValue = itemPostDiscount * distributionFactor;
-                final gstAmount = showGst ? (finalTaxableValue * ((item.gstRate ?? 0) / 100)) : 0.0;
-                
-                return '₹${(finalTaxableValue + gstAmount).toStringAsFixed(2)}';
+                final itemDiscount =
+                    item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
+                final taxable = item.lineTotal - itemDiscount;
+                final gst =
+                    showGst ? (taxable * ((item.gstRate ?? 0) / 100)) : 0.0;
+                return '₹${(taxable + gst).toStringAsFixed(2)}';
               })(),
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
@@ -1395,65 +1355,6 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             ),
             const Divider(),
             _buildSummaryRow('Subtotal:', totals.subtotal),
-
-            // Discount Toggle
-            const SizedBox(height: 8),
-            const Text('Discount'),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _discountController,
-                    keyboardType: TextInputType.number,
-                    onChanged: (val) {
-                      setState(
-                        () => _discountAmount = double.tryParse(val) ?? 0,
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ToggleButtons(
-                  isSelected: [
-                    _isDiscountPercentage == false,
-                    _isDiscountPercentage == true,
-                  ],
-                  onPressed: (index) {
-                    setState(() => _isDiscountPercentage = index == 1);
-                  },
-                  children: const [Text('₹'), Text('%')],
-                ),
-              ],
-            ),
-            if (totals.bundleDiscountAmount > 0) ...[
-              const SizedBox(height: 8),
-              const Text('Bundle Discount Mode:', style: TextStyle(fontSize: 12)),
-              Row(
-                children: [
-                  Expanded(
-                    child: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(
-                          value: true,
-                          label: Text('Distribute (Affects GST)', style: TextStyle(fontSize: 12)),
-                        ),
-                        ButtonSegment(
-                          value: false,
-                          label: Text('Overall Only', style: TextStyle(fontSize: 12)),
-                        ),
-                      ],
-                      selected: {_distributeDiscountAcrossItems},
-                      onSelectionChanged: (Set<bool> newSelection) {
-                        setState(() {
-                          _distributeDiscountAcrossItems = newSelection.first;
-                        });
-                        _recalculate();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
             if (totals.discountAmount > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
@@ -1522,9 +1423,6 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     final totals = TaxCalculator.calculate(
       invoiceType: _selectedType,
       items: inputs,
-      bundleDiscountValue: _discountAmount,
-      isBundleDiscountPercentage: _isDiscountPercentage,
-      distributeBundleDiscount: _distributeDiscountAcrossItems,
       deliveryCharge: _deliveryCharge,
     );
 
