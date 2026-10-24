@@ -35,7 +35,7 @@ class InvoicesRepository {
     return (_db.select(_db.invoices)..where((t) => t.id.equals(id))).getSingle();
   }
 
-  String _getPrefixForType(InvoiceType type) {
+  static String getPrefixForType(InvoiceType type) {
     switch (type) {
       case InvoiceType.serviceTaxInvoice:
       case InvoiceType.salesTaxInvoice:
@@ -47,6 +47,109 @@ class InvoicesRepository {
       case InvoiceType.deliveryChallan:
         return 'DC';
     }
+  }
+
+  String _getPrefixForType(InvoiceType type) => getPrefixForType(type);
+
+  static int? parseSequenceNumber(String prefix, String label, String invoiceNo) {
+    final clean = invoiceNo.trim().toUpperCase();
+    final pfx = prefix.toUpperCase();
+    final lbl = label.toUpperCase();
+
+    // Standard format: e.g. INV-A0007, INV-AA0007
+    final standardRegex = RegExp('^${RegExp.escape(pfx)}-([A-Z]+)(\\d+)\$');
+    final standardMatch = standardRegex.firstMatch(clean);
+    if (standardMatch != null) {
+      final matchedLabel = standardMatch.group(1)!;
+      if (matchedLabel.startsWith(lbl)) {
+        return int.tryParse(standardMatch.group(2)!);
+      }
+    }
+
+    // Simple prefix-number format: e.g. INV-7, INV-007
+    final simpleRegex = RegExp('^${RegExp.escape(pfx)}-?(\\d+)\$');
+    final simpleMatch = simpleRegex.firstMatch(clean);
+    if (simpleMatch != null) {
+      return int.tryParse(simpleMatch.group(1)!);
+    }
+
+    // Purely numeric: e.g. 7
+    final numeric = int.tryParse(clean);
+    if (numeric != null) {
+      return numeric;
+    }
+
+    return null;
+  }
+
+  Future<bool> isInvoiceNumberTaken(String invoiceNo, {int? excludeInvoiceId}) async {
+    final clean = invoiceNo.trim();
+    if (clean.isEmpty) return false;
+    final variables = <Variable>[
+      Variable.withString(clean),
+      if (excludeInvoiceId != null) Variable.withInt(excludeInvoiceId),
+    ];
+    final sql = 'SELECT id FROM invoices WHERE LOWER(TRIM(invoice_no)) = LOWER(TRIM(?))'
+        '${excludeInvoiceId != null ? ' AND id != ?' : ''} LIMIT 1';
+    final result = await _db.customSelect(sql, variables: variables).get();
+    return result.isNotEmpty;
+  }
+
+  Future<({String invoiceNo, int sequenceNumber})> getNextInvoiceDetails(
+    InvoiceType type,
+    DateTime date,
+  ) async {
+    final prefix = getPrefixForType(type);
+    final label = FinancialYear.getLabelForDate(date);
+
+    final seqQuery = _db.select(_db.financialYearSequence)
+      ..where((t) => t.invoiceTypePrefix.equals(prefix) & t.financialYearLabel.equals(label));
+    final currentSeq = await seqQuery.getSingleOrNull();
+
+    int candidateNumber = 1;
+    if (currentSeq != null && currentSeq.lastNumber > 0) {
+      candidateNumber = currentSeq.lastNumber + 1;
+    }
+
+    while (true) {
+      final rolloverLabel = FinancialYear.getRolloverLabel(label, candidateNumber);
+      final displayNum = ((candidateNumber - 1) % 5000) + 1;
+      final candidateInvoiceNo = '$prefix-$rolloverLabel${displayNum.toString().padLeft(4, '0')}';
+
+      final isTaken = await isInvoiceNumberTaken(candidateInvoiceNo);
+      if (!isTaken) {
+        return (invoiceNo: candidateInvoiceNo, sequenceNumber: candidateNumber);
+      }
+      candidateNumber++;
+    }
+  }
+
+  Future<String> getNextInvoiceNumber(InvoiceType type, DateTime date) async {
+    final details = await getNextInvoiceDetails(type, date);
+    return details.invoiceNo;
+  }
+
+  Future<String?> checkSequenceGap(
+    InvoiceType type,
+    DateTime date,
+    String invoiceNo,
+  ) async {
+    final prefix = getPrefixForType(type);
+    final label = FinancialYear.getLabelForDate(date);
+    final parsed = parseSequenceNumber(prefix, label, invoiceNo);
+    if (parsed == null) return null;
+
+    final nextDetails = await getNextInvoiceDetails(type, date);
+    final expectedNext = nextDetails.sequenceNumber;
+
+    if (parsed > expectedNext) {
+      if (parsed == expectedNext + 1) {
+        return 'Number $expectedNext was skipped';
+      } else {
+        return 'Numbers $expectedNext to ${parsed - 1} were skipped';
+      }
+    }
+    return null;
   }
 
   Future<Invoice?> findDuplicateInvoice({
@@ -76,62 +179,50 @@ class InvoicesRepository {
 
   Future<int> createInvoiceWithItems(InvoicesCompanion invoice, List<InvoiceItemsCompanion> items) {
     return _db.transaction(() async {
-      // 1. Generate Invoice Number atomically
       final typeEnum = invoice.invoiceType.value;
-      final prefix = _getPrefixForType(typeEnum);
-      
+      final prefix = getPrefixForType(typeEnum);
       final date = invoice.invoiceDate.value;
-      // We must import FinancialYear at the top of this file
       final label = FinancialYear.getLabelForDate(date);
-      
-      // Query sequence
-      final seqQuery = _db.select(_db.financialYearSequence)
-        ..where((t) => t.invoiceTypePrefix.equals(prefix) & t.financialYearLabel.equals(label));
-      final currentSeq = await seqQuery.getSingleOrNull();
-      
-      int nextNumber = 1;
-      if (currentSeq != null) {
-        nextNumber = currentSeq.lastNumber + 1;
-      }
-      
-      String newInvoiceNo = '';
-      bool isUnique = false;
-      int attempts = 0;
-      
-      // Safeguard: Advance sequence if duplicate exists
-      while (!isUnique && attempts < 10) {
-        final rolloverLabel = FinancialYear.getRolloverLabel(label, nextNumber);
-        final displayNum = ((nextNumber - 1) % 5000) + 1;
-        newInvoiceNo = '$prefix-$rolloverLabel${displayNum.toString().padLeft(4, '0')}';
-        
-        final existing = await (_db.select(_db.invoices)..where((t) => t.invoiceNo.equals(newInvoiceNo))).getSingleOrNull();
-        if (existing == null) {
-          isUnique = true;
-        } else {
-          nextNumber++;
-          attempts++;
+
+      String finalInvoiceNo;
+      if (invoice.invoiceNo.present &&
+          invoice.invoiceNo.value.trim().isNotEmpty &&
+          invoice.invoiceNo.value.trim() != 'PENDING') {
+        finalInvoiceNo = invoice.invoiceNo.value.trim();
+        final isTaken = await isInvoiceNumberTaken(finalInvoiceNo);
+        if (isTaken) {
+          throw Exception('Invoice number $finalInvoiceNo already exists');
         }
-      }
-      
-      if (!isUnique) {
-        throw Exception("Failed to generate a unique invoice number. Too many collisions.");
+      } else {
+        final nextDetails = await getNextInvoiceDetails(typeEnum, date);
+        finalInvoiceNo = nextDetails.invoiceNo;
       }
 
-      // Persist the safely incremented number
-      if (currentSeq != null) {
-        await (_db.update(_db.financialYearSequence)..where((t) => t.id.equals(currentSeq.id)))
-            .write(FinancialYearSequenceCompanion(lastNumber: Value(nextNumber)));
-      } else {
-        await _db.into(_db.financialYearSequence).insert(
-          FinancialYearSequenceCompanion.insert(
-            invoiceTypePrefix: prefix,
-            financialYearLabel: label,
-            lastNumber: Value(nextNumber),
-          )
-        );
+      // Update FinancialYearSequence safely without corrupting it
+      final parsedSeqNum = parseSequenceNumber(prefix, label, finalInvoiceNo);
+      if (parsedSeqNum != null) {
+        final seqQuery = _db.select(_db.financialYearSequence)
+          ..where((t) => t.invoiceTypePrefix.equals(prefix) & t.financialYearLabel.equals(label));
+        final currentSeq = await seqQuery.getSingleOrNull();
+        final currentLast = currentSeq?.lastNumber ?? 0;
+
+        if (parsedSeqNum > currentLast) {
+          if (currentSeq != null) {
+            await (_db.update(_db.financialYearSequence)..where((t) => t.id.equals(currentSeq.id)))
+                .write(FinancialYearSequenceCompanion(lastNumber: Value(parsedSeqNum)));
+          } else {
+            await _db.into(_db.financialYearSequence).insert(
+              FinancialYearSequenceCompanion.insert(
+                invoiceTypePrefix: prefix,
+                financialYearLabel: label,
+                lastNumber: Value(parsedSeqNum),
+              ),
+            );
+          }
+        }
       }
-      
-      final finalInvoice = invoice.copyWith(invoiceNo: Value(newInvoiceNo));
+
+      final finalInvoice = invoice.copyWith(invoiceNo: Value(finalInvoiceNo));
       final invoiceId = await _db.into(_db.invoices).insert(finalInvoice);
       
       for (var item in items) {
@@ -159,7 +250,7 @@ class InvoicesRepository {
                 movementType: movementType,
                 weightKg: qty,
                 referenceInvoiceId: Value(invoiceId),
-                notes: Value('Invoice ${invoice.invoiceNo.value}'),
+                notes: Value('Invoice $finalInvoiceNo'),
               )
             );
             
@@ -225,8 +316,46 @@ class InvoicesRepository {
 
       await (_db.delete(_db.invoiceItems)..where((t) => t.invoiceId.equals(invoiceId))).go();
 
+      Value<String> invoiceNoToUpdate = const Value.absent();
+      if (invoiceCompanion.invoiceNo.present) {
+        final newNo = invoiceCompanion.invoiceNo.value.trim();
+        if (newNo.isNotEmpty && newNo.toLowerCase() != existingInvoice.invoiceNo.toLowerCase()) {
+          final isTaken = await isInvoiceNumberTaken(newNo, excludeInvoiceId: invoiceId);
+          if (isTaken) {
+            throw Exception('Invoice number $newNo already exists');
+          }
+          invoiceNoToUpdate = Value(newNo);
+
+          // Update sequence if applicable
+          final typeEnum = invoiceCompanion.invoiceType.present ? invoiceCompanion.invoiceType.value : existingInvoice.invoiceType;
+          final prefix = getPrefixForType(typeEnum);
+          final label = FinancialYear.getLabelForDate(existingInvoice.invoiceDate);
+          final parsedSeqNum = parseSequenceNumber(prefix, label, newNo);
+          if (parsedSeqNum != null) {
+            final seqQuery = _db.select(_db.financialYearSequence)
+              ..where((t) => t.invoiceTypePrefix.equals(prefix) & t.financialYearLabel.equals(label));
+            final currentSeq = await seqQuery.getSingleOrNull();
+            final currentLast = currentSeq?.lastNumber ?? 0;
+            if (parsedSeqNum > currentLast) {
+              if (currentSeq != null) {
+                await (_db.update(_db.financialYearSequence)..where((t) => t.id.equals(currentSeq.id)))
+                    .write(FinancialYearSequenceCompanion(lastNumber: Value(parsedSeqNum)));
+              } else {
+                await _db.into(_db.financialYearSequence).insert(
+                  FinancialYearSequenceCompanion.insert(
+                    invoiceTypePrefix: prefix,
+                    financialYearLabel: label,
+                    lastNumber: Value(parsedSeqNum),
+                  ),
+                );
+              }
+            }
+          }
+        }
+      }
+
       final updateCompanion = invoiceCompanion.copyWith(
-        invoiceNo: const Value.absent(), 
+        invoiceNo: invoiceNoToUpdate, 
         invoiceDate: const Value.absent(),
       );
       await (_db.update(_db.invoices)..where((t) => t.id.equals(invoiceId))).write(updateCompanion);
@@ -252,7 +381,7 @@ class InvoicesRepository {
                 movementType: movementType,
                 weightKg: qty,
                 referenceInvoiceId: Value(invoiceId),
-                notes: Value('Invoice ${existingInvoice.invoiceNo} (Edited)'),
+                notes: Value('Invoice ${invoiceNoToUpdate.present ? invoiceNoToUpdate.value : existingInvoice.invoiceNo} (Edited)'),
               )
             );
             

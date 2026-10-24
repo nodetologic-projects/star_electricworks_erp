@@ -67,6 +67,11 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   late InvoiceType _selectedType;
   int? _selectedCustomer;
+  final TextEditingController _invoiceNoController = TextEditingController();
+  bool _isInvoiceNoManuallyEdited = false;
+  bool _isInvoiceNoEditable = true;
+  bool _isLoadingInvoiceNo = false;
+
   final TextEditingController _customerNameController = TextEditingController();
   final TextEditingController _customerAddressController =
       TextEditingController();
@@ -111,8 +116,10 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _selectedCustomer = widget.prefillCustomerId;
 
     if (widget.invoiceId != null) {
+      _isInvoiceNoManuallyEdited = true;
       Future.microtask(() => _loadExistingInvoice(widget.invoiceId!));
     } else {
+      _fetchNextInvoiceNumber();
       if (widget.prefillJobId != null) {
         // We prepopulate later when async data loads, for now just add a row
         final item = _LineItem(type: ItemSourceType.motorJob)
@@ -131,6 +138,22 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     }
   }
 
+  Future<void> _fetchNextInvoiceNumber() async {
+    if (_isInvoiceNoManuallyEdited || widget.invoiceId != null) return;
+    setState(() => _isLoadingInvoiceNo = true);
+    try {
+      final repo = ref.read(invoicesRepositoryProvider);
+      final nextNo = await repo.getNextInvoiceNumber(_selectedType, _invoiceDate);
+      if (mounted && !_isInvoiceNoManuallyEdited && widget.invoiceId == null) {
+        setState(() {
+          _invoiceNoController.text = nextNo;
+          _isLoadingInvoiceNo = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingInvoiceNo = false);
+    }
+  }
 
   Future<void> _loadExistingInvoice(int id) async {
     final repo = ref.read(invoicesRepositoryProvider);
@@ -144,6 +167,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       setState(() {
         _selectedType = existingInvoice.invoiceType;
         _selectedCustomer = existingInvoice.customerId;
+        _invoiceNoController.text = existingInvoice.invoiceNo;
+        _isInvoiceNoEditable = existingInvoice.status == InvoiceStatus.draft;
+        _isInvoiceNoManuallyEdited = true;
         _invoiceDate = existingInvoice.invoiceDate;
         _dueDate = existingInvoice.dueDate ?? existingInvoice.invoiceDate;
         _paymentTermDays = existingInvoice.paymentTermDays ?? 0;
@@ -193,6 +219,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   @override
   void dispose() {
+    _invoiceNoController.dispose();
     _customerNameController.dispose();
     _customerAddressController.dispose();
     _customerStateController.dispose();
@@ -349,9 +376,35 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           _selectedType == InvoiceType.salesTaxInvoice;
       final reqEinvoice = settings.eInvoiceApplicable && isTaxInvoice && hasGst;
 
+      final trimmedInvoiceNo = _invoiceNoController.text.trim();
+      final isTaken = await repo.isInvoiceNumberTaken(
+        trimmedInvoiceNo,
+        excludeInvoiceId: widget.invoiceId,
+      );
+      if (isTaken) {
+        if (mounted) {
+          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invoice number $trimmedInvoiceNo already exists'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      String? gapNote;
+      if (widget.invoiceId == null) {
+        gapNote = await repo.checkSequenceGap(
+          _selectedType,
+          _invoiceDate,
+          trimmedInvoiceNo,
+        );
+      }
+
       final invoiceCompanion = InvoicesCompanion.insert(
-        invoiceNo:
-            'PENDING', // Will be overwritten by the repository atomically
+        invoiceNo: trimmedInvoiceNo,
         invoiceType: _selectedType,
         customerId: finalCustomerId,
         invoiceDate: _invoiceDate,
@@ -439,16 +492,29 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       }
 
       if (mounted) {
+        String successMsg = 'Invoice saved successfully!';
+        if (gapNote != null) {
+          successMsg = 'Invoice saved! Note: $gapNote';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invoice saved successfully!')),
+          SnackBar(content: Text(successMsg)),
         );
         context.go('/invoices');
       }
     } catch (e) {
       if (mounted) {
+        String msg = e.toString().replaceFirst('Exception: ', '');
+        if (msg.contains('UNIQUE constraint failed: invoices.invoice_no')) {
+          msg = 'Invoice number ${_invoiceNoController.text.trim()} already exists';
+        }
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error saving invoice: $e')));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) if (mounted) setState(() => _hasUnsavedChanges = false);
@@ -753,7 +819,64 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           runSpacing: 16,
           children: [
             SizedBox(
-              width: isDesktop ? 300 : double.infinity,
+              width: isDesktop ? 220 : double.infinity,
+              child: TextFormField(
+                controller: _invoiceNoController,
+                enabled: _isInvoiceNoEditable,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: 'Invoice Number *',
+                  helperText: _isInvoiceNoEditable
+                      ? 'Max 16 chars (GST Rule 46)'
+                      : 'Locked (Finalized/Signed)',
+                  prefixIcon: const Icon(Icons.tag),
+                  suffixIcon: !_isInvoiceNoEditable
+                      ? const Tooltip(
+                          message: 'Invoice number is locked for finalized/signed invoices',
+                          child: Icon(Icons.lock, size: 18, color: Colors.grey),
+                        )
+                      : (_isLoadingInvoiceNo
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : (widget.invoiceId == null
+                              ? IconButton(
+                                  icon: const Icon(Icons.refresh, size: 20),
+                                  tooltip: 'Reset to auto-generated sequence',
+                                  onPressed: () {
+                                    setState(() => _isInvoiceNoManuallyEdited = false);
+                                    _fetchNextInvoiceNumber();
+                                  },
+                                )
+                              : null)),
+                ),
+                onChanged: (val) {
+                  if (widget.invoiceId == null) {
+                    setState(() => _isInvoiceNoManuallyEdited = true);
+                  }
+                },
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Invoice number is required';
+                  }
+                  final trimmed = val.trim();
+                  if (trimmed.length > 16) {
+                    return 'Max 16 characters';
+                  }
+                  if (!RegExp(r'^[a-zA-Z0-9\/\-]+$').hasMatch(trimmed)) {
+                    return 'Only letters, numbers, - and / allowed';
+                  }
+                  return null;
+                },
+              ),
+            ),
+            SizedBox(
+              width: isDesktop ? 260 : double.infinity,
               child: AppSelect<InvoiceType>(
                 label: 'Invoice Type *',
                 value: _selectedType,
@@ -792,6 +915,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       }
                     });
                     _recalculate();
+                    if (!_isInvoiceNoManuallyEdited && widget.invoiceId == null) {
+                      _fetchNextInvoiceNumber();
+                    }
                   }
                 },
               ),
@@ -1021,6 +1147,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                         );
                       }
                     });
+                    if (!_isInvoiceNoManuallyEdited && widget.invoiceId == null) {
+                      _fetchNextInvoiceNumber();
+                    }
                   }
                 },
                 child: InputDecorator(
@@ -1459,7 +1588,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'New Invoice',
+                          widget.invoiceId != null ? 'Edit Invoice' : 'New Invoice',
                           style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
