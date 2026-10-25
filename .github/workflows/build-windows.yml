@@ -55,25 +55,29 @@ jobs:
           }
 
       - name: Compile Inno Setup Installer
+        id: compile_installer
         run: |
           cd windows
           & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DMyAppVersion=${{ env.VERSION }}" installer.iss
 
-      - name: Upload Build Artifact (Raw)
+      - name: Upload Installer Artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
-          name: StarElectricERP-Windows-Raw
-          path: build/windows/x64/runner/Release/
+          name: StarElectricERP-Setup-${{ env.VERSION }}.exe
+          path: build/windows/installer/StarElectricERP-Setup-${{ env.VERSION }}.exe
+          retention-days: 1
+          if-no-files-found: warn
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (success() || failure()) && startsWith(github.ref, 'refs/tags/v') && steps.compile_installer.outcome == 'success'
         uses: softprops/action-gh-release@v2
         with:
           files: build/windows/installer/StarElectricERP-Setup-${{ env.VERSION }}.exe
           generate_release_notes: true
 
       - name: Generate version.json
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (success() || failure()) && startsWith(github.ref, 'refs/tags/v') && steps.compile_installer.outcome == 'success'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
