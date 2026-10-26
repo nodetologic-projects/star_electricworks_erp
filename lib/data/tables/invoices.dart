@@ -17,6 +17,7 @@ class Invoices extends Table {
   /// Remains 0.0 for this business since all trade is intra-state (Gujarat),
   /// but required for the 3-column GST breakup on PDFs.
   RealColumn get igstAmount => real().withDefault(const Constant(0.0))();
+  BoolColumn get useIgst => boolean().withDefault(const Constant(false))();
   RealColumn get discountAmount => real()();
   BoolColumn get isDiscountPercentage => boolean().withDefault(const Constant(false))();
   RealColumn get discountRate => real().nullable()();

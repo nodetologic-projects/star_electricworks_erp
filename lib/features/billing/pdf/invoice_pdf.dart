@@ -698,8 +698,9 @@ class InvoicePdfGenerator {
       'Qty',
       'Rate',
       'Discount',
-      if (showGst) 'CGST',
-      if (showGst) 'SGST',
+      if (showGst && !invoice.useIgst) 'CGST',
+      if (showGst && !invoice.useIgst) 'SGST',
+      if (showGst && invoice.useIgst) 'IGST',
       'Total',
     ];
 
@@ -742,9 +743,11 @@ class InvoicePdfGenerator {
       final gstAmount = showGst ? (lineTaxableValue * (rate / 100)) : 0.0;
       final cgstAmount = gstAmount / 2;
       final sgstAmount = gstAmount / 2;
+      final igstAmount = gstAmount;
       final total = showGst ? (lineTaxableValue + gstAmount) : lineTaxableValue;
 
       final halfRateStr = (rate / 2).toStringAsFixed(1).replaceAll('.0', '');
+      final fullRateStr = rate.toStringAsFixed(1).replaceAll('.0', '');
 
       return [
         _buildDescriptionWidget(item.description),
@@ -764,7 +767,7 @@ class InvoicePdfGenerator {
           style: pw.TextStyle(font: monoFont),
           textAlign: pw.TextAlign.right,
         ),
-        if (showGst)
+        if (showGst && !invoice.useIgst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -772,10 +775,10 @@ class InvoicePdfGenerator {
                 cgstAmount.toStringAsFixed(2),
                 style: pw.TextStyle(font: monoFont),
               ),
-              pw.Text('($halfRateStr%)', style: pw.TextStyle(fontSize: 7)),
+              pw.Text('($halfRateStr%)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
-        if (showGst)
+        if (showGst && !invoice.useIgst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -783,7 +786,18 @@ class InvoicePdfGenerator {
                 sgstAmount.toStringAsFixed(2),
                 style: pw.TextStyle(font: monoFont),
               ),
-              pw.Text('($halfRateStr%)', style: pw.TextStyle(fontSize: 7)),
+              pw.Text('($halfRateStr%)', style: const pw.TextStyle(fontSize: 7)),
+            ],
+          ),
+        if (showGst && invoice.useIgst)
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text(
+                igstAmount.toStringAsFixed(2),
+                style: pw.TextStyle(font: monoFont),
+              ),
+              pw.Text('($fullRateStr%)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
         pw.Text(total.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
@@ -817,6 +831,16 @@ class InvoicePdfGenerator {
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
         5: pw.Alignment.centerRight,
+      };
+    } else if (invoice.useIgst) {
+      alignments = {
+        0: pw.Alignment.centerLeft,
+        1: pw.Alignment.center,
+        2: pw.Alignment.center,
+        3: pw.Alignment.centerRight,
+        4: pw.Alignment.centerRight,
+        5: pw.Alignment.centerRight,
+        6: pw.Alignment.centerRight,
       };
     }
 

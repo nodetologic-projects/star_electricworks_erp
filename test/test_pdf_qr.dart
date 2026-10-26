@@ -38,6 +38,7 @@ void main() {
       cgstAmount: 9.0,
       sgstAmount: 9.0,
       igstAmount: 0.0,
+      useIgst: false,
       grandTotal: 118.0,
       amountInWords: 'One Hundred Eighteen',
       status: InvoiceStatus.draft,

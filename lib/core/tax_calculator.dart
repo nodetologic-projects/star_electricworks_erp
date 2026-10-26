@@ -51,6 +51,10 @@ class InvoiceLineItemInput {
   double get sgstAmount =>
       gstRate != null && gstRate! > 0 ? (taxableAmount * (gstRate! / 200.0)) : 0.0;
 
+  /// Full IGST amount calculated on post-discount taxable value
+  double get igstAmount =>
+      gstRate != null && gstRate! > 0 ? (taxableAmount * (gstRate! / 100.0)) : 0.0;
+
   /// Total GST for this line
   double get totalGst => cgstAmount + sgstAmount;
 
@@ -63,6 +67,7 @@ class TaxCalculator {
   static TaxCalculationResult calculate({
     required InvoiceType invoiceType,
     required List<InvoiceLineItemInput> items,
+    bool useIgst = false,
     double bundleDiscountValue = 0.0,
     bool isBundleDiscountPercentage = false,
     bool distributeBundleDiscount = true,
@@ -73,6 +78,7 @@ class TaxCalculator {
     double postItemDiscountBaseline = 0.0;
     double totalCgst = 0.0;
     double totalSgst = 0.0;
+    double totalIgst = 0.0;
 
     final skipTax =
         invoiceType == InvoiceType.billOfSupply || invoiceType == InvoiceType.deliveryChallan;
@@ -85,8 +91,12 @@ class TaxCalculator {
       postItemDiscountBaseline += lineTaxable;
 
       if (!skipTax) {
-        totalCgst += item.cgstAmount;
-        totalSgst += item.sgstAmount;
+        if (useIgst) {
+          totalIgst += item.igstAmount;
+        } else {
+          totalCgst += item.cgstAmount;
+          totalSgst += item.sgstAmount;
+        }
       }
     }
 
@@ -104,13 +114,18 @@ class TaxCalculator {
             (postItemDiscountBaseline - bundleDiscountAmount) / postItemDiscountBaseline;
         totalCgst = 0.0;
         totalSgst = 0.0;
+        totalIgst = 0.0;
         if (!skipTax) {
           for (final item in items) {
             final lineTaxable = item.taxableAmount * distributionFactor;
             if (item.gstRate != null && item.gstRate! > 0) {
               final gstAmount = lineTaxable * (item.gstRate! / 100.0);
-              totalCgst += gstAmount / 2.0;
-              totalSgst += gstAmount / 2.0;
+              if (useIgst) {
+                totalIgst += gstAmount;
+              } else {
+                totalCgst += gstAmount / 2.0;
+                totalSgst += gstAmount / 2.0;
+              }
             }
           }
         }
@@ -119,7 +134,8 @@ class TaxCalculator {
 
     final totalDiscount = sumItemDiscounts + bundleDiscountAmount;
     final taxableAmount = postItemDiscountBaseline - bundleDiscountAmount;
-    final rawGrandTotal = taxableAmount + totalCgst + totalSgst + deliveryCharge;
+    final totalTax = totalCgst + totalSgst + totalIgst;
+    final rawGrandTotal = taxableAmount + totalTax + deliveryCharge;
     final grandTotal = rawGrandTotal.roundToDouble();
 
     return TaxCalculationResult(
@@ -130,7 +146,7 @@ class TaxCalculator {
       taxableAmount: taxableAmount,
       cgstAmount: totalCgst,
       sgstAmount: totalSgst,
-      igstAmount: 0.0,
+      igstAmount: totalIgst,
       deliveryCharge: deliveryCharge,
       grandTotal: grandTotal,
     );

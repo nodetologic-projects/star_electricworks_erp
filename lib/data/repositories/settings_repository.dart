@@ -6,6 +6,10 @@ final settingsRepositoryProvider = Provider((ref) {
   return SettingsRepository(ref.watch(databaseProvider));
 });
 
+final companySettingsStreamProvider = StreamProvider<CompanySetting?>((ref) {
+  return ref.watch(settingsRepositoryProvider).watchSettings();
+});
+
 class SettingsRepository {
   final AppDatabase _db;
   SettingsRepository(this._db);

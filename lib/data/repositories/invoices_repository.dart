@@ -494,7 +494,7 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         totalSales: current.totalSales + inv.grandTotal,
         cgst: current.cgst + inv.cgstAmount,
         sgst: current.sgst + inv.sgstAmount,
-        igst: current.igst,
+        igst: current.igst + inv.igstAmount,
       );
     }
     

@@ -117,7 +117,7 @@ class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
               double totalGst = 0;
               for (var i in invoices) {
                 totalSales += i.invoice.grandTotal;
-                totalGst += i.invoice.cgstAmount + i.invoice.sgstAmount;
+                totalGst += i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount;
               }
 
               return Column(
@@ -141,7 +141,7 @@ class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
                             DataCell(Text(i.invoice.invoiceNo)),
                             DataCell(Text(i.customer.name)),
                             DataCell(Text('₹${i.invoice.subtotal.toStringAsFixed(2)}')),
-                            DataCell(Text('₹${(i.invoice.cgstAmount + i.invoice.sgstAmount).toStringAsFixed(2)}')),
+                            DataCell(Text('₹${(i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount).toStringAsFixed(2)}')),
                             DataCell(Text('₹${i.invoice.grandTotal.toStringAsFixed(2)}')),
                           ]);
                         }).toList(),
@@ -167,7 +167,7 @@ class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
                                 i.invoice.invoiceNo,
                                 i.customer.name,
                                 i.invoice.subtotal,
-                                i.invoice.cgstAmount + i.invoice.sgstAmount,
+                                i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount,
                                 i.invoice.grandTotal,
                               ]),
                               [],

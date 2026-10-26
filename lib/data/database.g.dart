@@ -3101,6 +3101,21 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _useIgstMeta = const VerificationMeta(
+    'useIgst',
+  );
+  @override
+  late final GeneratedColumn<bool> useIgst = GeneratedColumn<bool>(
+    'use_igst',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("use_igst" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _discountAmountMeta = const VerificationMeta(
     'discountAmount',
   );
@@ -3375,6 +3390,7 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     cgstAmount,
     sgstAmount,
     igstAmount,
+    useIgst,
     discountAmount,
     isDiscountPercentage,
     discountRate,
@@ -3475,6 +3491,12 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
       context.handle(
         _igstAmountMeta,
         igstAmount.isAcceptableOrUnknown(data['igst_amount']!, _igstAmountMeta),
+      );
+    }
+    if (data.containsKey('use_igst')) {
+      context.handle(
+        _useIgstMeta,
+        useIgst.isAcceptableOrUnknown(data['use_igst']!, _useIgstMeta),
       );
     }
     if (data.containsKey('discount_amount')) {
@@ -3708,6 +3730,10 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.double,
         data['${effectivePrefix}igst_amount'],
       )!,
+      useIgst: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}use_igst'],
+      )!,
       discountAmount: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}discount_amount'],
@@ -3831,6 +3857,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   /// Remains 0.0 for this business since all trade is intra-state (Gujarat),
   /// but required for the 3-column GST breakup on PDFs.
   final double igstAmount;
+  final bool useIgst;
   final double discountAmount;
   final bool isDiscountPercentage;
   final double? discountRate;
@@ -3865,6 +3892,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     required this.cgstAmount,
     required this.sgstAmount,
     required this.igstAmount,
+    required this.useIgst,
     required this.discountAmount,
     required this.isDiscountPercentage,
     this.discountRate,
@@ -3908,6 +3936,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     map['cgst_amount'] = Variable<double>(cgstAmount);
     map['sgst_amount'] = Variable<double>(sgstAmount);
     map['igst_amount'] = Variable<double>(igstAmount);
+    map['use_igst'] = Variable<bool>(useIgst);
     map['discount_amount'] = Variable<double>(discountAmount);
     map['is_discount_percentage'] = Variable<bool>(isDiscountPercentage);
     if (!nullToAbsent || discountRate != null) {
@@ -3982,6 +4011,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       cgstAmount: Value(cgstAmount),
       sgstAmount: Value(sgstAmount),
       igstAmount: Value(igstAmount),
+      useIgst: Value(useIgst),
       discountAmount: Value(discountAmount),
       isDiscountPercentage: Value(isDiscountPercentage),
       discountRate: discountRate == null && nullToAbsent
@@ -4054,6 +4084,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       cgstAmount: serializer.fromJson<double>(json['cgstAmount']),
       sgstAmount: serializer.fromJson<double>(json['sgstAmount']),
       igstAmount: serializer.fromJson<double>(json['igstAmount']),
+      useIgst: serializer.fromJson<bool>(json['useIgst']),
       discountAmount: serializer.fromJson<double>(json['discountAmount']),
       isDiscountPercentage: serializer.fromJson<bool>(
         json['isDiscountPercentage'],
@@ -4103,6 +4134,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'cgstAmount': serializer.toJson<double>(cgstAmount),
       'sgstAmount': serializer.toJson<double>(sgstAmount),
       'igstAmount': serializer.toJson<double>(igstAmount),
+      'useIgst': serializer.toJson<bool>(useIgst),
       'discountAmount': serializer.toJson<double>(discountAmount),
       'isDiscountPercentage': serializer.toJson<bool>(isDiscountPercentage),
       'discountRate': serializer.toJson<double?>(discountRate),
@@ -4144,6 +4176,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     double? cgstAmount,
     double? sgstAmount,
     double? igstAmount,
+    bool? useIgst,
     double? discountAmount,
     bool? isDiscountPercentage,
     Value<double?> discountRate = const Value.absent(),
@@ -4178,6 +4211,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     cgstAmount: cgstAmount ?? this.cgstAmount,
     sgstAmount: sgstAmount ?? this.sgstAmount,
     igstAmount: igstAmount ?? this.igstAmount,
+    useIgst: useIgst ?? this.useIgst,
     discountAmount: discountAmount ?? this.discountAmount,
     isDiscountPercentage: isDiscountPercentage ?? this.isDiscountPercentage,
     discountRate: discountRate.present ? discountRate.value : this.discountRate,
@@ -4239,6 +4273,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       igstAmount: data.igstAmount.present
           ? data.igstAmount.value
           : this.igstAmount,
+      useIgst: data.useIgst.present ? data.useIgst.value : this.useIgst,
       discountAmount: data.discountAmount.present
           ? data.discountAmount.value
           : this.discountAmount,
@@ -4308,6 +4343,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('cgstAmount: $cgstAmount, ')
           ..write('sgstAmount: $sgstAmount, ')
           ..write('igstAmount: $igstAmount, ')
+          ..write('useIgst: $useIgst, ')
           ..write('discountAmount: $discountAmount, ')
           ..write('isDiscountPercentage: $isDiscountPercentage, ')
           ..write('discountRate: $discountRate, ')
@@ -4349,6 +4385,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     cgstAmount,
     sgstAmount,
     igstAmount,
+    useIgst,
     discountAmount,
     isDiscountPercentage,
     discountRate,
@@ -4387,6 +4424,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.cgstAmount == this.cgstAmount &&
           other.sgstAmount == this.sgstAmount &&
           other.igstAmount == this.igstAmount &&
+          other.useIgst == this.useIgst &&
           other.discountAmount == this.discountAmount &&
           other.isDiscountPercentage == this.isDiscountPercentage &&
           other.discountRate == this.discountRate &&
@@ -4424,6 +4462,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<double> cgstAmount;
   final Value<double> sgstAmount;
   final Value<double> igstAmount;
+  final Value<bool> useIgst;
   final Value<double> discountAmount;
   final Value<bool> isDiscountPercentage;
   final Value<double?> discountRate;
@@ -4458,6 +4497,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.cgstAmount = const Value.absent(),
     this.sgstAmount = const Value.absent(),
     this.igstAmount = const Value.absent(),
+    this.useIgst = const Value.absent(),
     this.discountAmount = const Value.absent(),
     this.isDiscountPercentage = const Value.absent(),
     this.discountRate = const Value.absent(),
@@ -4493,6 +4533,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     required double cgstAmount,
     required double sgstAmount,
     this.igstAmount = const Value.absent(),
+    this.useIgst = const Value.absent(),
     required double discountAmount,
     this.isDiscountPercentage = const Value.absent(),
     this.discountRate = const Value.absent(),
@@ -4538,6 +4579,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<double>? cgstAmount,
     Expression<double>? sgstAmount,
     Expression<double>? igstAmount,
+    Expression<bool>? useIgst,
     Expression<double>? discountAmount,
     Expression<bool>? isDiscountPercentage,
     Expression<double>? discountRate,
@@ -4573,6 +4615,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (cgstAmount != null) 'cgst_amount': cgstAmount,
       if (sgstAmount != null) 'sgst_amount': sgstAmount,
       if (igstAmount != null) 'igst_amount': igstAmount,
+      if (useIgst != null) 'use_igst': useIgst,
       if (discountAmount != null) 'discount_amount': discountAmount,
       if (isDiscountPercentage != null)
         'is_discount_percentage': isDiscountPercentage,
@@ -4612,6 +4655,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<double>? cgstAmount,
     Value<double>? sgstAmount,
     Value<double>? igstAmount,
+    Value<bool>? useIgst,
     Value<double>? discountAmount,
     Value<bool>? isDiscountPercentage,
     Value<double?>? discountRate,
@@ -4647,6 +4691,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       cgstAmount: cgstAmount ?? this.cgstAmount,
       sgstAmount: sgstAmount ?? this.sgstAmount,
       igstAmount: igstAmount ?? this.igstAmount,
+      useIgst: useIgst ?? this.useIgst,
       discountAmount: discountAmount ?? this.discountAmount,
       isDiscountPercentage: isDiscountPercentage ?? this.isDiscountPercentage,
       discountRate: discountRate ?? this.discountRate,
@@ -4708,6 +4753,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     }
     if (igstAmount.present) {
       map['igst_amount'] = Variable<double>(igstAmount.value);
+    }
+    if (useIgst.present) {
+      map['use_igst'] = Variable<bool>(useIgst.value);
     }
     if (discountAmount.present) {
       map['discount_amount'] = Variable<double>(discountAmount.value);
@@ -4800,6 +4848,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('cgstAmount: $cgstAmount, ')
           ..write('sgstAmount: $sgstAmount, ')
           ..write('igstAmount: $igstAmount, ')
+          ..write('useIgst: $useIgst, ')
           ..write('discountAmount: $discountAmount, ')
           ..write('isDiscountPercentage: $isDiscountPercentage, ')
           ..write('discountRate: $discountRate, ')
@@ -13846,6 +13895,7 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       required double cgstAmount,
       required double sgstAmount,
       Value<double> igstAmount,
+      Value<bool> useIgst,
       required double discountAmount,
       Value<bool> isDiscountPercentage,
       Value<double?> discountRate,
@@ -13882,6 +13932,7 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<double> cgstAmount,
       Value<double> sgstAmount,
       Value<double> igstAmount,
+      Value<bool> useIgst,
       Value<double> discountAmount,
       Value<bool> isDiscountPercentage,
       Value<double?> discountRate,
@@ -14053,6 +14104,11 @@ class $$InvoicesTableFilterComposer
 
   ColumnFilters<double> get igstAmount => $composableBuilder(
     column: $table.igstAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get useIgst => $composableBuilder(
+    column: $table.useIgst,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14350,6 +14406,11 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get useIgst => $composableBuilder(
+    column: $table.useIgst,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get discountAmount => $composableBuilder(
     column: $table.discountAmount,
     builder: (column) => ColumnOrderings(column),
@@ -14535,6 +14596,9 @@ class $$InvoicesTableAnnotationComposer
     column: $table.igstAmount,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get useIgst =>
+      $composableBuilder(column: $table.useIgst, builder: (column) => column);
 
   GeneratedColumn<double> get discountAmount => $composableBuilder(
     column: $table.discountAmount,
@@ -14803,6 +14867,7 @@ class $$InvoicesTableTableManager
                 Value<double> cgstAmount = const Value.absent(),
                 Value<double> sgstAmount = const Value.absent(),
                 Value<double> igstAmount = const Value.absent(),
+                Value<bool> useIgst = const Value.absent(),
                 Value<double> discountAmount = const Value.absent(),
                 Value<bool> isDiscountPercentage = const Value.absent(),
                 Value<double?> discountRate = const Value.absent(),
@@ -14838,6 +14903,7 @@ class $$InvoicesTableTableManager
                 cgstAmount: cgstAmount,
                 sgstAmount: sgstAmount,
                 igstAmount: igstAmount,
+                useIgst: useIgst,
                 discountAmount: discountAmount,
                 isDiscountPercentage: isDiscountPercentage,
                 discountRate: discountRate,
@@ -14874,6 +14940,7 @@ class $$InvoicesTableTableManager
                 required double cgstAmount,
                 required double sgstAmount,
                 Value<double> igstAmount = const Value.absent(),
+                Value<bool> useIgst = const Value.absent(),
                 required double discountAmount,
                 Value<bool> isDiscountPercentage = const Value.absent(),
                 Value<double?> discountRate = const Value.absent(),
@@ -14909,6 +14976,7 @@ class $$InvoicesTableTableManager
                 cgstAmount: cgstAmount,
                 sgstAmount: sgstAmount,
                 igstAmount: igstAmount,
+                useIgst: useIgst,
                 discountAmount: discountAmount,
                 isDiscountPercentage: isDiscountPercentage,
                 discountRate: discountRate,

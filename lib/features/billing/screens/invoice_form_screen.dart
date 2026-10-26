@@ -102,6 +102,75 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   String _notes = '';
 
   double _deliveryCharge = 0;
+  bool _useIgst = false;
+
+  static const Map<String, String> _gstStateCodes = {
+    '01': 'Jammu & Kashmir',
+    '02': 'Himachal Pradesh',
+    '03': 'Punjab',
+    '04': 'Chandigarh',
+    '05': 'Uttarakhand',
+    '06': 'Haryana',
+    '07': 'Delhi',
+    '08': 'Rajasthan',
+    '09': 'Uttar Pradesh',
+    '10': 'Bihar',
+    '11': 'Sikkim',
+    '12': 'Arunachal Pradesh',
+    '13': 'Nagaland',
+    '14': 'Manipur',
+    '15': 'Mizoram',
+    '16': 'Tripura',
+    '17': 'Meghalaya',
+    '18': 'Assam',
+    '19': 'West Bengal',
+    '20': 'Jharkhand',
+    '21': 'Odisha',
+    '22': 'Chhattisgarh',
+    '23': 'Madhya Pradesh',
+    '24': 'Gujarat',
+    '25': 'Daman & Diu',
+    '26': 'Dadra & Nagar Haveli',
+    '27': 'Maharashtra',
+    '28': 'Andhra Pradesh',
+    '29': 'Karnataka',
+    '30': 'Goa',
+    '31': 'Lakshadweep',
+    '32': 'Kerala',
+    '33': 'Tamil Nadu',
+    '34': 'Puducherry',
+    '35': 'Andaman & Nicobar Islands',
+    '36': 'Telangana',
+    '37': 'Andhra Pradesh (New)',
+    '38': 'Ladakh',
+  };
+
+  String _getCompanyState(CompanySetting? company) {
+    if (company != null && company.gstin.length >= 2) {
+      final code = company.gstin.substring(0, 2);
+      final mapped = _gstStateCodes[code];
+      if (mapped != null) return mapped;
+    }
+    return 'Gujarat';
+  }
+
+  bool _isCustomerInDifferentState(String customerState, String companyState) {
+    final cust = customerState.trim().toLowerCase();
+    if (cust.isEmpty) return false;
+    final comp = companyState.trim().toLowerCase();
+    if (cust == comp) return false;
+
+    final custFromCode = _gstStateCodes[customerState.trim()]?.toLowerCase();
+    if (custFromCode != null && custFromCode == comp) return false;
+
+    if (comp == 'gujarat') {
+      if (cust == 'gj' || cust == '24' || cust == 'guj' || cust == 'gujarat') {
+        return false;
+      }
+    }
+
+    return true;
+  }
 
   bool _isSaving = false;
 
@@ -170,6 +239,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         _dueDate = existingInvoice.dueDate ?? existingInvoice.invoiceDate;
         _paymentTermDays = existingInvoice.paymentTermDays ?? 0;
         _deliveryCharge = existingInvoice.deliveryCharge ?? 0;
+        _useIgst = existingInvoice.useIgst;
         _notes = existingInvoice.notes ?? '';
         
           _customerNameController.text = existingCustomer.name;
@@ -304,6 +374,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       final totals = TaxCalculator.calculate(
         invoiceType: _selectedType,
         items: inputs,
+        useIgst: _useIgst,
         deliveryCharge: _deliveryCharge,
       );
 
@@ -406,6 +477,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         cgstAmount: totals.cgstAmount,
         sgstAmount: totals.sgstAmount,
         igstAmount: drift.Value(totals.igstAmount),
+        useIgst: drift.Value(_useIgst),
         deliveryCharge: drift.Value(_deliveryCharge),
         grandTotal: totals.grandTotal,
         amountInWords: NumberToWords.convert(totals.grandTotal),
@@ -770,6 +842,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     AsyncValue<List<CopperStockData>> copperStockAsync,
     AsyncValue<List<MotorJob>> motorJobsAsync,
     AsyncValue<List<Customer>> customersAsync,
+    String companyState,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -882,6 +955,32 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 },
               ),
             ),
+            if (showGst)
+              SizedBox(
+                width: isDesktop ? 180 : double.infinity,
+                child: AppSelect<bool>(
+                  label: 'Tax Type',
+                  value: _useIgst,
+                  items: const [
+                    DropdownMenuItem(
+                      value: false,
+                      child: Text('CGST + SGST'),
+                    ),
+                    DropdownMenuItem(
+                      value: true,
+                      child: Text('IGST'),
+                    ),
+                  ],
+                  onChanged: _isInvoiceNoEditable
+                      ? (val) {
+                          if (val != null) {
+                            setState(() => _useIgst = val);
+                            _recalculate();
+                          }
+                        }
+                      : null,
+                ),
+              ),
             SizedBox(
               width: isDesktop ? 300 : double.infinity,
               child: customersAsync.when(
@@ -993,12 +1092,57 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               child: TextFormField(
                 controller: _customerStateController,
                 decoration: const InputDecoration(labelText: 'State *'),
+                onChanged: (_) => setState(() {}),
                 validator: (val) =>
                     val == null || val.trim().isEmpty ? 'Required' : null,
               ),
             ),
           ],
         ),
+        if (showGst &&
+            !_useIgst &&
+            _isCustomerInDifferentState(_customerStateController.text, companyState)) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.amber.shade900, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Customer is in another state — IGST usually applies. Switch to IGST?',
+                    style: TextStyle(
+                      color: Colors.amber.shade900,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+                if (_isInvoiceNoEditable)
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _useIgst = true);
+                      _recalculate();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.amber.shade900,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    child: const Text(
+                      'Switch to IGST',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         Wrap(
           spacing: 16,
@@ -1382,9 +1526,12 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     totals.sgstAmount > 0 ||
                     totals.igstAmount > 0)) ...[
               const Divider(),
-              _buildSummaryRow('IGST:', totals.igstAmount),
-              _buildSummaryRow('CGST:', totals.cgstAmount),
-              _buildSummaryRow('SGST:', totals.sgstAmount),
+              if (_useIgst)
+                _buildSummaryRow('IGST:', totals.igstAmount)
+              else ...[
+                _buildSummaryRow('CGST:', totals.cgstAmount),
+                _buildSummaryRow('SGST:', totals.sgstAmount),
+              ],
             ],
             const Divider(thickness: 2),
             _buildSummaryRow('Grand Total:', totals.grandTotal, isBold: true),
@@ -1407,6 +1554,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     final customersAsync = ref.watch(customersStreamProvider);
     final copperStockAsync = ref.watch(copperStockStreamProvider);
     final motorJobsAsync = ref.watch(motorJobsStreamProvider);
+    final companyAsync = ref.watch(companySettingsStreamProvider);
+    final companyState = _getCompanyState(companyAsync.value);
 
     final showGst =
         _selectedType != InvoiceType.billOfSupply &&
@@ -1423,6 +1572,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     final totals = TaxCalculator.calculate(
       invoiceType: _selectedType,
       items: inputs,
+      useIgst: _useIgst,
       deliveryCharge: _deliveryCharge,
     );
 
@@ -1515,6 +1665,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                                   copperStockAsync,
                                   motorJobsAsync,
                                   customersAsync,
+                                  companyState,
                                 ),
                               ),
                             ),
@@ -1538,6 +1689,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                                 copperStockAsync,
                                 motorJobsAsync,
                                 customersAsync,
+                                companyState,
                               ),
                               const SizedBox(height: 24),
                               _buildRightPane(showGst, totals),

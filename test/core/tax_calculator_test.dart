@@ -271,5 +271,168 @@ void main() {
       expect(sumLineTotals, closeTo(rawTotal, 0.0001));
       expect(sumLineTotals + roundedOff, result.grandTotal);
     });
+
+    group('IGST Mode', () {
+      test('Single rate with IGST: IGST total == CGST+SGST total, sum(line IGST) == totals-block tax', () {
+        final items = [
+          InvoiceLineItemInput(lineTotal: 10000.0, gstRate: 18.0),
+        ];
+
+        final resultCgstSgst = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: items,
+          useIgst: false,
+        );
+
+        final resultIgst = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: items,
+          useIgst: true,
+        );
+
+        expect(resultIgst.cgstAmount, 0.0);
+        expect(resultIgst.sgstAmount, 0.0);
+        expect(resultIgst.igstAmount, 1800.0);
+        expect(resultIgst.igstAmount, resultCgstSgst.cgstAmount + resultCgstSgst.sgstAmount);
+        expect(resultIgst.grandTotal, resultCgstSgst.grandTotal);
+
+        final sumLineIgst = items.fold(0.0, (acc, i) => acc + i.igstAmount);
+        expect(sumLineIgst, resultIgst.igstAmount);
+      });
+
+      test('Multiple rates with IGST: IGST total == CGST+SGST total, sum(line IGST) == totals-block tax', () {
+        final items = [
+          InvoiceLineItemInput(lineTotal: 5000.0, gstRate: 18.0),
+          InvoiceLineItemInput(lineTotal: 12000.0, gstRate: 28.0),
+          InvoiceLineItemInput(lineTotal: 3000.0, gstRate: 5.0),
+          InvoiceLineItemInput(lineTotal: 1500.0, gstRate: 0.0),
+        ];
+
+        final resultCgstSgst = TaxCalculator.calculate(
+          invoiceType: InvoiceType.serviceTaxInvoice,
+          items: items,
+          useIgst: false,
+        );
+
+        final resultIgst = TaxCalculator.calculate(
+          invoiceType: InvoiceType.serviceTaxInvoice,
+          items: items,
+          useIgst: true,
+        );
+
+        expect(resultIgst.cgstAmount, 0.0);
+        expect(resultIgst.sgstAmount, 0.0);
+        expect(resultIgst.igstAmount, resultCgstSgst.cgstAmount + resultCgstSgst.sgstAmount);
+        expect(resultIgst.grandTotal, resultCgstSgst.grandTotal);
+
+        final sumLineIgst = items.fold(0.0, (acc, i) => acc + i.igstAmount);
+        expect(sumLineIgst, resultIgst.igstAmount);
+      });
+
+      test('Per-line discount with IGST: IGST total == CGST+SGST total, sum(line IGST) == totals-block tax', () {
+        final items = [
+          InvoiceLineItemInput(
+            lineTotal: 100000.0,
+            discountPercent: 10.0,
+            gstRate: 28.0,
+          ),
+          InvoiceLineItemInput(
+            lineTotal: 25000.0,
+            discountPercent: 5.0,
+            gstRate: 18.0,
+          ),
+        ];
+
+        final resultCgstSgst = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: items,
+          useIgst: false,
+        );
+
+        final resultIgst = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: items,
+          useIgst: true,
+        );
+
+        expect(resultIgst.cgstAmount, 0.0);
+        expect(resultIgst.sgstAmount, 0.0);
+        expect(resultIgst.igstAmount, resultCgstSgst.cgstAmount + resultCgstSgst.sgstAmount);
+        expect(resultIgst.grandTotal, resultCgstSgst.grandTotal);
+
+        final sumLineIgst = items.fold(0.0, (acc, i) => acc + i.igstAmount);
+        expect(sumLineIgst, resultIgst.igstAmount);
+
+        final sumLineTaxable = items.fold(0.0, (acc, i) => acc + i.taxableAmount);
+        expect(sumLineTaxable, resultIgst.taxableAmount);
+        expect(sumLineTaxable + resultIgst.igstAmount, resultIgst.grandTotal);
+      });
+
+      test('Rounding case with IGST: line sums == totals (+- rounded off)', () {
+        final items = [
+          InvoiceLineItemInput(
+            lineTotal: 99.50,
+            discountPercent: 7.0,
+            gstRate: 18.0,
+          ),
+          InvoiceLineItemInput(
+            lineTotal: 149.25,
+            discountPercent: 3.5,
+            gstRate: 12.0,
+          ),
+        ];
+
+        final resultCgstSgst = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: items,
+          useIgst: false,
+        );
+
+        final resultIgst = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: items,
+          useIgst: true,
+        );
+
+        expect(resultIgst.cgstAmount, 0.0);
+        expect(resultIgst.sgstAmount, 0.0);
+        expect(resultIgst.igstAmount, closeTo(resultCgstSgst.cgstAmount + resultCgstSgst.sgstAmount, 0.0001));
+        expect(resultIgst.grandTotal, resultCgstSgst.grandTotal);
+
+        final sumLineIgst = items.fold(0.0, (acc, i) => acc + i.igstAmount);
+        expect(sumLineIgst, resultIgst.igstAmount);
+
+        final sumLineTaxable = items.fold(0.0, (acc, i) => acc + i.taxableAmount);
+        final rawTotal = sumLineTaxable + resultIgst.igstAmount;
+        final roundedOff = resultIgst.grandTotal - rawTotal;
+        expect(rawTotal + roundedOff, resultIgst.grandTotal);
+      });
+
+      test('Bill of Supply and Delivery Challan ignore useIgst', () {
+        final items = [
+          InvoiceLineItemInput(lineTotal: 1000.0, gstRate: 18.0),
+        ];
+
+        final bosResult = TaxCalculator.calculate(
+          invoiceType: InvoiceType.billOfSupply,
+          items: items,
+          useIgst: true,
+        );
+        expect(bosResult.cgstAmount, 0.0);
+        expect(bosResult.sgstAmount, 0.0);
+        expect(bosResult.igstAmount, 0.0);
+        expect(bosResult.grandTotal, 1000.0);
+
+        final dcResult = TaxCalculator.calculate(
+          invoiceType: InvoiceType.deliveryChallan,
+          items: items,
+          useIgst: true,
+        );
+        expect(dcResult.cgstAmount, 0.0);
+        expect(dcResult.sgstAmount, 0.0);
+        expect(dcResult.igstAmount, 0.0);
+        expect(dcResult.grandTotal, 1000.0);
+      });
+    });
   });
 }
