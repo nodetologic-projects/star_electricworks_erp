@@ -96,6 +96,7 @@ void main() {
       totalPaid: 10000.0, // Partial paid to test Amount Due & UPI QR label
     );
     await File('sample_service_tax_invoice.pdf').writeAsBytes(servicePdf);
+    await File('sample_option1_cgst_sgst.pdf').writeAsBytes(servicePdf);
 
     // 2. Sales Tax Invoice (Devanagari text + IGST mode)
     final hindiCustomer = Customer(
@@ -179,6 +180,7 @@ void main() {
       totalPaid: 0.0,
     );
     await File('sample_sales_tax_invoice.pdf').writeAsBytes(salesPdf);
+    await File('sample_option2_three_columns.pdf').writeAsBytes(salesPdf);
 
     // 3. Bill of Supply (Large numbers e.g. 182675.80)
     final englishCustomer = Customer(

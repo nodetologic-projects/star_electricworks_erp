@@ -408,6 +408,92 @@ void main() {
         expect(rawTotal + roundedOff, resultIgst.grandTotal);
       });
 
+      test('Option 2 ("IGST + CGST + SGST"): single rate, mixed rates, per-line discount, rounding', () {
+        // 1. Single rate
+        final singleRateItems = [
+          InvoiceLineItemInput(lineTotal: 50000.0, gstRate: 18.0),
+        ];
+        final opt1Single = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: singleRateItems,
+          useIgst: false,
+        );
+        final opt2Single = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: singleRateItems,
+          useIgst: true,
+        );
+        expect(opt2Single.cgstAmount, 0.0);
+        expect(opt2Single.sgstAmount, 0.0);
+        expect(opt2Single.igstAmount, opt1Single.cgstAmount + opt1Single.sgstAmount);
+        expect(singleRateItems.fold(0.0, (acc, i) => acc + i.igstAmount), opt2Single.igstAmount);
+        expect(opt2Single.grandTotal, opt1Single.grandTotal);
+
+        // 2. Mixed rates
+        final mixedRateItems = [
+          InvoiceLineItemInput(lineTotal: 30000.0, gstRate: 18.0),
+          InvoiceLineItemInput(lineTotal: 20000.0, gstRate: 12.0),
+          InvoiceLineItemInput(lineTotal: 10000.0, gstRate: 5.0),
+        ];
+        final opt1Mixed = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: mixedRateItems,
+          useIgst: false,
+        );
+        final opt2Mixed = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: mixedRateItems,
+          useIgst: true,
+        );
+        expect(opt2Mixed.cgstAmount, 0.0);
+        expect(opt2Mixed.sgstAmount, 0.0);
+        expect(opt2Mixed.igstAmount, opt1Mixed.cgstAmount + opt1Mixed.sgstAmount);
+        expect(mixedRateItems.fold(0.0, (acc, i) => acc + i.igstAmount), opt2Mixed.igstAmount);
+        expect(opt2Mixed.grandTotal, opt1Mixed.grandTotal);
+
+        // 3. With per-line discount
+        final discountedItems = [
+          InvoiceLineItemInput(lineTotal: 60000.0, discountPercent: 10.0, gstRate: 18.0),
+          InvoiceLineItemInput(lineTotal: 40000.0, discountPercent: 5.0, gstRate: 12.0),
+        ];
+        final opt1Disc = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: discountedItems,
+          useIgst: false,
+        );
+        final opt2Disc = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: discountedItems,
+          useIgst: true,
+        );
+        expect(opt2Disc.cgstAmount, 0.0);
+        expect(opt2Disc.sgstAmount, 0.0);
+        expect(opt2Disc.igstAmount, opt1Disc.cgstAmount + opt1Disc.sgstAmount);
+        expect(discountedItems.fold(0.0, (acc, i) => acc + i.igstAmount), opt2Disc.igstAmount);
+        expect(opt2Disc.grandTotal, opt1Disc.grandTotal);
+
+        // 4. Rounding
+        final roundingItems = [
+          InvoiceLineItemInput(lineTotal: 99.55, discountPercent: 3.3, gstRate: 18.0),
+          InvoiceLineItemInput(lineTotal: 149.85, discountPercent: 7.1, gstRate: 12.0),
+        ];
+        final opt1Round = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: roundingItems,
+          useIgst: false,
+        );
+        final opt2Round = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: roundingItems,
+          useIgst: true,
+        );
+        expect(opt2Round.cgstAmount, 0.0);
+        expect(opt2Round.sgstAmount, 0.0);
+        expect(opt2Round.igstAmount, closeTo(opt1Round.cgstAmount + opt1Round.sgstAmount, 0.0001));
+        expect(roundingItems.fold(0.0, (acc, i) => acc + i.igstAmount), opt2Round.igstAmount);
+        expect(opt2Round.grandTotal, opt1Round.grandTotal);
+      });
+
       test('Bill of Supply and Delivery Challan ignore useIgst', () {
         final items = [
           InvoiceLineItemInput(lineTotal: 1000.0, gstRate: 18.0),

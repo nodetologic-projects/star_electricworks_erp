@@ -957,7 +957,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             ),
             if (showGst)
               SizedBox(
-                width: isDesktop ? 180 : double.infinity,
+                width: isDesktop ? 220 : double.infinity,
                 child: AppSelect<bool>(
                   label: 'Tax Type',
                   value: _useIgst,
@@ -968,7 +968,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     ),
                     DropdownMenuItem(
                       value: true,
-                      child: Text('IGST'),
+                      child: Text('IGST + CGST + SGST'),
                     ),
                   ],
                   onChanged: _isInvoiceNoEditable
@@ -1116,7 +1116,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Customer is in another state — IGST usually applies. Switch to IGST?',
+                    'Customer is in another state — IGST usually applies. Switch to IGST + CGST + SGST?',
                     style: TextStyle(
                       color: Colors.amber.shade900,
                       fontWeight: FontWeight.w500,
@@ -1135,7 +1135,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: const Text(
-                      'Switch to IGST',
+                      'Switch to IGST + CGST + SGST',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -1526,9 +1526,11 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     totals.sgstAmount > 0 ||
                     totals.igstAmount > 0)) ...[
               const Divider(),
-              if (_useIgst)
-                _buildSummaryRow('IGST:', totals.igstAmount)
-              else ...[
+              if (_useIgst) ...[
+                _buildSummaryRow('CGST:', 0.0),
+                _buildSummaryRow('SGST:', 0.0),
+                _buildSummaryRow('IGST:', totals.igstAmount),
+              ] else ...[
                 _buildSummaryRow('CGST:', totals.cgstAmount),
                 _buildSummaryRow('SGST:', totals.sgstAmount),
               ],

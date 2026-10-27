@@ -676,9 +676,8 @@ class InvoicePdfGenerator {
       if (!isDeliveryChallan) 'SAC/HSN',
       'Qty',
       'Rate',
-      'Discount',
-      if (showGst && !invoice.useIgst) 'CGST',
-      if (showGst && !invoice.useIgst) 'SGST',
+      if (showGst) 'CGST',
+      if (showGst) 'SGST',
       if (showGst && invoice.useIgst) 'IGST',
       'Total',
     ];
@@ -711,22 +710,17 @@ class InvoicePdfGenerator {
       final rate = item.gstRate ?? 0.0;
       final itemDiscount = item.lineTotal * ((item.discountPercent ?? 0.0) / 100.0);
       final itemPostDiscount = item.lineTotal - itemDiscount;
-      final bundleDiscountShare = invoice.distributeDiscountAcrossItems 
-          ? itemPostDiscount * (1.0 - distributionFactor)
-          : 0.0;
-      final totalDiscount = itemDiscount + bundleDiscountShare;
-      final effectivePct = item.lineTotal > 0 ? (totalDiscount / item.lineTotal) * 100 : 0.0;
       
       final lineTaxableValue = itemPostDiscount * distributionFactor;
       
       final gstAmount = showGst ? (lineTaxableValue * (rate / 100)) : 0.0;
-      final cgstAmount = gstAmount / 2;
-      final sgstAmount = gstAmount / 2;
+      final cgstAmount = invoice.useIgst ? 0.0 : gstAmount / 2;
+      final sgstAmount = invoice.useIgst ? 0.0 : gstAmount / 2;
       final igstAmount = gstAmount;
       final total = showGst ? (lineTaxableValue + gstAmount) : lineTaxableValue;
 
-      final halfRateStr = (rate / 2).toStringAsFixed(1).replaceAll('.0', '');
-      final fullRateStr = rate.toStringAsFixed(1).replaceAll('.0', '');
+      final halfRateStr = invoice.useIgst ? '0%' : '${(rate / 2).toStringAsFixed(1).replaceAll('.0', '')}%';
+      final fullRateStr = '${rate.toStringAsFixed(1).replaceAll('.0', '')}%';
 
       return [
         _buildDescriptionWidget(item.description),
@@ -739,14 +733,7 @@ class InvoicePdfGenerator {
           item.unitPrice.toStringAsFixed(2),
           style: const pw.TextStyle(fontSize: 8),
         ),
-        pw.Text(
-          totalDiscount > 0
-              ? '-${totalDiscount.toStringAsFixed(2)}\n(${effectivePct.toStringAsFixed(1)}%)'
-              : '0.00',
-          style: const pw.TextStyle(fontSize: 8),
-          textAlign: pw.TextAlign.right,
-        ),
-        if (showGst && !invoice.useIgst)
+        if (showGst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -754,10 +741,10 @@ class InvoicePdfGenerator {
                 cgstAmount.toStringAsFixed(2),
                 style: const pw.TextStyle(fontSize: 8),
               ),
-              pw.Text('($halfRateStr%)', style: const pw.TextStyle(fontSize: 7)),
+              pw.Text('($halfRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
-        if (showGst && !invoice.useIgst)
+        if (showGst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -765,7 +752,7 @@ class InvoicePdfGenerator {
                 sgstAmount.toStringAsFixed(2),
                 style: const pw.TextStyle(fontSize: 8),
               ),
-              pw.Text('($halfRateStr%)', style: const pw.TextStyle(fontSize: 7)),
+              pw.Text('($halfRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
         if (showGst && invoice.useIgst)
@@ -776,33 +763,55 @@ class InvoicePdfGenerator {
                 igstAmount.toStringAsFixed(2),
                 style: const pw.TextStyle(fontSize: 8),
               ),
-              pw.Text('($fullRateStr%)', style: const pw.TextStyle(fontSize: 7)),
+              pw.Text('($fullRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
         pw.Text(total.toStringAsFixed(2), style: const pw.TextStyle(fontSize: 8)),
       ];
     }).toList();
 
-    Map<int, pw.Alignment> alignments = {
-      0: pw.Alignment.centerLeft,
-      1: pw.Alignment.center,
-      2: pw.Alignment.center,
-      3: pw.Alignment.centerRight,
-      4: pw.Alignment.centerRight,
-      5: pw.Alignment.centerRight,
-      6: pw.Alignment.centerRight,
-      7: pw.Alignment.centerRight,
-    };
+    Map<int, pw.TableColumnWidth> columnWidths;
+    Map<int, pw.Alignment> alignments;
 
     if (isDeliveryChallan) {
+      columnWidths = {
+        0: const pw.FlexColumnWidth(5.5),
+        1: const pw.FlexColumnWidth(0.9),
+        2: const pw.FlexColumnWidth(1.6),
+        3: const pw.FlexColumnWidth(1.8),
+      };
       alignments = {
         0: pw.Alignment.centerLeft,
         1: pw.Alignment.center,
         2: pw.Alignment.centerRight,
         3: pw.Alignment.centerRight,
-        4: pw.Alignment.centerRight,
       };
     } else if (!showGst) {
+      columnWidths = {
+        0: const pw.FlexColumnWidth(5.0),
+        1: const pw.FlexColumnWidth(1.2),
+        2: const pw.FlexColumnWidth(0.8),
+        3: const pw.FlexColumnWidth(1.5),
+        4: const pw.FlexColumnWidth(1.7),
+      };
+      alignments = {
+        0: pw.Alignment.centerLeft,
+        1: pw.Alignment.center,
+        2: pw.Alignment.center,
+        3: pw.Alignment.centerRight,
+        4: pw.Alignment.centerRight,
+      };
+    } else if (invoice.useIgst) {
+      columnWidths = {
+        0: const pw.FlexColumnWidth(2.8),
+        1: const pw.FlexColumnWidth(1.1),
+        2: const pw.FlexColumnWidth(0.7),
+        3: const pw.FlexColumnWidth(1.2),
+        4: const pw.FlexColumnWidth(1.2),
+        5: const pw.FlexColumnWidth(1.2),
+        6: const pw.FlexColumnWidth(1.2),
+        7: const pw.FlexColumnWidth(1.4),
+      };
       alignments = {
         0: pw.Alignment.centerLeft,
         1: pw.Alignment.center,
@@ -810,8 +819,19 @@ class InvoicePdfGenerator {
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
         5: pw.Alignment.centerRight,
+        6: pw.Alignment.centerRight,
+        7: pw.Alignment.centerRight,
       };
-    } else if (invoice.useIgst) {
+    } else {
+      columnWidths = {
+        0: const pw.FlexColumnWidth(3.8),
+        1: const pw.FlexColumnWidth(1.1),
+        2: const pw.FlexColumnWidth(0.7),
+        3: const pw.FlexColumnWidth(1.3),
+        4: const pw.FlexColumnWidth(1.3),
+        5: const pw.FlexColumnWidth(1.3),
+        6: const pw.FlexColumnWidth(1.5),
+      };
       alignments = {
         0: pw.Alignment.centerLeft,
         1: pw.Alignment.center,
@@ -826,6 +846,7 @@ class InvoicePdfGenerator {
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: data,
+      columnWidths: columnWidths,
       headerStyle: pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.black,
