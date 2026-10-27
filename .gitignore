@@ -32,6 +32,7 @@ doc/api/
 *.log
 *.pyc
 *.swp
+*.pdf
 .DS_Store
 .atom/
 .build/

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:starelectricerp/core/pdf_fonts.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/quotations_repository.dart';
 import 'package:starelectricerp/core/date_formatting.dart';
@@ -11,7 +12,8 @@ class QuotationPdfGenerator {
     required CompanySetting company,
     required QuotationWithCustomer data,
   }) async {
-    final pdf = pw.Document();
+    final theme = await PdfFontHelper.loadTheme();
+    final pdf = pw.Document(theme: theme);
 
     pdf.addPage(
       pw.Page(
@@ -114,7 +116,7 @@ class QuotationPdfGenerator {
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Estimated Amount (INR)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.right),
+                        child: pw.Text('Estimated Amount (₹)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.right),
                       ),
                     ],
                   ),

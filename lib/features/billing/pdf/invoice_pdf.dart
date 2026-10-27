@@ -1,10 +1,10 @@
 import 'package:starelectricerp/core/date_formatting.dart';
+import 'package:starelectricerp/core/pdf_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
-import 'package:printing/printing.dart';
 
 class InvoicePdfGenerator {
   static const double letterheadTopMarginCm = 5.0;
@@ -17,19 +17,7 @@ class InvoicePdfGenerator {
     required Customer customer,
     double totalPaid = 0.0,
   }) async {
-    final fontRegular = await PdfGoogleFonts.manropeRegular();
-    final fontBold = await PdfGoogleFonts.manropeSemiBold();
-    final fontItalic = await PdfGoogleFonts.manropeLight();
-    final fontBoldItalic = await PdfGoogleFonts.manropeMedium();
-    final monoFont = await PdfGoogleFonts.iBMPlexMonoRegular();
-    final monoFontBold = await PdfGoogleFonts.iBMPlexMonoSemiBold();
-
-    final theme = pw.ThemeData.withFont(
-      base: fontRegular,
-      bold: fontBold,
-      italic: fontItalic,
-      boldItalic: fontBoldItalic,
-    );
+    final theme = await PdfFontHelper.loadTheme();
     final pdf = pw.Document(theme: theme);
 
     final ByteData bytes = await rootBundle.load('assets/icon/app_icon.png');
@@ -84,8 +72,6 @@ class InvoicePdfGenerator {
                 invoice,
                 isDeliveryChallan,
                 items,
-                monoFont,
-                monoFontBold,
               ),
 
               if (isDeliveryChallan) ...[
@@ -94,7 +80,7 @@ class InvoicePdfGenerator {
               ],
 
               pw.SizedBox(height: 10),
-              _buildBody(invoice.invoiceType, items, invoice, monoFont),
+              _buildBody(invoice.invoiceType, items, invoice),
               pw.SizedBox(height: 10),
 
               if (!isDeliveryChallan) ...[
@@ -102,8 +88,6 @@ class InvoicePdfGenerator {
                   invoice,
                   items,
                   totalPaid,
-                  monoFont,
-                  monoFontBold,
                 ),
               ],
 
@@ -490,8 +474,6 @@ class InvoicePdfGenerator {
     Invoice invoice,
     bool isDeliveryChallan,
     List<InvoiceItem> items,
-    pw.Font monoFont,
-    pw.Font monoFontBold,
   ) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -667,7 +649,6 @@ class InvoicePdfGenerator {
     InvoiceType type,
     List<InvoiceItem> items,
     Invoice invoice,
-    pw.Font monoFont,
   ) {
     final bool isPurchase = type == InvoiceType.purchaseVoucher;
     final bool isDeliveryChallan = type == InvoiceType.deliveryChallan;
@@ -680,7 +661,6 @@ class InvoicePdfGenerator {
       showGst: showGst,
       isPurchase: isPurchase,
       isDeliveryChallan: isDeliveryChallan,
-      monoFont: monoFont,
     );
   }
 
@@ -690,7 +670,6 @@ class InvoicePdfGenerator {
     required bool showGst,
     bool isPurchase = false,
     bool isDeliveryChallan = false,
-    required pw.Font monoFont,
   }) {
     final headers = [
       'Description',
@@ -754,17 +733,17 @@ class InvoicePdfGenerator {
         if (!isDeliveryChallan) item.hsnCode ?? '',
         pw.Text(
           item.qty?.toString() ?? '1',
-          style: pw.TextStyle(font: monoFont),
+          style: const pw.TextStyle(fontSize: 8),
         ),
         pw.Text(
           item.unitPrice.toStringAsFixed(2),
-          style: pw.TextStyle(font: monoFont),
+          style: const pw.TextStyle(fontSize: 8),
         ),
         pw.Text(
           totalDiscount > 0
               ? '-${totalDiscount.toStringAsFixed(2)}\n(${effectivePct.toStringAsFixed(1)}%)'
               : '0.00',
-          style: pw.TextStyle(font: monoFont),
+          style: const pw.TextStyle(fontSize: 8),
           textAlign: pw.TextAlign.right,
         ),
         if (showGst && !invoice.useIgst)
@@ -773,7 +752,7 @@ class InvoicePdfGenerator {
             children: [
               pw.Text(
                 cgstAmount.toStringAsFixed(2),
-                style: pw.TextStyle(font: monoFont),
+                style: const pw.TextStyle(fontSize: 8),
               ),
               pw.Text('($halfRateStr%)', style: const pw.TextStyle(fontSize: 7)),
             ],
@@ -784,7 +763,7 @@ class InvoicePdfGenerator {
             children: [
               pw.Text(
                 sgstAmount.toStringAsFixed(2),
-                style: pw.TextStyle(font: monoFont),
+                style: const pw.TextStyle(fontSize: 8),
               ),
               pw.Text('($halfRateStr%)', style: const pw.TextStyle(fontSize: 7)),
             ],
@@ -795,12 +774,12 @@ class InvoicePdfGenerator {
             children: [
               pw.Text(
                 igstAmount.toStringAsFixed(2),
-                style: pw.TextStyle(font: monoFont),
+                style: const pw.TextStyle(fontSize: 8),
               ),
               pw.Text('($fullRateStr%)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
-        pw.Text(total.toStringAsFixed(2), style: pw.TextStyle(font: monoFont)),
+        pw.Text(total.toStringAsFixed(2), style: const pw.TextStyle(fontSize: 8)),
       ];
     }).toList();
 
@@ -899,8 +878,6 @@ class InvoicePdfGenerator {
     Invoice invoice,
     List<InvoiceItem> items,
     double totalPaid,
-    pw.Font monoFont,
-    pw.Font monoFontBold,
   ) {
     final bool isBillOfSupply = invoice.invoiceType == InvoiceType.billOfSupply;
 
@@ -941,8 +918,7 @@ class InvoicePdfGenerator {
               pw.SizedBox(height: 50),
               pw.Text(
                 'SIG_LOC',
-                style: pw.TextStyle(
-                  font: pw.Font.helvetica(),
+                style: const pw.TextStyle(
                   fontSize: 1,
                   color: PdfColors.white,
                 ),
@@ -977,60 +953,44 @@ class InvoicePdfGenerator {
               _buildTotalsLine(
                 'Subtotal:',
                 invoice.subtotal,
-                monoFont,
-                monoFontBold,
               ),
               if (discountToShow > 0)
                 _buildTotalsLine(
                   'Discount:',
                   -discountToShow,
-                  monoFont,
-                  monoFontBold,
                 ),
               if (discountToShow > 0)
                 _buildTotalsLine(
                   'Total Before Tax:',
                   (invoice.subtotal - discountToShow),
-                  monoFont,
-                  monoFontBold,
                 ),
 
               if (invoice.deliveryCharge != null && invoice.deliveryCharge! > 0)
                 _buildTotalsLine(
                   'Delivery Charge:',
                   invoice.deliveryCharge!,
-                  monoFont,
-                  monoFontBold,
                 ),
 
               if (!isBillOfSupply && totalTaxVal > 0)
                 _buildTotalsLine(
                   'Total Tax Amount:',
                   totalTaxVal,
-                  monoFont,
-                  monoFontBold,
                 ),
 
               _buildTotalsLine(
                 'Rounded Off:',
                 roundedOff,
-                monoFont,
-                monoFontBold,
               ),
               pw.Divider(thickness: 1),
               _buildTotalsLine(
                 'Total Amount:',
                 invoice.grandTotal,
-                monoFont,
-                monoFontBold,
                 isBold: true,
               ),
               pw.Divider(thickness: 1),
               _buildTotalsLine(
                 'Amount Due:',
                 amountDue,
-                monoFont,
-                monoFontBold,
                 isBold: true,
               ),
             ],
@@ -1042,9 +1002,7 @@ class InvoicePdfGenerator {
 
   static pw.Widget _buildTotalsLine(
     String label,
-    double amount,
-    pw.Font monoFont,
-    pw.Font monoFontBold, {
+    double amount, {
     bool isBold = false,
   }) {
     final prefix = amount >= 0 && label == 'Rounded Off:' ? '+' : '';
@@ -1064,7 +1022,6 @@ class InvoicePdfGenerator {
             '$prefix${amount.toStringAsFixed(2)}',
             style: pw.TextStyle(
               fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
-              font: isBold ? monoFontBold : monoFont,
               fontSize: isBold ? 10 : 8.5,
             ),
           ),
@@ -1078,16 +1035,10 @@ class InvoicePdfGenerator {
     Invoice invoice,
     double totalPaid,
   ) {
-    print('DIAGNOSTICS - _buildFooter called');
-    print('DIAGNOSTICS - company.upiId: "${company.upiId}"');
-    print('DIAGNOSTICS - invoice.grandTotal: ${invoice.grandTotal}');
-    print('DIAGNOSTICS - totalPaid: $totalPaid');
-
     final bool shouldShowQr =
         company.upiId != null &&
         company.upiId!.isNotEmpty &&
         (invoice.grandTotal - totalPaid) > 0;
-    print('DIAGNOSTICS - QR condition evaluates to: $shouldShowQr');
 
     final type = invoice.invoiceType;
     final isPurchase = type == InvoiceType.purchaseVoucher;
@@ -1105,11 +1056,9 @@ class InvoicePdfGenerator {
                 pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    if (company.upiId != null &&
-                        company.upiId!.isNotEmpty &&
-                        (invoice.grandTotal - totalPaid) > 0) ...[
+                    if (shouldShowQr) ...[
                       pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
                         children: [
                           pw.Container(
                             width: 60,
@@ -1124,7 +1073,8 @@ class InvoicePdfGenerator {
                           ),
                           pw.SizedBox(height: 2),
                           pw.Text(
-                            'Scan to pay via UPI',
+                            'Scan to pay via UPI\n₹${(invoice.grandTotal - totalPaid).toStringAsFixed(2)}',
+                            textAlign: pw.TextAlign.center,
                             style: const pw.TextStyle(fontSize: 7),
                           ),
                         ],
