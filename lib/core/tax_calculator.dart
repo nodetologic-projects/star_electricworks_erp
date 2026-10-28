@@ -67,12 +67,17 @@ class TaxCalculator {
   static TaxCalculationResult calculate({
     required InvoiceType invoiceType,
     required List<InvoiceLineItemInput> items,
-    bool useIgst = false,
+    TaxMode taxMode = TaxMode.cgst_sgst,
+    bool? useIgst,
     double bundleDiscountValue = 0.0,
     bool isBundleDiscountPercentage = false,
     bool distributeBundleDiscount = true,
     double deliveryCharge = 0.0,
   }) {
+    final effectiveTaxMode = useIgst != null
+        ? (useIgst ? TaxMode.igst_only : TaxMode.cgst_sgst)
+        : taxMode;
+
     double rawSubtotal = 0.0;
     double sumItemDiscounts = 0.0;
     double postItemDiscountBaseline = 0.0;
@@ -91,7 +96,7 @@ class TaxCalculator {
       postItemDiscountBaseline += lineTaxable;
 
       if (!skipTax) {
-        if (useIgst) {
+        if (effectiveTaxMode == TaxMode.igst_only) {
           totalIgst += item.igstAmount;
         } else {
           totalCgst += item.cgstAmount;
@@ -120,7 +125,7 @@ class TaxCalculator {
             final lineTaxable = item.taxableAmount * distributionFactor;
             if (item.gstRate != null && item.gstRate! > 0) {
               final gstAmount = lineTaxable * (item.gstRate! / 100.0);
-              if (useIgst) {
+              if (effectiveTaxMode == TaxMode.igst_only) {
                 totalIgst += gstAmount;
               } else {
                 totalCgst += gstAmount / 2.0;

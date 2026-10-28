@@ -39,6 +39,7 @@ void main() {
       sgstAmount: 9.0,
       igstAmount: 0.0,
       useIgst: false,
+      taxMode: TaxMode.cgst_sgst,
       grandTotal: 118.0,
       amountInWords: 'One Hundred Eighteen',
       status: InvoiceStatus.draft,

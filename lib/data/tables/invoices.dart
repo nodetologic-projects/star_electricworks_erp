@@ -18,6 +18,7 @@ class Invoices extends Table {
   /// but required for the 3-column GST breakup on PDFs.
   RealColumn get igstAmount => real().withDefault(const Constant(0.0))();
   BoolColumn get useIgst => boolean().withDefault(const Constant(false))();
+  TextColumn get taxMode => textEnum<TaxMode>().withDefault(Constant(TaxMode.cgst_sgst.name))();
   RealColumn get discountAmount => real()();
   BoolColumn get isDiscountPercentage => boolean().withDefault(const Constant(false))();
   RealColumn get discountRate => real().nullable()();

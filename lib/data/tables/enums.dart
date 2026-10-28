@@ -3,6 +3,26 @@ enum Phase {
   three,
 }
 
+enum TaxMode {
+  // ignore: constant_identifier_names
+  cgst_sgst,
+  // ignore: constant_identifier_names
+  all_three,
+  // ignore: constant_identifier_names
+  igst_only;
+
+  String get displayName {
+    switch (this) {
+      case TaxMode.cgst_sgst:
+        return 'CGST + SGST';
+      case TaxMode.all_three:
+        return 'CGST + SGST + IGST';
+      case TaxMode.igst_only:
+        return 'IGST only';
+    }
+  }
+}
+
 enum MotorJobStatus {
   received,
   inProgress,

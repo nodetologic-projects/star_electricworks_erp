@@ -3116,6 +3116,16 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     ),
     defaultValue: const Constant(false),
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<TaxMode, String> taxMode =
+      GeneratedColumn<String>(
+        'tax_mode',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(TaxMode.cgst_sgst.name),
+      ).withConverter<TaxMode>($InvoicesTable.$convertertaxMode);
   static const VerificationMeta _discountAmountMeta = const VerificationMeta(
     'discountAmount',
   );
@@ -3391,6 +3401,7 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     sgstAmount,
     igstAmount,
     useIgst,
+    taxMode,
     discountAmount,
     isDiscountPercentage,
     discountRate,
@@ -3734,6 +3745,12 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.bool,
         data['${effectivePrefix}use_igst'],
       )!,
+      taxMode: $InvoicesTable.$convertertaxMode.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}tax_mode'],
+        )!,
+      ),
       discountAmount: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}discount_amount'],
@@ -3838,6 +3855,8 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
 
   static JsonTypeConverter2<InvoiceType, String, String> $converterinvoiceType =
       const EnumNameConverter<InvoiceType>(InvoiceType.values);
+  static JsonTypeConverter2<TaxMode, String, String> $convertertaxMode =
+      const EnumNameConverter<TaxMode>(TaxMode.values);
   static JsonTypeConverter2<InvoiceStatus, String, String> $converterstatus =
       const EnumNameConverter<InvoiceStatus>(InvoiceStatus.values);
 }
@@ -3858,6 +3877,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   /// but required for the 3-column GST breakup on PDFs.
   final double igstAmount;
   final bool useIgst;
+  final TaxMode taxMode;
   final double discountAmount;
   final bool isDiscountPercentage;
   final double? discountRate;
@@ -3893,6 +3913,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     required this.sgstAmount,
     required this.igstAmount,
     required this.useIgst,
+    required this.taxMode,
     required this.discountAmount,
     required this.isDiscountPercentage,
     this.discountRate,
@@ -3937,6 +3958,11 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     map['sgst_amount'] = Variable<double>(sgstAmount);
     map['igst_amount'] = Variable<double>(igstAmount);
     map['use_igst'] = Variable<bool>(useIgst);
+    {
+      map['tax_mode'] = Variable<String>(
+        $InvoicesTable.$convertertaxMode.toSql(taxMode),
+      );
+    }
     map['discount_amount'] = Variable<double>(discountAmount);
     map['is_discount_percentage'] = Variable<bool>(isDiscountPercentage);
     if (!nullToAbsent || discountRate != null) {
@@ -4012,6 +4038,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       sgstAmount: Value(sgstAmount),
       igstAmount: Value(igstAmount),
       useIgst: Value(useIgst),
+      taxMode: Value(taxMode),
       discountAmount: Value(discountAmount),
       isDiscountPercentage: Value(isDiscountPercentage),
       discountRate: discountRate == null && nullToAbsent
@@ -4085,6 +4112,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       sgstAmount: serializer.fromJson<double>(json['sgstAmount']),
       igstAmount: serializer.fromJson<double>(json['igstAmount']),
       useIgst: serializer.fromJson<bool>(json['useIgst']),
+      taxMode: $InvoicesTable.$convertertaxMode.fromJson(
+        serializer.fromJson<String>(json['taxMode']),
+      ),
       discountAmount: serializer.fromJson<double>(json['discountAmount']),
       isDiscountPercentage: serializer.fromJson<bool>(
         json['isDiscountPercentage'],
@@ -4135,6 +4165,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'sgstAmount': serializer.toJson<double>(sgstAmount),
       'igstAmount': serializer.toJson<double>(igstAmount),
       'useIgst': serializer.toJson<bool>(useIgst),
+      'taxMode': serializer.toJson<String>(
+        $InvoicesTable.$convertertaxMode.toJson(taxMode),
+      ),
       'discountAmount': serializer.toJson<double>(discountAmount),
       'isDiscountPercentage': serializer.toJson<bool>(isDiscountPercentage),
       'discountRate': serializer.toJson<double?>(discountRate),
@@ -4177,6 +4210,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     double? sgstAmount,
     double? igstAmount,
     bool? useIgst,
+    TaxMode? taxMode,
     double? discountAmount,
     bool? isDiscountPercentage,
     Value<double?> discountRate = const Value.absent(),
@@ -4212,6 +4246,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     sgstAmount: sgstAmount ?? this.sgstAmount,
     igstAmount: igstAmount ?? this.igstAmount,
     useIgst: useIgst ?? this.useIgst,
+    taxMode: taxMode ?? this.taxMode,
     discountAmount: discountAmount ?? this.discountAmount,
     isDiscountPercentage: isDiscountPercentage ?? this.isDiscountPercentage,
     discountRate: discountRate.present ? discountRate.value : this.discountRate,
@@ -4274,6 +4309,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ? data.igstAmount.value
           : this.igstAmount,
       useIgst: data.useIgst.present ? data.useIgst.value : this.useIgst,
+      taxMode: data.taxMode.present ? data.taxMode.value : this.taxMode,
       discountAmount: data.discountAmount.present
           ? data.discountAmount.value
           : this.discountAmount,
@@ -4344,6 +4380,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('sgstAmount: $sgstAmount, ')
           ..write('igstAmount: $igstAmount, ')
           ..write('useIgst: $useIgst, ')
+          ..write('taxMode: $taxMode, ')
           ..write('discountAmount: $discountAmount, ')
           ..write('isDiscountPercentage: $isDiscountPercentage, ')
           ..write('discountRate: $discountRate, ')
@@ -4386,6 +4423,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     sgstAmount,
     igstAmount,
     useIgst,
+    taxMode,
     discountAmount,
     isDiscountPercentage,
     discountRate,
@@ -4425,6 +4463,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.sgstAmount == this.sgstAmount &&
           other.igstAmount == this.igstAmount &&
           other.useIgst == this.useIgst &&
+          other.taxMode == this.taxMode &&
           other.discountAmount == this.discountAmount &&
           other.isDiscountPercentage == this.isDiscountPercentage &&
           other.discountRate == this.discountRate &&
@@ -4463,6 +4502,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<double> sgstAmount;
   final Value<double> igstAmount;
   final Value<bool> useIgst;
+  final Value<TaxMode> taxMode;
   final Value<double> discountAmount;
   final Value<bool> isDiscountPercentage;
   final Value<double?> discountRate;
@@ -4498,6 +4538,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.sgstAmount = const Value.absent(),
     this.igstAmount = const Value.absent(),
     this.useIgst = const Value.absent(),
+    this.taxMode = const Value.absent(),
     this.discountAmount = const Value.absent(),
     this.isDiscountPercentage = const Value.absent(),
     this.discountRate = const Value.absent(),
@@ -4534,6 +4575,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     required double sgstAmount,
     this.igstAmount = const Value.absent(),
     this.useIgst = const Value.absent(),
+    this.taxMode = const Value.absent(),
     required double discountAmount,
     this.isDiscountPercentage = const Value.absent(),
     this.discountRate = const Value.absent(),
@@ -4580,6 +4622,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<double>? sgstAmount,
     Expression<double>? igstAmount,
     Expression<bool>? useIgst,
+    Expression<String>? taxMode,
     Expression<double>? discountAmount,
     Expression<bool>? isDiscountPercentage,
     Expression<double>? discountRate,
@@ -4616,6 +4659,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (sgstAmount != null) 'sgst_amount': sgstAmount,
       if (igstAmount != null) 'igst_amount': igstAmount,
       if (useIgst != null) 'use_igst': useIgst,
+      if (taxMode != null) 'tax_mode': taxMode,
       if (discountAmount != null) 'discount_amount': discountAmount,
       if (isDiscountPercentage != null)
         'is_discount_percentage': isDiscountPercentage,
@@ -4656,6 +4700,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<double>? sgstAmount,
     Value<double>? igstAmount,
     Value<bool>? useIgst,
+    Value<TaxMode>? taxMode,
     Value<double>? discountAmount,
     Value<bool>? isDiscountPercentage,
     Value<double?>? discountRate,
@@ -4692,6 +4737,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       sgstAmount: sgstAmount ?? this.sgstAmount,
       igstAmount: igstAmount ?? this.igstAmount,
       useIgst: useIgst ?? this.useIgst,
+      taxMode: taxMode ?? this.taxMode,
       discountAmount: discountAmount ?? this.discountAmount,
       isDiscountPercentage: isDiscountPercentage ?? this.isDiscountPercentage,
       discountRate: discountRate ?? this.discountRate,
@@ -4756,6 +4802,11 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     }
     if (useIgst.present) {
       map['use_igst'] = Variable<bool>(useIgst.value);
+    }
+    if (taxMode.present) {
+      map['tax_mode'] = Variable<String>(
+        $InvoicesTable.$convertertaxMode.toSql(taxMode.value),
+      );
     }
     if (discountAmount.present) {
       map['discount_amount'] = Variable<double>(discountAmount.value);
@@ -4849,6 +4900,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('sgstAmount: $sgstAmount, ')
           ..write('igstAmount: $igstAmount, ')
           ..write('useIgst: $useIgst, ')
+          ..write('taxMode: $taxMode, ')
           ..write('discountAmount: $discountAmount, ')
           ..write('isDiscountPercentage: $isDiscountPercentage, ')
           ..write('discountRate: $discountRate, ')
@@ -13896,6 +13948,7 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       required double sgstAmount,
       Value<double> igstAmount,
       Value<bool> useIgst,
+      Value<TaxMode> taxMode,
       required double discountAmount,
       Value<bool> isDiscountPercentage,
       Value<double?> discountRate,
@@ -13933,6 +13986,7 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<double> sgstAmount,
       Value<double> igstAmount,
       Value<bool> useIgst,
+      Value<TaxMode> taxMode,
       Value<double> discountAmount,
       Value<bool> isDiscountPercentage,
       Value<double?> discountRate,
@@ -14111,6 +14165,12 @@ class $$InvoicesTableFilterComposer
     column: $table.useIgst,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<TaxMode, TaxMode, String> get taxMode =>
+      $composableBuilder(
+        column: $table.taxMode,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<double> get discountAmount => $composableBuilder(
     column: $table.discountAmount,
@@ -14411,6 +14471,11 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get taxMode => $composableBuilder(
+    column: $table.taxMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get discountAmount => $composableBuilder(
     column: $table.discountAmount,
     builder: (column) => ColumnOrderings(column),
@@ -14599,6 +14664,9 @@ class $$InvoicesTableAnnotationComposer
 
   GeneratedColumn<bool> get useIgst =>
       $composableBuilder(column: $table.useIgst, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<TaxMode, String> get taxMode =>
+      $composableBuilder(column: $table.taxMode, builder: (column) => column);
 
   GeneratedColumn<double> get discountAmount => $composableBuilder(
     column: $table.discountAmount,
@@ -14868,6 +14936,7 @@ class $$InvoicesTableTableManager
                 Value<double> sgstAmount = const Value.absent(),
                 Value<double> igstAmount = const Value.absent(),
                 Value<bool> useIgst = const Value.absent(),
+                Value<TaxMode> taxMode = const Value.absent(),
                 Value<double> discountAmount = const Value.absent(),
                 Value<bool> isDiscountPercentage = const Value.absent(),
                 Value<double?> discountRate = const Value.absent(),
@@ -14904,6 +14973,7 @@ class $$InvoicesTableTableManager
                 sgstAmount: sgstAmount,
                 igstAmount: igstAmount,
                 useIgst: useIgst,
+                taxMode: taxMode,
                 discountAmount: discountAmount,
                 isDiscountPercentage: isDiscountPercentage,
                 discountRate: discountRate,
@@ -14941,6 +15011,7 @@ class $$InvoicesTableTableManager
                 required double sgstAmount,
                 Value<double> igstAmount = const Value.absent(),
                 Value<bool> useIgst = const Value.absent(),
+                Value<TaxMode> taxMode = const Value.absent(),
                 required double discountAmount,
                 Value<bool> isDiscountPercentage = const Value.absent(),
                 Value<double?> discountRate = const Value.absent(),
@@ -14977,6 +15048,7 @@ class $$InvoicesTableTableManager
                 sgstAmount: sgstAmount,
                 igstAmount: igstAmount,
                 useIgst: useIgst,
+                taxMode: taxMode,
                 discountAmount: discountAmount,
                 isDiscountPercentage: isDiscountPercentage,
                 discountRate: discountRate,

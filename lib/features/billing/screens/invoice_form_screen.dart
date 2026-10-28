@@ -102,7 +102,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   String _notes = '';
 
   double _deliveryCharge = 0;
-  bool _useIgst = false;
+  TaxMode _taxMode = TaxMode.cgst_sgst;
 
   static const Map<String, String> _gstStateCodes = {
     '01': 'Jammu & Kashmir',
@@ -239,7 +239,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         _dueDate = existingInvoice.dueDate ?? existingInvoice.invoiceDate;
         _paymentTermDays = existingInvoice.paymentTermDays ?? 0;
         _deliveryCharge = existingInvoice.deliveryCharge ?? 0;
-        _useIgst = existingInvoice.useIgst;
+        _taxMode = existingInvoice.taxMode;
         _notes = existingInvoice.notes ?? '';
         
           _customerNameController.text = existingCustomer.name;
@@ -374,7 +374,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       final totals = TaxCalculator.calculate(
         invoiceType: _selectedType,
         items: inputs,
-        useIgst: _useIgst,
+        taxMode: _taxMode,
         deliveryCharge: _deliveryCharge,
       );
 
@@ -477,7 +477,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         cgstAmount: totals.cgstAmount,
         sgstAmount: totals.sgstAmount,
         igstAmount: drift.Value(totals.igstAmount),
-        useIgst: drift.Value(_useIgst),
+        taxMode: drift.Value(_taxMode),
+        useIgst: drift.Value(_taxMode == TaxMode.igst_only),
         deliveryCharge: drift.Value(_deliveryCharge),
         grandTotal: totals.grandTotal,
         amountInWords: NumberToWords.convert(totals.grandTotal),
@@ -958,23 +959,19 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             if (showGst)
               SizedBox(
                 width: isDesktop ? 220 : double.infinity,
-                child: AppSelect<bool>(
+                child: AppSelect<TaxMode>(
                   label: 'Tax Type',
-                  value: _useIgst,
-                  items: const [
-                    DropdownMenuItem(
-                      value: false,
-                      child: Text('CGST + SGST'),
-                    ),
-                    DropdownMenuItem(
-                      value: true,
-                      child: Text('IGST + CGST + SGST'),
-                    ),
-                  ],
+                  value: _taxMode,
+                  items: TaxMode.values.map((mode) {
+                    return DropdownMenuItem(
+                      value: mode,
+                      child: Text(mode.displayName),
+                    );
+                  }).toList(),
                   onChanged: _isInvoiceNoEditable
                       ? (val) {
                           if (val != null) {
-                            setState(() => _useIgst = val);
+                            setState(() => _taxMode = val);
                             _recalculate();
                           }
                         }
@@ -1100,7 +1097,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           ],
         ),
         if (showGst &&
-            !_useIgst &&
+            _taxMode != TaxMode.igst_only &&
             _isCustomerInDifferentState(_customerStateController.text, companyState)) ...[
           const SizedBox(height: 12),
           Container(
@@ -1116,7 +1113,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Customer is in another state — IGST usually applies. Switch to IGST + CGST + SGST?',
+                    'Customer is in another state — IGST usually applies. Suggest "IGST only"?',
                     style: TextStyle(
                       color: Colors.amber.shade900,
                       fontWeight: FontWeight.w500,
@@ -1127,7 +1124,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 if (_isInvoiceNoEditable)
                   TextButton(
                     onPressed: () {
-                      setState(() => _useIgst = true);
+                      setState(() => _taxMode = TaxMode.igst_only);
                       _recalculate();
                     },
                     style: TextButton.styleFrom(
@@ -1135,7 +1132,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: const Text(
-                      'Switch to IGST + CGST + SGST',
+                      'Switch to IGST only',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -1526,13 +1523,15 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     totals.sgstAmount > 0 ||
                     totals.igstAmount > 0)) ...[
               const Divider(),
-              if (_useIgst) ...[
-                _buildSummaryRow('CGST:', 0.0),
-                _buildSummaryRow('SGST:', 0.0),
-                _buildSummaryRow('IGST:', totals.igstAmount),
-              ] else ...[
+              if (_taxMode == TaxMode.cgst_sgst) ...[
                 _buildSummaryRow('CGST:', totals.cgstAmount),
                 _buildSummaryRow('SGST:', totals.sgstAmount),
+              ] else if (_taxMode == TaxMode.all_three) ...[
+                _buildSummaryRow('CGST:', totals.cgstAmount),
+                _buildSummaryRow('SGST:', totals.sgstAmount),
+                _buildSummaryRow('IGST:', 0.0),
+              ] else if (_taxMode == TaxMode.igst_only) ...[
+                _buildSummaryRow('IGST:', totals.igstAmount),
               ],
             ],
             const Divider(thickness: 2),
@@ -1574,7 +1573,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     final totals = TaxCalculator.calculate(
       invoiceType: _selectedType,
       items: inputs,
-      useIgst: _useIgst,
+      taxMode: _taxMode,
       deliveryCharge: _deliveryCharge,
     );
 

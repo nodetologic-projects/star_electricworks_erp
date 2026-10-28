@@ -46,7 +46,7 @@ void main() {
     final serviceTotals = TaxCalculator.calculate(
       invoiceType: InvoiceType.serviceTaxInvoice,
       items: serviceItemsInput,
-      useIgst: false,
+      taxMode: TaxMode.cgst_sgst,
     );
 
     final serviceInvoice = Invoice(
@@ -64,6 +64,7 @@ void main() {
       sgstAmount: serviceTotals.sgstAmount,
       igstAmount: serviceTotals.igstAmount,
       useIgst: false,
+      taxMode: TaxMode.cgst_sgst,
       grandTotal: serviceTotals.grandTotal,
       amountInWords: 'Forty-Seven Thousand Seven Hundred Ninety',
       status: InvoiceStatus.draft,
@@ -118,7 +119,7 @@ void main() {
     final salesTotals = TaxCalculator.calculate(
       invoiceType: InvoiceType.salesTaxInvoice,
       items: salesItemsInput,
-      useIgst: true,
+      taxMode: TaxMode.all_three,
     );
 
     final salesInvoice = Invoice(
@@ -135,7 +136,8 @@ void main() {
       cgstAmount: salesTotals.cgstAmount,
       sgstAmount: salesTotals.sgstAmount,
       igstAmount: salesTotals.igstAmount,
-      useIgst: true,
+      useIgst: false,
+      taxMode: TaxMode.all_three,
       grandTotal: salesTotals.grandTotal,
       amountInWords: 'Sixty-Seven Thousand Three Hundred Ninety-Nine',
       status: InvoiceStatus.draft,
@@ -182,6 +184,47 @@ void main() {
     await File('sample_sales_tax_invoice.pdf').writeAsBytes(salesPdf);
     await File('sample_option2_three_columns.pdf').writeAsBytes(salesPdf);
 
+    // Option 3: IGST only (Single IGST column)
+    final opt3Totals = TaxCalculator.calculate(
+      invoiceType: InvoiceType.salesTaxInvoice,
+      items: salesItemsInput,
+      taxMode: TaxMode.igst_only,
+    );
+
+    final opt3Invoice = Invoice(
+      id: 103,
+      invoiceNo: 'SAL/2026-27/003-IGST',
+      invoiceType: InvoiceType.salesTaxInvoice,
+      customerId: hindiCustomer.id,
+      invoiceDate: DateTime(2026, 10, 27),
+      dueDate: DateTime(2026, 11, 26),
+      subtotal: opt3Totals.subtotal,
+      discountAmount: opt3Totals.discountAmount,
+      isDiscountPercentage: false,
+      distributeDiscountAcrossItems: true,
+      cgstAmount: opt3Totals.cgstAmount,
+      sgstAmount: opt3Totals.sgstAmount,
+      igstAmount: opt3Totals.igstAmount,
+      useIgst: true,
+      taxMode: TaxMode.igst_only,
+      grandTotal: opt3Totals.grandTotal,
+      amountInWords: 'Sixty-Seven Thousand Three Hundred Ninety-Nine',
+      status: InvoiceStatus.draft,
+      requiresEWayBill: true,
+      requiresEInvoice: false,
+      createdAt: DateTime.now(),
+    );
+
+    final opt3Pdf = await InvoicePdfGenerator.generate(
+      copyLabels: ['ORIGINAL FOR RECIPIENT'],
+      company: company,
+      invoice: opt3Invoice,
+      customer: hindiCustomer,
+      items: salesItems,
+      totalPaid: 0.0,
+    );
+    await File('sample_option3_igst_only.pdf').writeAsBytes(opt3Pdf);
+
     // 3. Bill of Supply (Large numbers e.g. 182675.80)
     final englishCustomer = Customer(
       id: 3,
@@ -219,6 +262,7 @@ void main() {
       sgstAmount: 0.0,
       igstAmount: 0.0,
       useIgst: false,
+      taxMode: TaxMode.cgst_sgst,
       grandTotal: bosTotals.grandTotal,
       amountInWords: 'One Lakh Eighty-Two Thousand Six Hundred Seventy-Six',
       status: InvoiceStatus.draft,
@@ -276,6 +320,7 @@ void main() {
       sgstAmount: pvTotals.sgstAmount,
       igstAmount: 0.0,
       useIgst: false,
+      taxMode: TaxMode.cgst_sgst,
       grandTotal: pvTotals.grandTotal,
       amountInWords: 'Seventeen Thousand Seven Hundred',
       status: InvoiceStatus.draft,
@@ -324,6 +369,7 @@ void main() {
       sgstAmount: 0.0,
       igstAmount: 0.0,
       useIgst: false,
+      taxMode: TaxMode.cgst_sgst,
       grandTotal: 50000.0,
       amountInWords: 'Fifty Thousand',
       status: InvoiceStatus.draft,

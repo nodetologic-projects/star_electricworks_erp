@@ -671,14 +671,16 @@ class InvoicePdfGenerator {
     bool isPurchase = false,
     bool isDeliveryChallan = false,
   }) {
+    final taxMode = invoice.taxMode;
+
     final headers = [
       'Description',
       if (!isDeliveryChallan) 'SAC/HSN',
       'Qty',
       'Rate',
-      if (showGst) 'CGST',
-      if (showGst) 'SGST',
-      if (showGst && invoice.useIgst) 'IGST',
+      if (showGst && taxMode != TaxMode.igst_only) 'CGST',
+      if (showGst && taxMode != TaxMode.igst_only) 'SGST',
+      if (showGst && (taxMode == TaxMode.all_three || taxMode == TaxMode.igst_only)) 'IGST',
       'Total',
     ];
 
@@ -714,13 +716,15 @@ class InvoicePdfGenerator {
       final lineTaxableValue = itemPostDiscount * distributionFactor;
       
       final gstAmount = showGst ? (lineTaxableValue * (rate / 100)) : 0.0;
-      final cgstAmount = invoice.useIgst ? 0.0 : gstAmount / 2;
-      final sgstAmount = invoice.useIgst ? 0.0 : gstAmount / 2;
-      final igstAmount = gstAmount;
-      final total = showGst ? (lineTaxableValue + gstAmount) : lineTaxableValue;
-
-      final halfRateStr = invoice.useIgst ? '0%' : '${(rate / 2).toStringAsFixed(1).replaceAll('.0', '')}%';
+      final cgstAmount = gstAmount / 2;
+      final sgstAmount = gstAmount / 2;
+      final halfRateStr = '${(rate / 2).toStringAsFixed(1).replaceAll('.0', '')}%';
       final fullRateStr = '${rate.toStringAsFixed(1).replaceAll('.0', '')}%';
+
+      final igstCellAmount = taxMode == TaxMode.all_three ? 0.0 : gstAmount;
+      final igstCellRateStr = taxMode == TaxMode.all_three ? '0%' : fullRateStr;
+
+      final total = showGst ? (lineTaxableValue + gstAmount) : lineTaxableValue;
 
       return [
         _buildDescriptionWidget(item.description),
@@ -733,7 +737,7 @@ class InvoicePdfGenerator {
           item.unitPrice.toStringAsFixed(2),
           style: const pw.TextStyle(fontSize: 8),
         ),
-        if (showGst)
+        if (showGst && taxMode != TaxMode.igst_only)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -744,7 +748,7 @@ class InvoicePdfGenerator {
               pw.Text('($halfRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
-        if (showGst)
+        if (showGst && taxMode != TaxMode.igst_only)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -755,15 +759,15 @@ class InvoicePdfGenerator {
               pw.Text('($halfRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
-        if (showGst && invoice.useIgst)
+        if (showGst && (taxMode == TaxMode.all_three || taxMode == TaxMode.igst_only))
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               pw.Text(
-                igstAmount.toStringAsFixed(2),
+                igstCellAmount.toStringAsFixed(2),
                 style: const pw.TextStyle(fontSize: 8),
               ),
-              pw.Text('($fullRateStr)', style: const pw.TextStyle(fontSize: 7)),
+              pw.Text('($igstCellRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
         pw.Text(total.toStringAsFixed(2), style: const pw.TextStyle(fontSize: 8)),
@@ -801,7 +805,7 @@ class InvoicePdfGenerator {
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
       };
-    } else if (invoice.useIgst) {
+    } else if (taxMode == TaxMode.all_three) {
       columnWidths = {
         0: const pw.FlexColumnWidth(2.8),
         1: const pw.FlexColumnWidth(1.1),
@@ -822,7 +826,25 @@ class InvoicePdfGenerator {
         6: pw.Alignment.centerRight,
         7: pw.Alignment.centerRight,
       };
+    } else if (taxMode == TaxMode.igst_only) {
+      columnWidths = {
+        0: const pw.FlexColumnWidth(4.2),
+        1: const pw.FlexColumnWidth(1.1),
+        2: const pw.FlexColumnWidth(0.8),
+        3: const pw.FlexColumnWidth(1.4),
+        4: const pw.FlexColumnWidth(1.4),
+        5: const pw.FlexColumnWidth(1.6),
+      };
+      alignments = {
+        0: pw.Alignment.centerLeft,
+        1: pw.Alignment.center,
+        2: pw.Alignment.center,
+        3: pw.Alignment.centerRight,
+        4: pw.Alignment.centerRight,
+        5: pw.Alignment.centerRight,
+      };
     } else {
+      // TaxMode.cgst_sgst (7 columns)
       columnWidths = {
         0: const pw.FlexColumnWidth(3.8),
         1: const pw.FlexColumnWidth(1.1),
