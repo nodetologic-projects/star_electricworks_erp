@@ -18,4 +18,5 @@ class CompanySettings extends Table {
   BoolColumn get eInvoiceApplicable => boolean().withDefault(const Constant(false))();
   TextColumn get logoPath => text().nullable()();
   BoolColumn get isRegistered => boolean().withDefault(const Constant(false))();
+  TextColumn get defaultMotorHsn => text().nullable()();
 }

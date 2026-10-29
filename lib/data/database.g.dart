@@ -1423,6 +1423,17 @@ class $MotorJobsTable extends MotorJobs
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hsnCodeMeta = const VerificationMeta(
+    'hsnCode',
+  );
+  @override
+  late final GeneratedColumn<String> hsnCode = GeneratedColumn<String>(
+    'hsn_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _gpNumberMeta = const VerificationMeta(
     'gpNumber',
   );
@@ -1492,6 +1503,7 @@ class $MotorJobsTable extends MotorJobs
     status,
     serviceCharge,
     sacCode,
+    hsnCode,
     gpNumber,
     gpDate,
     dispatchDate,
@@ -1584,6 +1596,12 @@ class $MotorJobsTable extends MotorJobs
       context.handle(
         _sacCodeMeta,
         sacCode.isAcceptableOrUnknown(data['sac_code']!, _sacCodeMeta),
+      );
+    }
+    if (data.containsKey('hsn_code')) {
+      context.handle(
+        _hsnCodeMeta,
+        hsnCode.isAcceptableOrUnknown(data['hsn_code']!, _hsnCodeMeta),
       );
     }
     if (data.containsKey('gp_number')) {
@@ -1680,6 +1698,10 @@ class $MotorJobsTable extends MotorJobs
         DriftSqlType.string,
         data['${effectivePrefix}sac_code'],
       ),
+      hsnCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hsn_code'],
+      ),
       gpNumber: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}gp_number'],
@@ -1729,6 +1751,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
   final MotorJobStatus status;
   final double? serviceCharge;
   final String? sacCode;
+  final String? hsnCode;
   final String? gpNumber;
   final DateTime? gpDate;
   final DateTime? dispatchDate;
@@ -1747,6 +1770,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     required this.status,
     this.serviceCharge,
     this.sacCode,
+    this.hsnCode,
     this.gpNumber,
     this.gpDate,
     this.dispatchDate,
@@ -1784,6 +1808,9 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     if (!nullToAbsent || sacCode != null) {
       map['sac_code'] = Variable<String>(sacCode);
     }
+    if (!nullToAbsent || hsnCode != null) {
+      map['hsn_code'] = Variable<String>(hsnCode);
+    }
     if (!nullToAbsent || gpNumber != null) {
       map['gp_number'] = Variable<String>(gpNumber);
     }
@@ -1820,6 +1847,9 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
       sacCode: sacCode == null && nullToAbsent
           ? const Value.absent()
           : Value(sacCode),
+      hsnCode: hsnCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hsnCode),
       gpNumber: gpNumber == null && nullToAbsent
           ? const Value.absent()
           : Value(gpNumber),
@@ -1856,6 +1886,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
       ),
       serviceCharge: serializer.fromJson<double?>(json['serviceCharge']),
       sacCode: serializer.fromJson<String?>(json['sacCode']),
+      hsnCode: serializer.fromJson<String?>(json['hsnCode']),
       gpNumber: serializer.fromJson<String?>(json['gpNumber']),
       gpDate: serializer.fromJson<DateTime?>(json['gpDate']),
       dispatchDate: serializer.fromJson<DateTime?>(json['dispatchDate']),
@@ -1883,6 +1914,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
       ),
       'serviceCharge': serializer.toJson<double?>(serviceCharge),
       'sacCode': serializer.toJson<String?>(sacCode),
+      'hsnCode': serializer.toJson<String?>(hsnCode),
       'gpNumber': serializer.toJson<String?>(gpNumber),
       'gpDate': serializer.toJson<DateTime?>(gpDate),
       'dispatchDate': serializer.toJson<DateTime?>(dispatchDate),
@@ -1904,6 +1936,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     MotorJobStatus? status,
     Value<double?> serviceCharge = const Value.absent(),
     Value<String?> sacCode = const Value.absent(),
+    Value<String?> hsnCode = const Value.absent(),
     Value<String?> gpNumber = const Value.absent(),
     Value<DateTime?> gpDate = const Value.absent(),
     Value<DateTime?> dispatchDate = const Value.absent(),
@@ -1924,6 +1957,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
         ? serviceCharge.value
         : this.serviceCharge,
     sacCode: sacCode.present ? sacCode.value : this.sacCode,
+    hsnCode: hsnCode.present ? hsnCode.value : this.hsnCode,
     gpNumber: gpNumber.present ? gpNumber.value : this.gpNumber,
     gpDate: gpDate.present ? gpDate.value : this.gpDate,
     dispatchDate: dispatchDate.present ? dispatchDate.value : this.dispatchDate,
@@ -1954,6 +1988,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
           ? data.serviceCharge.value
           : this.serviceCharge,
       sacCode: data.sacCode.present ? data.sacCode.value : this.sacCode,
+      hsnCode: data.hsnCode.present ? data.hsnCode.value : this.hsnCode,
       gpNumber: data.gpNumber.present ? data.gpNumber.value : this.gpNumber,
       gpDate: data.gpDate.present ? data.gpDate.value : this.gpDate,
       dispatchDate: data.dispatchDate.present
@@ -1979,6 +2014,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
           ..write('status: $status, ')
           ..write('serviceCharge: $serviceCharge, ')
           ..write('sacCode: $sacCode, ')
+          ..write('hsnCode: $hsnCode, ')
           ..write('gpNumber: $gpNumber, ')
           ..write('gpDate: $gpDate, ')
           ..write('dispatchDate: $dispatchDate, ')
@@ -2002,6 +2038,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
     status,
     serviceCharge,
     sacCode,
+    hsnCode,
     gpNumber,
     gpDate,
     dispatchDate,
@@ -2024,6 +2061,7 @@ class MotorJob extends DataClass implements Insertable<MotorJob> {
           other.status == this.status &&
           other.serviceCharge == this.serviceCharge &&
           other.sacCode == this.sacCode &&
+          other.hsnCode == this.hsnCode &&
           other.gpNumber == this.gpNumber &&
           other.gpDate == this.gpDate &&
           other.dispatchDate == this.dispatchDate &&
@@ -2044,6 +2082,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
   final Value<MotorJobStatus> status;
   final Value<double?> serviceCharge;
   final Value<String?> sacCode;
+  final Value<String?> hsnCode;
   final Value<String?> gpNumber;
   final Value<DateTime?> gpDate;
   final Value<DateTime?> dispatchDate;
@@ -2062,6 +2101,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     this.status = const Value.absent(),
     this.serviceCharge = const Value.absent(),
     this.sacCode = const Value.absent(),
+    this.hsnCode = const Value.absent(),
     this.gpNumber = const Value.absent(),
     this.gpDate = const Value.absent(),
     this.dispatchDate = const Value.absent(),
@@ -2081,6 +2121,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     required MotorJobStatus status,
     this.serviceCharge = const Value.absent(),
     this.sacCode = const Value.absent(),
+    this.hsnCode = const Value.absent(),
     this.gpNumber = const Value.absent(),
     this.gpDate = const Value.absent(),
     this.dispatchDate = const Value.absent(),
@@ -2105,6 +2146,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     Expression<String>? status,
     Expression<double>? serviceCharge,
     Expression<String>? sacCode,
+    Expression<String>? hsnCode,
     Expression<String>? gpNumber,
     Expression<DateTime>? gpDate,
     Expression<DateTime>? dispatchDate,
@@ -2124,6 +2166,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
       if (status != null) 'status': status,
       if (serviceCharge != null) 'service_charge': serviceCharge,
       if (sacCode != null) 'sac_code': sacCode,
+      if (hsnCode != null) 'hsn_code': hsnCode,
       if (gpNumber != null) 'gp_number': gpNumber,
       if (gpDate != null) 'gp_date': gpDate,
       if (dispatchDate != null) 'dispatch_date': dispatchDate,
@@ -2145,6 +2188,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     Value<MotorJobStatus>? status,
     Value<double?>? serviceCharge,
     Value<String?>? sacCode,
+    Value<String?>? hsnCode,
     Value<String?>? gpNumber,
     Value<DateTime?>? gpDate,
     Value<DateTime?>? dispatchDate,
@@ -2164,6 +2208,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
       status: status ?? this.status,
       serviceCharge: serviceCharge ?? this.serviceCharge,
       sacCode: sacCode ?? this.sacCode,
+      hsnCode: hsnCode ?? this.hsnCode,
       gpNumber: gpNumber ?? this.gpNumber,
       gpDate: gpDate ?? this.gpDate,
       dispatchDate: dispatchDate ?? this.dispatchDate,
@@ -2215,6 +2260,9 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
     if (sacCode.present) {
       map['sac_code'] = Variable<String>(sacCode.value);
     }
+    if (hsnCode.present) {
+      map['hsn_code'] = Variable<String>(hsnCode.value);
+    }
     if (gpNumber.present) {
       map['gp_number'] = Variable<String>(gpNumber.value);
     }
@@ -2248,6 +2296,7 @@ class MotorJobsCompanion extends UpdateCompanion<MotorJob> {
           ..write('status: $status, ')
           ..write('serviceCharge: $serviceCharge, ')
           ..write('sacCode: $sacCode, ')
+          ..write('hsnCode: $hsnCode, ')
           ..write('gpNumber: $gpNumber, ')
           ..write('gpDate: $gpDate, ')
           ..write('dispatchDate: $dispatchDate, ')
@@ -6379,6 +6428,17 @@ class $CompanySettingsTable extends CompanySettings
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _defaultMotorHsnMeta = const VerificationMeta(
+    'defaultMotorHsn',
+  );
+  @override
+  late final GeneratedColumn<String> defaultMotorHsn = GeneratedColumn<String>(
+    'default_motor_hsn',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6397,6 +6457,7 @@ class $CompanySettingsTable extends CompanySettings
     eInvoiceApplicable,
     logoPath,
     isRegistered,
+    defaultMotorHsn,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6531,6 +6592,15 @@ class $CompanySettingsTable extends CompanySettings
         ),
       );
     }
+    if (data.containsKey('default_motor_hsn')) {
+      context.handle(
+        _defaultMotorHsnMeta,
+        defaultMotorHsn.isAcceptableOrUnknown(
+          data['default_motor_hsn']!,
+          _defaultMotorHsnMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6607,6 +6677,10 @@ class $CompanySettingsTable extends CompanySettings
         DriftSqlType.bool,
         data['${effectivePrefix}is_registered'],
       )!,
+      defaultMotorHsn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_motor_hsn'],
+      ),
     );
   }
 
@@ -6642,6 +6716,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
   final bool eInvoiceApplicable;
   final String? logoPath;
   final bool isRegistered;
+  final String? defaultMotorHsn;
   const CompanySetting({
     required this.id,
     required this.companyName,
@@ -6659,6 +6734,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     required this.eInvoiceApplicable,
     this.logoPath,
     required this.isRegistered,
+    this.defaultMotorHsn,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6693,6 +6769,9 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       map['logo_path'] = Variable<String>(logoPath);
     }
     map['is_registered'] = Variable<bool>(isRegistered);
+    if (!nullToAbsent || defaultMotorHsn != null) {
+      map['default_motor_hsn'] = Variable<String>(defaultMotorHsn);
+    }
     return map;
   }
 
@@ -6724,6 +6803,9 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           ? const Value.absent()
           : Value(logoPath),
       isRegistered: Value(isRegistered),
+      defaultMotorHsn: defaultMotorHsn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(defaultMotorHsn),
     );
   }
 
@@ -6750,6 +6832,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       eInvoiceApplicable: serializer.fromJson<bool>(json['eInvoiceApplicable']),
       logoPath: serializer.fromJson<String?>(json['logoPath']),
       isRegistered: serializer.fromJson<bool>(json['isRegistered']),
+      defaultMotorHsn: serializer.fromJson<String?>(json['defaultMotorHsn']),
     );
   }
   @override
@@ -6776,6 +6859,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       'eInvoiceApplicable': serializer.toJson<bool>(eInvoiceApplicable),
       'logoPath': serializer.toJson<String?>(logoPath),
       'isRegistered': serializer.toJson<bool>(isRegistered),
+      'defaultMotorHsn': serializer.toJson<String?>(defaultMotorHsn),
     };
   }
 
@@ -6796,6 +6880,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     bool? eInvoiceApplicable,
     Value<String?> logoPath = const Value.absent(),
     bool? isRegistered,
+    Value<String?> defaultMotorHsn = const Value.absent(),
   }) => CompanySetting(
     id: id ?? this.id,
     companyName: companyName ?? this.companyName,
@@ -6817,6 +6902,9 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     eInvoiceApplicable: eInvoiceApplicable ?? this.eInvoiceApplicable,
     logoPath: logoPath.present ? logoPath.value : this.logoPath,
     isRegistered: isRegistered ?? this.isRegistered,
+    defaultMotorHsn: defaultMotorHsn.present
+        ? defaultMotorHsn.value
+        : this.defaultMotorHsn,
   );
   CompanySetting copyWithCompanion(CompanySettingsCompanion data) {
     return CompanySetting(
@@ -6850,6 +6938,9 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
       isRegistered: data.isRegistered.present
           ? data.isRegistered.value
           : this.isRegistered,
+      defaultMotorHsn: data.defaultMotorHsn.present
+          ? data.defaultMotorHsn.value
+          : this.defaultMotorHsn,
     );
   }
 
@@ -6871,7 +6962,8 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           ..write('dscPkcs11DllPath: $dscPkcs11DllPath, ')
           ..write('eInvoiceApplicable: $eInvoiceApplicable, ')
           ..write('logoPath: $logoPath, ')
-          ..write('isRegistered: $isRegistered')
+          ..write('isRegistered: $isRegistered, ')
+          ..write('defaultMotorHsn: $defaultMotorHsn')
           ..write(')'))
         .toString();
   }
@@ -6894,6 +6986,7 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
     eInvoiceApplicable,
     logoPath,
     isRegistered,
+    defaultMotorHsn,
   );
   @override
   bool operator ==(Object other) =>
@@ -6914,7 +7007,8 @@ class CompanySetting extends DataClass implements Insertable<CompanySetting> {
           other.dscPkcs11DllPath == this.dscPkcs11DllPath &&
           other.eInvoiceApplicable == this.eInvoiceApplicable &&
           other.logoPath == this.logoPath &&
-          other.isRegistered == this.isRegistered);
+          other.isRegistered == this.isRegistered &&
+          other.defaultMotorHsn == this.defaultMotorHsn);
 }
 
 class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
@@ -6934,6 +7028,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
   final Value<bool> eInvoiceApplicable;
   final Value<String?> logoPath;
   final Value<bool> isRegistered;
+  final Value<String?> defaultMotorHsn;
   const CompanySettingsCompanion({
     this.id = const Value.absent(),
     this.companyName = const Value.absent(),
@@ -6951,6 +7046,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     this.eInvoiceApplicable = const Value.absent(),
     this.logoPath = const Value.absent(),
     this.isRegistered = const Value.absent(),
+    this.defaultMotorHsn = const Value.absent(),
   });
   CompanySettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -6969,6 +7065,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     this.eInvoiceApplicable = const Value.absent(),
     this.logoPath = const Value.absent(),
     this.isRegistered = const Value.absent(),
+    this.defaultMotorHsn = const Value.absent(),
   }) : companyName = Value(companyName),
        address = Value(address),
        phone = Value(phone),
@@ -6994,6 +7091,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     Expression<bool>? eInvoiceApplicable,
     Expression<String>? logoPath,
     Expression<bool>? isRegistered,
+    Expression<String>? defaultMotorHsn,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -7013,6 +7111,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
         'e_invoice_applicable': eInvoiceApplicable,
       if (logoPath != null) 'logo_path': logoPath,
       if (isRegistered != null) 'is_registered': isRegistered,
+      if (defaultMotorHsn != null) 'default_motor_hsn': defaultMotorHsn,
     });
   }
 
@@ -7033,6 +7132,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     Value<bool>? eInvoiceApplicable,
     Value<String?>? logoPath,
     Value<bool>? isRegistered,
+    Value<String?>? defaultMotorHsn,
   }) {
     return CompanySettingsCompanion(
       id: id ?? this.id,
@@ -7051,6 +7151,7 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
       eInvoiceApplicable: eInvoiceApplicable ?? this.eInvoiceApplicable,
       logoPath: logoPath ?? this.logoPath,
       isRegistered: isRegistered ?? this.isRegistered,
+      defaultMotorHsn: defaultMotorHsn ?? this.defaultMotorHsn,
     );
   }
 
@@ -7109,6 +7210,9 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
     if (isRegistered.present) {
       map['is_registered'] = Variable<bool>(isRegistered.value);
     }
+    if (defaultMotorHsn.present) {
+      map['default_motor_hsn'] = Variable<String>(defaultMotorHsn.value);
+    }
     return map;
   }
 
@@ -7130,7 +7234,8 @@ class CompanySettingsCompanion extends UpdateCompanion<CompanySetting> {
           ..write('dscPkcs11DllPath: $dscPkcs11DllPath, ')
           ..write('eInvoiceApplicable: $eInvoiceApplicable, ')
           ..write('logoPath: $logoPath, ')
-          ..write('isRegistered: $isRegistered')
+          ..write('isRegistered: $isRegistered, ')
+          ..write('defaultMotorHsn: $defaultMotorHsn')
           ..write(')'))
         .toString();
   }
@@ -12665,6 +12770,7 @@ typedef $$MotorJobsTableCreateCompanionBuilder =
       required MotorJobStatus status,
       Value<double?> serviceCharge,
       Value<String?> sacCode,
+      Value<String?> hsnCode,
       Value<String?> gpNumber,
       Value<DateTime?> gpDate,
       Value<DateTime?> dispatchDate,
@@ -12685,6 +12791,7 @@ typedef $$MotorJobsTableUpdateCompanionBuilder =
       Value<MotorJobStatus> status,
       Value<double?> serviceCharge,
       Value<String?> sacCode,
+      Value<String?> hsnCode,
       Value<String?> gpNumber,
       Value<DateTime?> gpDate,
       Value<DateTime?> dispatchDate,
@@ -12813,6 +12920,11 @@ class $$MotorJobsTableFilterComposer
 
   ColumnFilters<String> get sacCode => $composableBuilder(
     column: $table.sacCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hsnCode => $composableBuilder(
+    column: $table.hsnCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12979,6 +13091,11 @@ class $$MotorJobsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get hsnCode => $composableBuilder(
+    column: $table.hsnCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get gpNumber => $composableBuilder(
     column: $table.gpNumber,
     builder: (column) => ColumnOrderings(column),
@@ -13077,6 +13194,9 @@ class $$MotorJobsTableAnnotationComposer
 
   GeneratedColumn<String> get sacCode =>
       $composableBuilder(column: $table.sacCode, builder: (column) => column);
+
+  GeneratedColumn<String> get hsnCode =>
+      $composableBuilder(column: $table.hsnCode, builder: (column) => column);
 
   GeneratedColumn<String> get gpNumber =>
       $composableBuilder(column: $table.gpNumber, builder: (column) => column);
@@ -13213,6 +13333,7 @@ class $$MotorJobsTableTableManager
                 Value<MotorJobStatus> status = const Value.absent(),
                 Value<double?> serviceCharge = const Value.absent(),
                 Value<String?> sacCode = const Value.absent(),
+                Value<String?> hsnCode = const Value.absent(),
                 Value<String?> gpNumber = const Value.absent(),
                 Value<DateTime?> gpDate = const Value.absent(),
                 Value<DateTime?> dispatchDate = const Value.absent(),
@@ -13231,6 +13352,7 @@ class $$MotorJobsTableTableManager
                 status: status,
                 serviceCharge: serviceCharge,
                 sacCode: sacCode,
+                hsnCode: hsnCode,
                 gpNumber: gpNumber,
                 gpDate: gpDate,
                 dispatchDate: dispatchDate,
@@ -13251,6 +13373,7 @@ class $$MotorJobsTableTableManager
                 required MotorJobStatus status,
                 Value<double?> serviceCharge = const Value.absent(),
                 Value<String?> sacCode = const Value.absent(),
+                Value<String?> hsnCode = const Value.absent(),
                 Value<String?> gpNumber = const Value.absent(),
                 Value<DateTime?> gpDate = const Value.absent(),
                 Value<DateTime?> dispatchDate = const Value.absent(),
@@ -13269,6 +13392,7 @@ class $$MotorJobsTableTableManager
                 status: status,
                 serviceCharge: serviceCharge,
                 sacCode: sacCode,
+                hsnCode: hsnCode,
                 gpNumber: gpNumber,
                 gpDate: gpDate,
                 dispatchDate: dispatchDate,
@@ -16372,6 +16496,7 @@ typedef $$CompanySettingsTableCreateCompanionBuilder =
       Value<bool> eInvoiceApplicable,
       Value<String?> logoPath,
       Value<bool> isRegistered,
+      Value<String?> defaultMotorHsn,
     });
 typedef $$CompanySettingsTableUpdateCompanionBuilder =
     CompanySettingsCompanion Function({
@@ -16391,6 +16516,7 @@ typedef $$CompanySettingsTableUpdateCompanionBuilder =
       Value<bool> eInvoiceApplicable,
       Value<String?> logoPath,
       Value<bool> isRegistered,
+      Value<String?> defaultMotorHsn,
     });
 
 class $$CompanySettingsTableFilterComposer
@@ -16480,6 +16606,11 @@ class $$CompanySettingsTableFilterComposer
 
   ColumnFilters<bool> get isRegistered => $composableBuilder(
     column: $table.isRegistered,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultMotorHsn => $composableBuilder(
+    column: $table.defaultMotorHsn,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -16572,6 +16703,11 @@ class $$CompanySettingsTableOrderingComposer
     column: $table.isRegistered,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get defaultMotorHsn => $composableBuilder(
+    column: $table.defaultMotorHsn,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CompanySettingsTableAnnotationComposer
@@ -16645,6 +16781,11 @@ class $$CompanySettingsTableAnnotationComposer
     column: $table.isRegistered,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get defaultMotorHsn => $composableBuilder(
+    column: $table.defaultMotorHsn,
+    builder: (column) => column,
+  );
 }
 
 class $$CompanySettingsTableTableManager
@@ -16701,6 +16842,7 @@ class $$CompanySettingsTableTableManager
                 Value<bool> eInvoiceApplicable = const Value.absent(),
                 Value<String?> logoPath = const Value.absent(),
                 Value<bool> isRegistered = const Value.absent(),
+                Value<String?> defaultMotorHsn = const Value.absent(),
               }) => CompanySettingsCompanion(
                 id: id,
                 companyName: companyName,
@@ -16718,6 +16860,7 @@ class $$CompanySettingsTableTableManager
                 eInvoiceApplicable: eInvoiceApplicable,
                 logoPath: logoPath,
                 isRegistered: isRegistered,
+                defaultMotorHsn: defaultMotorHsn,
               ),
           createCompanionCallback:
               ({
@@ -16738,6 +16881,7 @@ class $$CompanySettingsTableTableManager
                 Value<bool> eInvoiceApplicable = const Value.absent(),
                 Value<String?> logoPath = const Value.absent(),
                 Value<bool> isRegistered = const Value.absent(),
+                Value<String?> defaultMotorHsn = const Value.absent(),
               }) => CompanySettingsCompanion.insert(
                 id: id,
                 companyName: companyName,
@@ -16755,6 +16899,7 @@ class $$CompanySettingsTableTableManager
                 eInvoiceApplicable: eInvoiceApplicable,
                 logoPath: logoPath,
                 isRegistered: isRegistered,
+                defaultMotorHsn: defaultMotorHsn,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

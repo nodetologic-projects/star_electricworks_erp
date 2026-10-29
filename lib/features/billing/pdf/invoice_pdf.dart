@@ -678,7 +678,7 @@ class InvoicePdfGenerator {
 
     final headers = [
       'Description',
-      if (!isDeliveryChallan) 'SAC/HSN',
+      isDeliveryChallan ? 'HSN' : 'SAC/HSN',
       'Qty',
       'Rate',
       if (showGst && !isIgst) 'CGST',
@@ -729,7 +729,7 @@ class InvoicePdfGenerator {
 
       return [
         _buildDescriptionWidget(item.description),
-        if (!isDeliveryChallan) item.hsnCode ?? '',
+        item.hsnCode ?? '',
         pw.Text(
           item.qty?.toString() ?? '1',
           style: const pw.TextStyle(fontSize: 8),
@@ -778,20 +778,7 @@ class InvoicePdfGenerator {
     Map<int, pw.TableColumnWidth> columnWidths;
     Map<int, pw.Alignment> alignments;
 
-    if (isDeliveryChallan) {
-      columnWidths = {
-        0: const pw.FlexColumnWidth(5.5),
-        1: const pw.FlexColumnWidth(0.9),
-        2: const pw.FlexColumnWidth(1.6),
-        3: const pw.FlexColumnWidth(1.8),
-      };
-      alignments = {
-        0: pw.Alignment.centerLeft,
-        1: pw.Alignment.center,
-        2: pw.Alignment.centerRight,
-        3: pw.Alignment.centerRight,
-      };
-    } else if (!showGst) {
+    if (isDeliveryChallan || !showGst) {
       columnWidths = {
         0: const pw.FlexColumnWidth(5.0),
         1: const pw.FlexColumnWidth(1.2),

@@ -53,7 +53,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration {
@@ -108,6 +108,10 @@ class AppDatabase extends _$AppDatabase {
               "UPDATE invoices SET tax_mode = CASE WHEN use_igst = 1 THEN 'igst_only' ELSE 'cgst_sgst' END",
             );
           } catch (_) {}
+        }
+        if (from < 27) {
+          try { await m.addColumn(motorJobs, motorJobs.hsnCode); } catch (_) {}
+          try { await m.addColumn(companySettings, companySettings.defaultMotorHsn); } catch (_) {}
         }
         if (from < 3) {
           try { await m.createTable(employees); } catch (_) {}

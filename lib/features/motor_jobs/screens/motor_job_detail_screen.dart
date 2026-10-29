@@ -195,6 +195,10 @@ class _MotorJobDetailScreenState extends ConsumerState<MotorJobDetailScreen> {
                             _buildInfoRow('Phase', job.phase?.name.toUpperCase() ?? 'N/A'),
                             _buildInfoRow('Date Received', dateFormatter.format(job.dateReceived)),
                             _buildInfoRow('Job Description', job.jobDescription),
+                            if (job.sacCode != null && job.sacCode!.isNotEmpty)
+                              _buildInfoRow('SAC Code (Repair)', job.sacCode!),
+                            if (job.hsnCode != null && job.hsnCode!.isNotEmpty)
+                              _buildInfoRow('HSN Code (Motor Goods)', job.hsnCode!),
                           ],
                         ),
                       ),

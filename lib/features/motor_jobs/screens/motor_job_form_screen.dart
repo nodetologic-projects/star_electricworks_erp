@@ -12,6 +12,7 @@ import 'package:starelectricerp/core/widgets/app_text_field.dart';
 import 'package:starelectricerp/core/widgets/rich_text_input.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/motor_jobs_repository.dart';
+import 'package:starelectricerp/data/repositories/settings_repository.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/features/customers/providers/customers_provider.dart';
 import 'package:starelectricerp/features/motor_jobs/providers/motor_jobs_provider.dart';
@@ -35,6 +36,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
   Phase? _selectedPhase;
   final _jobDescController = TextEditingController();
   final _sacCodeController = TextEditingController();
+  final _hsnCodeController = TextEditingController();
   final _gpNumberController = TextEditingController();
   
   DateTime _dateReceived = IstDateUtils.nowIst();
@@ -51,7 +53,20 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
     super.initState();
     if (widget.jobId != null) {
       _loadJob();
+    } else {
+      _loadDefaultHsn();
     }
+  }
+
+  Future<void> _loadDefaultHsn() async {
+    try {
+      final settings = await ref.read(settingsRepositoryProvider).getSettings();
+      if (mounted && settings.defaultMotorHsn != null && settings.defaultMotorHsn!.isNotEmpty) {
+        setState(() {
+          _hsnCodeController.text = settings.defaultMotorHsn!;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadJob() async {
@@ -70,6 +85,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
           _selectedPhase = job.phase;
           _jobDescController.text = job.jobDescription;
           _sacCodeController.text = job.sacCode ?? '';
+          _hsnCodeController.text = job.hsnCode ?? '';
           _gpNumberController.text = job.gpNumber ?? '';
           _dateReceived = IstDateUtils.toMidnightIst(job.dateReceived);
           _gpDate = job.gpDate != null ? IstDateUtils.toMidnightIst(job.gpDate!) : null;
@@ -89,6 +105,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
     _hpController.dispose();
     _jobDescController.dispose();
     _sacCodeController.dispose();
+    _hsnCodeController.dispose();
     _gpNumberController.dispose();
     super.dispose();
   }
@@ -122,6 +139,7 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
           dateReceived: drift.Value(normalizedDateReceived),
           jobDescription: drift.Value(_jobDescController.text),
           sacCode: drift.Value(_sacCodeController.text.isNotEmpty ? _sacCodeController.text.trim() : null),
+          hsnCode: drift.Value(_hsnCodeController.text.isNotEmpty ? _hsnCodeController.text.trim() : null),
           gpNumber: drift.Value(_gpNumberController.text.isNotEmpty ? _gpNumberController.text.trim() : null),
           gpDate: drift.Value(normalizedGpDate),
           dispatchDate: drift.Value(normalizedDispatchDate),
@@ -153,6 +171,9 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
           jobDescription: _jobDescController.text,
           sacCode: _sacCodeController.text.isNotEmpty
               ? drift.Value(_sacCodeController.text.trim())
+              : const drift.Value.absent(),
+          hsnCode: _hsnCodeController.text.isNotEmpty
+              ? drift.Value(_hsnCodeController.text.trim())
               : const drift.Value.absent(),
           gpNumber: _gpNumberController.text.isNotEmpty
               ? drift.Value(_gpNumberController.text.trim())
@@ -417,10 +438,33 @@ class _MotorJobFormScreenState extends ConsumerState<MotorJobFormScreen> {
                         ),
                         const SizedBox(height: 16),
                         AppTextField(
-                          label: 'SAC/HSN Code (Optional)',
-                          hintText: 'Service Accounting Code',
+                          label: 'SAC Code (Repair Service, Optional)',
+                          hintText: 'e.g. 998719 for repair services',
                           controller: _sacCodeController,
                         ),
+                        const SizedBox(height: 16),
+                        AppTextField(
+                          label: 'HSN Code (Motor Goods, Optional)',
+                          hintText: 'e.g. 8501 for electric motors',
+                          controller: _hsnCodeController,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        if (_hsnCodeController.text.trim().isNotEmpty &&
+                            !RegExp(r'^\d{4,8}$').hasMatch(_hsnCodeController.text.trim()))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Warning: HSN code should typically be 4 to 8 numeric digits',
+                                  style: TextStyle(color: Colors.orange.shade800, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
                         const SizedBox(height: 16),
                         AppTextField(
                           label: 'Gate Pass Number (Optional)',

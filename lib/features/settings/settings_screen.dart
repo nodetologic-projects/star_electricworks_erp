@@ -51,6 +51,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _bankAccountNoController = TextEditingController();
   final _bankIfscController = TextEditingController();
   final _upiIdController = TextEditingController();
+  final _defaultMotorHsnController = TextEditingController();
 
   @override
   void initState() {
@@ -74,6 +75,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _bankAccountNoController.text = settings.bankAccountNo;
         _bankIfscController.text = settings.bankIfsc;
         _upiIdController.text = settings.upiId ?? '';
+        _defaultMotorHsnController.text = settings.defaultMotorHsn ?? '';
         
         _selectedPfxPath = settings.dscCertPath;
         _signingMethod = settings.dscSigningMethod ?? DscSigningMethod.fileBased;
@@ -130,6 +132,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         dscPkcs11DllPath: drift.Value(_dllController.text),
         eInvoiceApplicable: drift.Value(_eInvoiceApplicable),
         isRegistered: drift.Value(_isRegistered),
+        defaultMotorHsn: drift.Value(_defaultMotorHsnController.text.trim().isEmpty ? null : _defaultMotorHsnController.text.trim()),
       ));
       debugPrint("Settings saved successfully to DB. isRegistered=${_isRegistered}");
 
@@ -205,6 +208,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                           const SizedBox(height: 16),
                           GstinInputField(controller: _gstinController),
+                          const SizedBox(height: 16),
+                          AppTextField(
+                            label: 'Default HSN for Motors',
+                            controller: _defaultMotorHsnController,
+                            hintText: 'e.g. 8501 for electric motors (pre-fills motor jobs and challans)',
+                          ),
                           const SizedBox(height: 32),
                           Text('Bank Details', style: Theme.of(context).textTheme.titleLarge),
                           const SizedBox(height: 16),

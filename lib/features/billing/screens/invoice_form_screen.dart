@@ -190,12 +190,16 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       Future.microtask(() => _loadExistingInvoice(widget.invoiceId!));
     } else {
       _fetchNextInvoiceNumber();
+      if (widget.prefillCustomerId != null) {
+        _loadPrefillCustomer(widget.prefillCustomerId!);
+      }
       if (widget.prefillJobId != null) {
         // We prepopulate later when async data loads, for now just add a row
         final item = _LineItem(type: ItemSourceType.motorJob)
             ..linkedId = widget.prefillJobId;
         item.descController = TextEditingController(text: item.description);
         _items.add(item);
+        _loadPrefillJob(widget.prefillJobId!);
       } else {
         final item = _LineItem(type: ItemSourceType.custom);
         if (widget.prefillDescription != null)
@@ -205,6 +209,73 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         item.descController = TextEditingController(text: item.description);
         _items.add(item);
       }
+    }
+  }
+
+  Future<void> _loadPrefillJob(int jobId) async {
+    try {
+      final repo = ref.read(motorJobsRepositoryProvider);
+      final job = await repo.getMotorJobById(jobId);
+      final settings = await ref.read(settingsRepositoryProvider).getSettings();
+      if (mounted) {
+        setState(() {
+          String gpStr = "";
+          if (job.gpNumber != null && job.gpNumber!.isNotEmpty) {
+            gpStr += " GP.NO.${job.gpNumber!}";
+          }
+          if (job.gpDate != null) {
+            gpStr +=
+                " GP.DATE.${job.gpDate!.day.toString().padLeft(2, '0')}/${job.gpDate!.month.toString().padLeft(2, '0')}/${job.gpDate!.year}";
+          }
+          String hpStr = job.hp != null ? " ${job.hp} HP" : "";
+          String phaseStr = job.phase != null
+              ? " ${job.phase!.name.toUpperCase()}"
+              : "";
+
+          final item = _items.firstWhere(
+            (it) => it.linkedId == jobId,
+            orElse: () => _items.first,
+          );
+          item.description =
+              '${job.motorDescription}$hpStr$phaseStr$gpStr\n${job.jobDescription}';
+          item.descController?.text = item.description;
+          item.unitPrice = job.serviceCharge ?? 0;
+          if (_selectedType == InvoiceType.deliveryChallan) {
+            final defaultHsn = settings.defaultMotorHsn;
+            item.hsnCode = (job.hsnCode != null && job.hsnCode!.trim().isNotEmpty)
+                ? job.hsnCode!.trim()
+                : (defaultHsn != null && defaultHsn.trim().isNotEmpty ? defaultHsn.trim() : null);
+          } else {
+            item.hsnCode = job.sacCode;
+          }
+          item.qty = 1;
+        });
+        _recalculate();
+      }
+    } catch (e) {
+      debugPrint('Error loading prefill job: $e');
+    }
+  }
+
+  Future<void> _loadPrefillCustomer(int customerId) async {
+    try {
+      final custRepo = ref.read(customersRepositoryProvider);
+      final customer = await custRepo.getCustomerById(customerId);
+      if (mounted) {
+        setState(() {
+          _selectedCustomer = customer.id;
+          _customerNameController.text = customer.name;
+          _customerAddressController.text = customer.address;
+          _customerStateController.text = customer.state;
+          _customerGstinController.text = customer.gstin ?? '';
+          _customerPhoneController.text = customer.phone;
+          _customerEmailController.text = customer.email;
+          _customerVendorCodeController.text = customer.vendorCode ?? '';
+          _placeOfSupplyController.text = customer.state.isNotEmpty ? customer.state : 'Gujarat';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading prefill customer: $e');
     }
   }
 
@@ -432,6 +503,39 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         }
       }
 
+      if (_selectedType == InvoiceType.deliveryChallan) {
+        final missingHsnCount = _items.where((i) => i.hsnCode == null || i.hsnCode!.trim().isEmpty).length;
+        if (missingHsnCount > 0) {
+          bool shouldProceed = false;
+          if (mounted) {
+            shouldProceed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Missing HSN Code'),
+                content: Text(
+                  'HSN code is missing on $missingHsnCount line(s). A delivery challan normally needs it — save anyway?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Save Anyway'),
+                  ),
+                ],
+              ),
+            ) ?? false;
+          }
+
+          if (!shouldProceed) {
+            if (mounted) setState(() => _isSaving = false);
+            return;
+          }
+        }
+      }
+
       final isGoods =
           _selectedType == InvoiceType.salesTaxInvoice ||
           _selectedType == InvoiceType.billOfSupply ||
@@ -598,8 +702,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     int index,
     _LineItem item,
     List<CopperStockData> copperStock,
-    List<MotorJob> motorJobs,
-  ) {
+    List<MotorJob> motorJobs, {
+    String? defaultMotorHsn,
+  }) {
     final showGst =
         _selectedType != InvoiceType.billOfSupply &&
         _selectedType != InvoiceType.deliveryChallan;
@@ -642,8 +747,15 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                           : "";
                       item.description =
                           '${job.motorDescription}$hpStr$phaseStr$gpStr\n${job.jobDescription}';
+                      item.descController?.text = item.description;
                       item.unitPrice = job.serviceCharge ?? 0;
-                      item.hsnCode = job.sacCode;
+                      if (_selectedType == InvoiceType.deliveryChallan) {
+                        item.hsnCode = (job.hsnCode != null && job.hsnCode!.trim().isNotEmpty)
+                            ? job.hsnCode!.trim()
+                            : (defaultMotorHsn != null && defaultMotorHsn.trim().isNotEmpty ? defaultMotorHsn.trim() : null);
+                      } else {
+                        item.hsnCode = job.sacCode;
+                      }
                       item.qty = 1;
                     });
                     _recalculate();
@@ -688,9 +800,11 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         SizedBox(
           width: 90,
           child: TextFormField(
-            key: ValueKey('hsn_${index}_${item.linkedId}'),
+            key: ValueKey('hsn_${index}_${item.linkedId}_${item.hsnCode}'),
             initialValue: item.hsnCode ?? '',
-            decoration: const InputDecoration(labelText: 'SAC/HSN'),
+            decoration: InputDecoration(
+              labelText: _selectedType == InvoiceType.deliveryChallan ? 'HSN' : 'SAC/HSN',
+            ),
             onChanged: (val) => item.hsnCode = val,
           ),
         ),
@@ -854,8 +968,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     AsyncValue<List<CopperStockData>> copperStockAsync,
     AsyncValue<List<MotorJob>> motorJobsAsync,
     AsyncValue<List<Customer>> customersAsync,
-    String companyState,
-  ) {
+    String companyState, {
+    String? defaultMotorHsn,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1479,6 +1594,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                   entry.value,
                   copperStock,
                   motorJobs,
+                  defaultMotorHsn: defaultMotorHsn,
                 );
               }).toList(),
             ),
@@ -1493,7 +1609,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            if (_selectedType == InvoiceType.serviceTaxInvoice) ...[
+            if (_selectedType == InvoiceType.serviceTaxInvoice ||
+                _selectedType == InvoiceType.deliveryChallan) ...[
               TextButton.icon(
                 onPressed: () => _addLineItem(ItemSourceType.motorJob),
                 icon: const Icon(Icons.engineering),
@@ -1734,6 +1851,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                                   motorJobsAsync,
                                   customersAsync,
                                   companyState,
+                                  defaultMotorHsn: companyAsync.value?.defaultMotorHsn,
                                 ),
                               ),
                             ),
@@ -1758,6 +1876,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                                 motorJobsAsync,
                                 customersAsync,
                                 companyState,
+                                defaultMotorHsn: companyAsync.value?.defaultMotorHsn,
                               ),
                               const SizedBox(height: 24),
                               _buildRightPane(showGst, totals),
