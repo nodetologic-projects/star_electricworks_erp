@@ -404,8 +404,10 @@ class CustomerLedgerPreviewDialog extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: () async {
                       await DirectPrintService.printPdf(
-                        bytes: pdfBytes,
-                        jobName: fileName,
+                        context,
+                        fileName,
+                        explicitPdfPath: file.path,
+                        fallbackGenerate: () async => pdfBytes,
                       );
                     },
                     icon: const Icon(Icons.print, size: 16),
