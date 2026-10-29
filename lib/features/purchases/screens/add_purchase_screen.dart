@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
 import 'package:starelectricerp/core/widgets/app_button.dart';
+import 'package:starelectricerp/core/widgets/app_date_field.dart';
+import 'package:starelectricerp/core/ist_date_utils.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/cashbook_repository.dart';
 import 'package:starelectricerp/data/repositories/purchases_repository.dart';
@@ -35,7 +36,7 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
   final _vendorController = TextEditingController();
   final _notesController = TextEditingController();
   
-  DateTime _purchaseDate = DateTime.now();
+  DateTime _purchaseDate = IstDateUtils.nowIst();
   PaymentMode? _paymentMode = PaymentMode.cash;
   bool _logInCashbook = true;
   bool _isEditing = false;
@@ -60,7 +61,7 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
       setState(() {
         _vendorController.text = purchase.vendorName ?? '';
         _notesController.text = purchase.notes ?? '';
-        _purchaseDate = purchase.purchaseDate;
+        _purchaseDate = IstDateUtils.toMidnightIst(purchase.purchaseDate);
         _paymentMode = purchase.paymentMode;
         _logInCashbook = false;
         _billImagePath = purchase.billImagePath;
@@ -186,8 +187,6 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd MMM yyyy');
-
     return AppLayout(
       currentRoute: '/purchases',
       appBar: AppBar(
@@ -214,17 +213,14 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.calendar_today),
-                      label: Text(dateFormat.format(_purchaseDate)),
-                      onPressed: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _purchaseDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2050),
-                        );
-                        if (picked != null) setState(() => _purchaseDate = picked);
+                    child: AppDateField(
+                      label: 'Purchase Date *',
+                      value: _purchaseDate,
+                      isRequired: true,
+                      onChanged: (d) {
+                        if (d != null) {
+                          setState(() => _purchaseDate = IstDateUtils.toMidnightIst(d));
+                        }
                       },
                     ),
                   ),

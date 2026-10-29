@@ -14,12 +14,28 @@ enum TaxMode {
   String get displayName {
     switch (this) {
       case TaxMode.cgst_sgst:
-        return 'CGST + SGST';
       case TaxMode.all_three:
-        return 'CGST + SGST + IGST';
+        return 'CGST + SGST';
       case TaxMode.igst_only:
-        return 'IGST only';
+        return 'IGST';
     }
+  }
+
+  /// Builds a dynamic label showing the GST rate, e.g. "CGST 9% + SGST 9%" and "IGST 18%".
+  /// If singleRate is null or lines have mixed rates, returns generic "CGST + SGST" and "IGST".
+  String getLabel(double? singleRate) {
+    if (singleRate != null && singleRate > 0) {
+      final rateStr = '${singleRate.toStringAsFixed(1).replaceAll('.0', '')}%';
+      final halfRateStr = '${(singleRate / 2.0).toStringAsFixed(1).replaceAll('.0', '')}%';
+      switch (this) {
+        case TaxMode.cgst_sgst:
+        case TaxMode.all_three:
+          return 'CGST $halfRateStr + SGST $halfRateStr';
+        case TaxMode.igst_only:
+          return 'IGST $rateStr';
+      }
+    }
+    return displayName;
   }
 }
 

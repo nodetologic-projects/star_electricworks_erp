@@ -43,7 +43,7 @@ class CopperStockRepository {
     return (_db.delete(_db.copperStock)..where((t) => t.id.equals(id))).go();
   }
 
-  Future<void> adjustStock(int stockId, double weightKg, MovementType type, {String? notes}) async {
+  Future<void> adjustStock(int stockId, double weightKg, MovementType type, {String? notes, DateTime? date}) async {
     await _db.transaction(() async {
       // 1. Get current stock
       final currentStock = await getCopperStockById(stockId);
@@ -67,6 +67,7 @@ class CopperStockRepository {
           movementType: type,
           weightKg: weightKg,
           notes: notes != null && notes.isNotEmpty ? drift.Value(notes) : const drift.Value.absent(),
+          createdAt: date != null ? drift.Value(date) : const drift.Value.absent(),
         )
       );
     });

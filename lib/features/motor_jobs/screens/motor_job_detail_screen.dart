@@ -156,6 +156,12 @@ class _MotorJobDetailScreenState extends ConsumerState<MotorJobDetailScreen> {
                     const SizedBox(width: 16),
                     StatusBadge(type: badgeType),
                     const Spacer(),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text('Edit Job'),
+                      onPressed: () => context.push('/jobs/${widget.jobId}/edit'),
+                    ),
+                    const SizedBox(width: 8),
                     if (job.status == MotorJobStatus.received || job.status == MotorJobStatus.inProgress)
                       AppButton(
                         label: job.status == MotorJobStatus.received ? 'Start Work' : 'Mark Rewound',

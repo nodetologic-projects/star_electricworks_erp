@@ -30,6 +30,12 @@ class CAExportService {
       return true;
     }).toList();
 
+    filtered.sort((a, b) {
+      final dateCmp = a.invoiceDate.compareTo(b.invoiceDate);
+      if (dateCmp != 0) return dateCmp;
+      return a.createdAt.compareTo(b.createdAt);
+    });
+
     if (filtered.isEmpty) {
       return 'No invoices found for the selected period.';
     }

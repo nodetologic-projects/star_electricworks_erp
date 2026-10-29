@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:starelectricerp/core/ist_date_utils.dart';
 import 'package:starelectricerp/core/widgets/app_button.dart';
+import 'package:starelectricerp/core/widgets/app_date_field.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
 import 'package:starelectricerp/data/repositories/copper_stock_repository.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
@@ -19,6 +21,7 @@ class _StockAdjustmentDialogState extends ConsumerState<StockAdjustmentDialog> {
 
   final _weightController = TextEditingController();
   final _notesController = TextEditingController();
+  DateTime _adjustmentDate = IstDateUtils.nowIst();
 
   bool _isAdjusting = false;
 
@@ -48,6 +51,7 @@ class _StockAdjustmentDialogState extends ConsumerState<StockAdjustmentDialog> {
         weight, 
         type,
         notes: _notesController.text,
+        date: IstDateUtils.toMidnightIst(_adjustmentDate),
       );
       
       if (mounted) {
@@ -98,6 +102,17 @@ class _StockAdjustmentDialogState extends ConsumerState<StockAdjustmentDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            AppDateField(
+              label: 'Adjustment Date *',
+              value: _adjustmentDate,
+              isRequired: true,
+              onChanged: (d) {
+                if (d != null) {
+                  setState(() => _adjustmentDate = IstDateUtils.toMidnightIst(d));
+                }
+              },
+            ),
+            const SizedBox(height: 16),
             AppTextField(
               label: 'Weight (kg)',
               controller: _weightController,

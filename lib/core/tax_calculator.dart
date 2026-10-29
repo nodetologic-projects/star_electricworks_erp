@@ -76,7 +76,7 @@ class TaxCalculator {
   }) {
     final effectiveTaxMode = useIgst != null
         ? (useIgst ? TaxMode.igst_only : TaxMode.cgst_sgst)
-        : taxMode;
+        : (taxMode == TaxMode.all_three ? TaxMode.cgst_sgst : taxMode);
 
     double rawSubtotal = 0.0;
     double sumItemDiscounts = 0.0;

@@ -1,8 +1,9 @@
-import 'package:drift/drift.dart' as import_drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
+import 'package:starelectricerp/core/widgets/app_date_field.dart';
+import 'package:starelectricerp/core/ist_date_utils.dart';
 import 'package:starelectricerp/data/database.dart';
 
 import 'package:drift/drift.dart' as drift;
@@ -130,6 +131,7 @@ class _AddEmployeeDialogState extends ConsumerState<AddEmployeeDialog> {
   late TextEditingController _phoneController;
   late TextEditingController _wageController;
   late bool _isActive;
+  DateTime _joiningDate = IstDateUtils.nowIst();
 
   @override
   void initState() {
@@ -139,6 +141,9 @@ class _AddEmployeeDialogState extends ConsumerState<AddEmployeeDialog> {
     _phoneController = TextEditingController(text: widget.employee?.phone ?? '');
     _wageController = TextEditingController(text: widget.employee?.dailyWage?.toString() ?? '');
     _isActive = widget.employee?.isActive ?? true;
+    _joiningDate = widget.employee != null
+        ? IstDateUtils.toMidnightIst(widget.employee!.joiningDate)
+        : IstDateUtils.nowIst();
   }
 
   @override
@@ -158,6 +163,7 @@ class _AddEmployeeDialogState extends ConsumerState<AddEmployeeDialog> {
     final role = _roleController.text.isEmpty ? null : _roleController.text;
     final phone = _phoneController.text.isEmpty ? null : _phoneController.text;
     final wage = double.tryParse(_wageController.text);
+    final normalizedJoining = IstDateUtils.toMidnightIst(_joiningDate);
 
     if (widget.employee == null) {
       await db.into(db.employees).insert(EmployeesCompanion.insert(
@@ -165,7 +171,7 @@ class _AddEmployeeDialogState extends ConsumerState<AddEmployeeDialog> {
         role: drift.Value(role),
         phone: drift.Value(phone),
         dailyWage: drift.Value(wage),
-        joiningDate: DateTime.now(),
+        joiningDate: normalizedJoining,
         isActive: drift.Value(_isActive),
       ));
     } else {
@@ -175,6 +181,7 @@ class _AddEmployeeDialogState extends ConsumerState<AddEmployeeDialog> {
           role: drift.Value(role),
           phone: drift.Value(phone),
           dailyWage: drift.Value(wage),
+          joiningDate: drift.Value(normalizedJoining),
           isActive: drift.Value(_isActive),
         ),
       );
@@ -211,6 +218,17 @@ class _AddEmployeeDialogState extends ConsumerState<AddEmployeeDialog> {
                 controller: _wageController,
                 decoration: const InputDecoration(labelText: 'Daily Wage (₹)'),
                 keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              AppDateField(
+                label: 'Joining Date *',
+                value: _joiningDate,
+                isRequired: true,
+                onChanged: (d) {
+                  if (d != null) {
+                    setState(() => _joiningDate = IstDateUtils.toMidnightIst(d));
+                  }
+                },
               ),
               if (widget.employee != null)
                 SwitchListTile(

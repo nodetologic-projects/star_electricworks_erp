@@ -20,6 +20,9 @@ import 'package:starelectricerp/core/widgets/gstin_input_field.dart';
 import 'package:starelectricerp/core/tax_calculator.dart';
 import 'package:starelectricerp/core/number_to_words.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
+import 'package:starelectricerp/core/widgets/app_date_field.dart';
+import 'package:starelectricerp/core/ist_date_utils.dart';
+import 'package:starelectricerp/core/financial_year.dart';
 
 class _LineItem {
   ItemSourceType type;
@@ -97,6 +100,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   DateTime? _gpDate;
   DateTime _invoiceDate = DateTime.now();
   DateTime? _dueDate;
+  bool _isDueDateManuallyOverridden = false;
   int? _paymentTermDays;
   final List<_LineItem> _items = [];
   String _notes = '';
@@ -177,11 +181,12 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   @override
   void initState() {
     super.initState();
+    _invoiceDate = IstDateUtils.nowIst();
     _selectedType = widget.prefillType ?? InvoiceType.serviceTaxInvoice;
     _selectedCustomer = widget.prefillCustomerId;
 
     if (widget.invoiceId != null) {
-      _isInvoiceNoManuallyEdited = true;
+      _isInvoiceNoManuallyEdited = false;
       Future.microtask(() => _loadExistingInvoice(widget.invoiceId!));
     } else {
       _fetchNextInvoiceNumber();
@@ -204,12 +209,12 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   }
 
   Future<void> _fetchNextInvoiceNumber() async {
-    if (_isInvoiceNoManuallyEdited || widget.invoiceId != null) return;
+    if (_isInvoiceNoManuallyEdited || !_isInvoiceNoEditable) return;
     setState(() => _isLoadingInvoiceNo = true);
     try {
       final repo = ref.read(invoicesRepositoryProvider);
       final nextNo = await repo.getNextInvoiceNumber(_selectedType, _invoiceDate);
-      if (mounted && !_isInvoiceNoManuallyEdited && widget.invoiceId == null) {
+      if (mounted && !_isInvoiceNoManuallyEdited && _isInvoiceNoEditable) {
         setState(() {
           _invoiceNoController.text = nextNo;
           _isLoadingInvoiceNo = false;
@@ -234,12 +239,18 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         _selectedCustomer = existingInvoice.customerId;
         _invoiceNoController.text = existingInvoice.invoiceNo;
         _isInvoiceNoEditable = existingInvoice.status == InvoiceStatus.draft;
-        _isInvoiceNoManuallyEdited = true;
+        _isInvoiceNoManuallyEdited = false;
         _invoiceDate = existingInvoice.invoiceDate;
         _dueDate = existingInvoice.dueDate ?? existingInvoice.invoiceDate;
-        _paymentTermDays = existingInvoice.paymentTermDays ?? 0;
+        _paymentTermDays = existingInvoice.paymentTermDays;
+        final expectedDue = _paymentTermDays != null && _paymentTermDays! > 0
+            ? _invoiceDate.add(Duration(days: _paymentTermDays!))
+            : null;
+        _isDueDateManuallyOverridden = expectedDue == null || !IstDateUtils.isSameDay(_dueDate!, expectedDue);
         _deliveryCharge = existingInvoice.deliveryCharge ?? 0;
-        _taxMode = existingInvoice.taxMode;
+        _taxMode = existingInvoice.taxMode == TaxMode.all_three
+            ? TaxMode.cgst_sgst
+            : existingInvoice.taxMode;
         _notes = existingInvoice.notes ?? '';
         
           _customerNameController.text = existingCustomer.name;
@@ -382,7 +393,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         customerId: finalCustomerId,
         type: _selectedType,
         grandTotal: totals.grandTotal,
-        date: DateTime.now(),
+        date: _invoiceDate,
         excludeInvoiceId: widget.invoiceId,
       );
 
@@ -958,16 +969,48 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             ),
             if (showGst)
               SizedBox(
-                width: isDesktop ? 220 : double.infinity,
+                width: isDesktop ? 240 : double.infinity,
                 child: AppSelect<TaxMode>(
                   label: 'Tax Type',
-                  value: _taxMode,
-                  items: TaxMode.values.map((mode) {
-                    return DropdownMenuItem(
-                      value: mode,
-                      child: Text(mode.displayName),
-                    );
-                  }).toList(),
+                  value: _taxMode == TaxMode.all_three ? TaxMode.cgst_sgst : _taxMode,
+                  items: [
+                    DropdownMenuItem(
+                      value: TaxMode.cgst_sgst,
+                      child: Text(TaxMode.cgst_sgst.getLabel(
+                        _items
+                            .map((i) => i.gstRate)
+                            .where((r) => r != null && r > 0)
+                            .map((r) => r!)
+                            .toSet()
+                            .length == 1
+                            ? _items
+                                .map((i) => i.gstRate)
+                                .where((r) => r != null && r > 0)
+                                .map((r) => r!)
+                                .toSet()
+                                .first
+                            : null,
+                      )),
+                    ),
+                    DropdownMenuItem(
+                      value: TaxMode.igst_only,
+                      child: Text(TaxMode.igst_only.getLabel(
+                        _items
+                            .map((i) => i.gstRate)
+                            .where((r) => r != null && r > 0)
+                            .map((r) => r!)
+                            .toSet()
+                            .length == 1
+                            ? _items
+                                .map((i) => i.gstRate)
+                                .where((r) => r != null && r > 0)
+                                .map((r) => r!)
+                                .toSet()
+                                .first
+                            : null,
+                      )),
+                    ),
+                  ],
                   onChanged: _isInvoiceNoEditable
                       ? (val) {
                           if (val != null) {
@@ -1113,7 +1156,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Customer is in another state — IGST usually applies. Suggest "IGST only"?',
+                    'Customer is in another state — IGST usually applies. Suggest IGST?',
                     style: TextStyle(
                       color: Colors.amber.shade900,
                       fontWeight: FontWeight.w500,
@@ -1132,7 +1175,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: const Text(
-                      'Switch to IGST only',
+                      'Switch to IGST',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -1227,41 +1270,107 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           'Invoice Dates & Terms',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+        Builder(
+          builder: (context) {
+            final todayFY = FinancialYear.getFinancialStartYear(DateTime.now());
+            final invFY = FinancialYear.getFinancialStartYear(_invoiceDate);
+            final isDifferentFY = invFY != todayFY;
+            final fyLabel = 'FY $invFY-${(invFY + 1).toString().substring(2)}';
+            final isOlderThan30Days = _invoiceDate.isBefore(IstDateUtils.nowIst().subtract(const Duration(days: 30)));
+            final isFutureInvoice = _invoiceDate.isAfter(IstDateUtils.nowIst());
+
+            if (!isDifferentFY && !isOlderThan30Days && !isFutureInvoice) {
+              return const SizedBox.shrink();
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isDifferentFY)
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.amber.shade900, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Invoice date is in a different financial year — number series changed to $fyLabel',
+                              style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.w500, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (isOlderThan30Days) ...[
+                      if (isDifferentFY) const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Invoice date is more than 30 days in the past',
+                              style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.w500, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (isFutureInvoice) ...[
+                      if (isDifferentFY || isOlderThan30Days) const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.schedule, color: Colors.amber.shade900, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Invoice is future-dated',
+                              style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.w500, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _invoiceDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
+              child: AppDateField(
+                label: 'Invoice Date *',
+                value: _invoiceDate,
+                enabled: _isInvoiceNoEditable,
+                isRequired: true,
+                onChanged: (picked) {
                   if (picked != null) {
                     setState(() {
-                      _invoiceDate = picked;
-                      if (_paymentTermDays != null) {
+                      _invoiceDate = IstDateUtils.toMidnightIst(picked);
+                      if (!_isDueDateManuallyOverridden &&
+                          _paymentTermDays != null &&
+                          _paymentTermDays! > 0) {
                         _dueDate = _invoiceDate.add(
                           Duration(days: _paymentTermDays!),
                         );
                       }
                     });
-                    if (!_isInvoiceNoManuallyEdited && widget.invoiceId == null) {
+                    if (!_isInvoiceNoManuallyEdited && _isInvoiceNoEditable) {
                       _fetchNextInvoiceNumber();
                     }
                   }
                 },
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Invoice Date',
-                    border: OutlineInputBorder(),
-                  ),
-                  child: Text(
-                    "${_invoiceDate.day}/${_invoiceDate.month}/${_invoiceDate.year}",
-                  ),
-                ),
               ),
             ),
             const SizedBox(width: 16),
@@ -1283,6 +1392,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       _paymentTermDays = val;
                       if (val != null) {
                         _dueDate = _invoiceDate.add(Duration(days: val));
+                        _isDueDateManuallyOverridden = false;
                       }
                     });
                   },
@@ -1291,29 +1401,16 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               const SizedBox(width: 16),
             ],
             Expanded(
-              child: InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _dueDate ?? _invoiceDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) {
-                    setState(() => _dueDate = picked);
-                  }
+              child: AppDateField(
+                label: 'Due Date',
+                value: _dueDate,
+                enabled: _isInvoiceNoEditable,
+                onChanged: (picked) {
+                  setState(() {
+                    _dueDate = picked != null ? IstDateUtils.toMidnightIst(picked) : null;
+                    _isDueDateManuallyOverridden = true;
+                  });
                 },
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Due Date',
-                    border: OutlineInputBorder(),
-                  ),
-                  child: Text(
-                    _dueDate != null
-                        ? "${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}"
-                        : 'Select Due Date',
-                  ),
-                ),
               ),
             ),
           ],
@@ -1325,6 +1422,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         ),
         const SizedBox(height: 16),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: AppTextField(
@@ -1334,29 +1432,15 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _poDate ?? DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) {
-                    setState(() => _poDate = picked);
-                  }
+              child: AppDateField(
+                label: 'PO Date',
+                value: _poDate,
+                enabled: _isInvoiceNoEditable,
+                onChanged: (picked) {
+                  setState(() {
+                    _poDate = picked != null ? IstDateUtils.toMidnightIst(picked) : null;
+                  });
                 },
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'PO Date',
-                    border: OutlineInputBorder(),
-                  ),
-                  child: Text(
-                    _poDate != null
-                        ? "${_poDate!.day}/${_poDate!.month}/${_poDate!.year}"
-                        : 'Select Date',
-                  ),
-                ),
               ),
             ),
             const SizedBox(width: 16),
@@ -1368,28 +1452,15 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _gpDate ?? DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) {
-                    setState(() => _gpDate = picked);
-                  }
+              child: AppDateField(
+                label: 'GP Date',
+                value: _gpDate,
+                enabled: _isInvoiceNoEditable,
+                onChanged: (picked) {
+                  setState(() {
+                    _gpDate = picked != null ? IstDateUtils.toMidnightIst(picked) : null;
+                  });
                 },
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'GP Date',
-                  ),
-                  child: Text(
-                    _gpDate != null
-                        ? "${_gpDate!.day}/${_gpDate!.month}/${_gpDate!.year}"
-                        : 'Select Date',
-                  ),
-                ),
               ),
             ),
           ],
@@ -1523,15 +1594,11 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     totals.sgstAmount > 0 ||
                     totals.igstAmount > 0)) ...[
               const Divider(),
-              if (_taxMode == TaxMode.cgst_sgst) ...[
-                _buildSummaryRow('CGST:', totals.cgstAmount),
-                _buildSummaryRow('SGST:', totals.sgstAmount),
-              ] else if (_taxMode == TaxMode.all_three) ...[
-                _buildSummaryRow('CGST:', totals.cgstAmount),
-                _buildSummaryRow('SGST:', totals.sgstAmount),
-                _buildSummaryRow('IGST:', 0.0),
-              ] else if (_taxMode == TaxMode.igst_only) ...[
+              if (_taxMode == TaxMode.igst_only) ...[
                 _buildSummaryRow('IGST:', totals.igstAmount),
+              ] else ...[
+                _buildSummaryRow('CGST:', totals.cgstAmount),
+                _buildSummaryRow('SGST:', totals.sgstAmount),
               ],
             ],
             const Divider(thickness: 2),

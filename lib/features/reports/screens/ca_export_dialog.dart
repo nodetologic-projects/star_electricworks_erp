@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:starelectricerp/core/ist_date_utils.dart';
+import 'package:starelectricerp/core/widgets/app_date_field.dart';
 import 'package:starelectricerp/data/repositories/invoices_repository.dart';
 import 'package:starelectricerp/features/reports/services/ca_export_service.dart';
 
@@ -48,27 +50,15 @@ class _CAExportDialogState extends ConsumerState<CAExportDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Select Month:'),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text('${_selectedMonth.year} - ${_selectedMonth.month.toString().padLeft(2, '0')}'),
-              const Spacer(),
-              TextButton(
-                onPressed: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedMonth,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
-                  );
-                  if (date != null) {
-                    setState(() => _selectedMonth = date);
-                  }
-                },
-                child: const Text('Change'),
-              ),
-            ],
+          AppDateField(
+            label: 'Month (Pick any date in target month) *',
+            value: _selectedMonth,
+            isRequired: true,
+            onChanged: (date) {
+              if (date != null) {
+                setState(() => _selectedMonth = IstDateUtils.toMidnightIst(date));
+              }
+            },
           ),
           const SizedBox(height: 16),
           CheckboxListTile(

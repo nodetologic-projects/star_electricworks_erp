@@ -521,8 +521,32 @@ void main() {
       });
     });
 
-    group('Three Tax Modes (cgst_sgst, all_three, igst_only)', () {
-      test('1. Single rate: all modes have identical total tax and grand total; all_three has igst 0.0', () {
+    group('TaxMode Dynamic Labels', () {
+      test('Generates rate-specific labels when a single positive rate exists', () {
+        expect(TaxMode.cgst_sgst.getLabel(18.0), 'CGST 9% + SGST 9%');
+        expect(TaxMode.igst_only.getLabel(18.0), 'IGST 18%');
+
+        expect(TaxMode.cgst_sgst.getLabel(12.0), 'CGST 6% + SGST 6%');
+        expect(TaxMode.igst_only.getLabel(12.0), 'IGST 12%');
+
+        expect(TaxMode.cgst_sgst.getLabel(5.0), 'CGST 2.5% + SGST 2.5%');
+        expect(TaxMode.igst_only.getLabel(5.0), 'IGST 5%');
+
+        expect(TaxMode.cgst_sgst.getLabel(28.0), 'CGST 14% + SGST 14%');
+        expect(TaxMode.igst_only.getLabel(28.0), 'IGST 28%');
+      });
+
+      test('Generates generic labels when rate is null or zero (mixed rates / exempt)', () {
+        expect(TaxMode.cgst_sgst.getLabel(null), 'CGST + SGST');
+        expect(TaxMode.igst_only.getLabel(null), 'IGST');
+
+        expect(TaxMode.cgst_sgst.getLabel(0.0), 'CGST + SGST');
+        expect(TaxMode.igst_only.getLabel(0.0), 'IGST');
+      });
+    });
+
+    group('Two Tax Modes (CGST+SGST vs IGST)', () {
+      test('1. Single rate: total tax is equal in both modes, line tax sum equals Total Tax Amount', () {
         final items = [
           InvoiceLineItemInput(lineTotal: 10000.0, gstRate: 18.0),
         ];
@@ -535,45 +559,42 @@ void main() {
         final opt2 = TaxCalculator.calculate(
           invoiceType: InvoiceType.salesTaxInvoice,
           items: items,
-          taxMode: TaxMode.all_three,
-        );
-        final opt3 = TaxCalculator.calculate(
-          invoiceType: InvoiceType.salesTaxInvoice,
-          items: items,
           taxMode: TaxMode.igst_only,
         );
 
-        // Option 1
+        // Option 1 ("CGST 9% + SGST 9%"): split half CGST, half SGST, IGST is 0.0
         expect(opt1.cgstAmount, 900.0);
         expect(opt1.sgstAmount, 900.0);
         expect(opt1.igstAmount, 0.0);
         final totalTax1 = opt1.cgstAmount + opt1.sgstAmount + opt1.igstAmount;
         expect(totalTax1, 1800.0);
 
-        // Option 2 (all_three): tax is split half CGST and half SGST, IGST is 0.0
-        expect(opt2.cgstAmount, 900.0);
-        expect(opt2.sgstAmount, 900.0);
-        expect(opt2.igstAmount, 0.0);
+        // Option 2 ("IGST 18%"): CGST & SGST are 0.0, IGST is full GST
+        expect(opt2.cgstAmount, 0.0);
+        expect(opt2.sgstAmount, 0.0);
+        expect(opt2.igstAmount, 1800.0);
         final totalTax2 = opt2.cgstAmount + opt2.sgstAmount + opt2.igstAmount;
         expect(totalTax2, totalTax1);
         expect(opt2.grandTotal, opt1.grandTotal);
 
-        // Option 3 (igst_only): CGST & SGST are 0.0, IGST is full GST
-        expect(opt3.cgstAmount, 0.0);
-        expect(opt3.sgstAmount, 0.0);
-        expect(opt3.igstAmount, 1800.0);
-        final totalTax3 = opt3.cgstAmount + opt3.sgstAmount + opt3.igstAmount;
-        expect(totalTax3, totalTax1);
-        expect(opt3.grandTotal, opt1.grandTotal);
-
-        // Line tax sum equals total tax amount in all modes
+        // Line tax sum equals total tax amount in both modes
         final lineTaxSum = items.fold(0.0, (acc, i) => acc + i.totalGst);
         expect(lineTaxSum, totalTax1);
         expect(lineTaxSum, totalTax2);
-        expect(lineTaxSum, totalTax3);
+
+        // Legacy all_three maps to cgst_sgst on calculation
+        final legacyAllThree = TaxCalculator.calculate(
+          invoiceType: InvoiceType.salesTaxInvoice,
+          items: items,
+          taxMode: TaxMode.all_three,
+        );
+        expect(legacyAllThree.cgstAmount, opt1.cgstAmount);
+        expect(legacyAllThree.sgstAmount, opt1.sgstAmount);
+        expect(legacyAllThree.igstAmount, 0.0);
+        expect(legacyAllThree.grandTotal, opt1.grandTotal);
       });
 
-      test('2. Mixed rates: all modes have identical total tax and grand total; all_three has igst 0.0', () {
+      test('2. Mixed rates: total tax is equal in both modes, line tax sum equals Total Tax Amount', () {
         final items = [
           InvoiceLineItemInput(lineTotal: 30000.0, gstRate: 18.0),
           InvoiceLineItemInput(lineTotal: 20000.0, gstRate: 12.0),
@@ -588,36 +609,24 @@ void main() {
         final opt2 = TaxCalculator.calculate(
           invoiceType: InvoiceType.salesTaxInvoice,
           items: items,
-          taxMode: TaxMode.all_three,
-        );
-        final opt3 = TaxCalculator.calculate(
-          invoiceType: InvoiceType.salesTaxInvoice,
-          items: items,
           taxMode: TaxMode.igst_only,
         );
 
         final totalTax1 = opt1.cgstAmount + opt1.sgstAmount + opt1.igstAmount;
         final totalTax2 = opt2.cgstAmount + opt2.sgstAmount + opt2.igstAmount;
-        final totalTax3 = opt3.cgstAmount + opt3.sgstAmount + opt3.igstAmount;
 
-        expect(opt2.igstAmount, 0.0);
-        expect(opt2.cgstAmount, opt1.cgstAmount);
-        expect(opt2.sgstAmount, opt1.sgstAmount);
+        expect(opt1.igstAmount, 0.0);
+        expect(opt2.cgstAmount, 0.0);
+        expect(opt2.sgstAmount, 0.0);
+        expect(opt2.igstAmount, totalTax1);
         expect(totalTax2, totalTax1);
-
-        expect(opt3.cgstAmount, 0.0);
-        expect(opt3.sgstAmount, 0.0);
-        expect(opt3.igstAmount, totalTax1);
-        expect(totalTax3, totalTax1);
-
         expect(opt2.grandTotal, opt1.grandTotal);
-        expect(opt3.grandTotal, opt1.grandTotal);
 
         final lineTaxSum = items.fold(0.0, (acc, i) => acc + i.totalGst);
         expect(lineTaxSum, totalTax1);
       });
 
-      test('3. Per-line discount: all modes have identical total tax and grand total; all_three has igst 0.0', () {
+      test('3. Per-line discount: total tax is equal in both modes, line tax sum equals Total Tax Amount', () {
         final items = [
           InvoiceLineItemInput(lineTotal: 60000.0, discountPercent: 10.0, gstRate: 18.0),
           InvoiceLineItemInput(lineTotal: 40000.0, discountPercent: 5.0, gstRate: 12.0),
@@ -631,29 +640,20 @@ void main() {
         final opt2 = TaxCalculator.calculate(
           invoiceType: InvoiceType.salesTaxInvoice,
           items: items,
-          taxMode: TaxMode.all_three,
-        );
-        final opt3 = TaxCalculator.calculate(
-          invoiceType: InvoiceType.salesTaxInvoice,
-          items: items,
           taxMode: TaxMode.igst_only,
         );
 
         final totalTax1 = opt1.cgstAmount + opt1.sgstAmount + opt1.igstAmount;
         final totalTax2 = opt2.cgstAmount + opt2.sgstAmount + opt2.igstAmount;
-        final totalTax3 = opt3.cgstAmount + opt3.sgstAmount + opt3.igstAmount;
 
-        expect(opt2.igstAmount, 0.0);
         expect(totalTax2, totalTax1);
-        expect(totalTax3, totalTax1);
         expect(opt2.grandTotal, opt1.grandTotal);
-        expect(opt3.grandTotal, opt1.grandTotal);
 
         final lineTaxSum = items.fold(0.0, (acc, i) => acc + i.totalGst);
         expect(lineTaxSum, totalTax1);
       });
 
-      test('4. Rounding: all modes have identical total tax and grand total; all_three has igst 0.0', () {
+      test('4. Rounding: total tax is equal in both modes, line tax sum equals Total Tax Amount', () {
         final items = [
           InvoiceLineItemInput(lineTotal: 99.55, discountPercent: 3.3, gstRate: 18.0),
           InvoiceLineItemInput(lineTotal: 149.85, discountPercent: 7.1, gstRate: 12.0),
@@ -667,34 +667,25 @@ void main() {
         final opt2 = TaxCalculator.calculate(
           invoiceType: InvoiceType.salesTaxInvoice,
           items: items,
-          taxMode: TaxMode.all_three,
-        );
-        final opt3 = TaxCalculator.calculate(
-          invoiceType: InvoiceType.salesTaxInvoice,
-          items: items,
           taxMode: TaxMode.igst_only,
         );
 
         final totalTax1 = opt1.cgstAmount + opt1.sgstAmount + opt1.igstAmount;
         final totalTax2 = opt2.cgstAmount + opt2.sgstAmount + opt2.igstAmount;
-        final totalTax3 = opt3.cgstAmount + opt3.sgstAmount + opt3.igstAmount;
 
-        expect(opt2.igstAmount, 0.0);
         expect(totalTax2, closeTo(totalTax1, 0.0001));
-        expect(totalTax3, closeTo(totalTax1, 0.0001));
         expect(opt2.grandTotal, opt1.grandTotal);
-        expect(opt3.grandTotal, opt1.grandTotal);
 
         final lineTaxSum = items.fold(0.0, (acc, i) => acc + i.totalGst);
         expect(lineTaxSum, closeTo(totalTax1, 0.0001));
       });
 
-      test('Bill of Supply and Delivery Challan ignore all tax modes', () {
+      test('Bill of Supply and Delivery Challan ignore tax modes', () {
         final items = [
           InvoiceLineItemInput(lineTotal: 1000.0, gstRate: 18.0),
         ];
 
-        for (final mode in TaxMode.values) {
+        for (final mode in [TaxMode.cgst_sgst, TaxMode.igst_only]) {
           final bos = TaxCalculator.calculate(
             invoiceType: InvoiceType.billOfSupply,
             items: items,

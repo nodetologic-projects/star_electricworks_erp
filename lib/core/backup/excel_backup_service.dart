@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:starelectricerp/data/database.dart';
+import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/core/utils/permission_util.dart';
 
 final excelBackupServiceProvider = Provider((ref) {
@@ -106,6 +107,10 @@ class ExcelBackupService {
                 expression: i.invoiceDate,
                 mode: drift.OrderingMode.desc,
               ),
+              (i) => drift.OrderingTerm(
+                expression: i.createdAt,
+                mode: drift.OrderingMode.desc,
+              ),
             ]))
             .get();
     _writeSheet(
@@ -144,7 +149,7 @@ class ExcelBackupService {
               i.cgstAmount,
               i.sgstAmount,
               i.igstAmount,
-              i.taxMode.name,
+              i.taxMode == TaxMode.all_three ? TaxMode.cgst_sgst.name : i.taxMode.name,
               i.discountAmount,
               i.deliveryCharge ?? 0,
               i.grandTotal,
@@ -203,6 +208,10 @@ class ExcelBackupService {
         await (_db.select(_db.motorJobs)..orderBy([
               (j) => drift.OrderingTerm(
                 expression: j.dateReceived,
+                mode: drift.OrderingMode.desc,
+              ),
+              (j) => drift.OrderingTerm(
+                expression: j.createdAt,
                 mode: drift.OrderingMode.desc,
               ),
             ]))
@@ -322,6 +331,10 @@ class ExcelBackupService {
                 expression: a.date,
                 mode: drift.OrderingMode.desc,
               ),
+              (a) => drift.OrderingTerm(
+                expression: a.createdAt,
+                mode: drift.OrderingMode.desc,
+              ),
             ]))
             .get();
     _writeSheet(
@@ -346,6 +359,10 @@ class ExcelBackupService {
         await (_db.select(_db.quotations)..orderBy([
               (q) => drift.OrderingTerm(
                 expression: q.createdAt,
+                mode: drift.OrderingMode.desc,
+              ),
+              (q) => drift.OrderingTerm(
+                expression: q.id,
                 mode: drift.OrderingMode.desc,
               ),
             ]))
@@ -389,6 +406,10 @@ class ExcelBackupService {
                 expression: t.transactionDate,
                 mode: drift.OrderingMode.desc,
               ),
+              (t) => drift.OrderingTerm(
+                expression: t.createdAt,
+                mode: drift.OrderingMode.desc,
+              ),
             ]))
             .get();
     _writeSheet(
@@ -414,6 +435,10 @@ class ExcelBackupService {
         await (_db.select(_db.payments)..orderBy([
               (p) => drift.OrderingTerm(
                 expression: p.paymentDate,
+                mode: drift.OrderingMode.desc,
+              ),
+              (p) => drift.OrderingTerm(
+                expression: p.createdAt,
                 mode: drift.OrderingMode.desc,
               ),
             ]))

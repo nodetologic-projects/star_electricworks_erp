@@ -81,7 +81,7 @@ class CustomerLedgerScreen extends ConsumerWidget {
                           ),
                           subtitle: Text(
                             'Date: ${DateFormat('dd/MM/yyyy').format(inv.invoiceDate)}\n'
-                            'Grand Total: ₹${inv.grandTotal.toStringAsFixed(2)} | Paid: ₹${row.totalPaid.toStringAsFixed(2)} | Balance: ₹${row.balanceDue.toStringAsFixed(2)}'
+                            'Grand Total: ₹${inv.grandTotal.toStringAsFixed(2)} | Paid: ₹${row.totalPaid.toStringAsFixed(2)} | Balance: ₹${row.balanceDue.toStringAsFixed(2)} | Running Bal: ₹${row.runningBalance.toStringAsFixed(2)}'
                             '${inv.reminderSentDate != null ? "\nLast Reminder: ${DateFormat('dd/MM/yyyy HH:mm').format(inv.reminderSentDate!)}" : ""}'
                           ),
                           isThreeLine: true,

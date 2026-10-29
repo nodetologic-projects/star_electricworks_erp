@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:starelectricerp/core/ist_date_utils.dart';
+import 'package:starelectricerp/core/widgets/app_date_field.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
 import 'package:starelectricerp/core/widgets/rich_text_input.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/quotations_repository.dart';
 import 'package:starelectricerp/features/customers/providers/customers_provider.dart';
-import 'package:intl/intl.dart';
 
 class QuotationFormScreen extends ConsumerStatefulWidget {
-  const QuotationFormScreen({super.key});
+  final int? quotationId;
+  const QuotationFormScreen({super.key, this.quotationId});
 
   @override
   ConsumerState<QuotationFormScreen> createState() => _QuotationFormScreenState();
@@ -28,7 +30,41 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
   final _descCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
   
+  DateTime _quotationDate = IstDateUtils.nowIst();
   DateTime? _validUntil;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.quotationId != null) {
+      _loadQuotation();
+    }
+  }
+
+  Future<void> _loadQuotation() async {
+    setState(() => _isLoading = true);
+    try {
+      final repo = ref.read(quotationsRepositoryProvider);
+      final qData = await repo.getQuotationById(widget.quotationId!);
+      final q = qData.quotation;
+      if (mounted) {
+        setState(() {
+          _isProspective = q.customerId == null;
+          _selectedCustomerId = q.customerId;
+          _prospectiveNameCtrl.text = q.prospectiveCustomerName ?? '';
+          _prospectivePhoneCtrl.text = q.prospectiveCustomerPhone ?? '';
+          _descCtrl.text = q.description;
+          _amountCtrl.text = q.estimatedAmount.toStringAsFixed(2);
+          _quotationDate = IstDateUtils.toMidnightIst(q.createdAt);
+          _validUntil = q.validUntil != null ? IstDateUtils.toMidnightIst(q.validUntil!) : null;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -53,6 +89,8 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
     }
 
     final repo = ref.read(quotationsRepositoryProvider);
+    final normalizedQuotationDate = IstDateUtils.toMidnightIst(_quotationDate);
+    final normalizedValidUntil = _validUntil != null ? IstDateUtils.toMidnightIst(_validUntil!) : null;
     
     final companion = QuotationsCompanion(
       customerId: _isProspective ? const drift.Value.absent() : drift.Value(_selectedCustomerId),
@@ -60,16 +98,22 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
       prospectiveCustomerPhone: _isProspective ? drift.Value(_prospectivePhoneCtrl.text.trim()) : const drift.Value.absent(),
       description: drift.Value(_descCtrl.text.trim()),
       estimatedAmount: drift.Value(double.parse(_amountCtrl.text)),
-      validUntil: drift.Value(_validUntil),
+      createdAt: drift.Value(normalizedQuotationDate),
+      validUntil: drift.Value(normalizedValidUntil),
     );
 
-    await repo.insertQuotation(companion);
+    if (widget.quotationId != null) {
+      await repo.updateQuotation(widget.quotationId!, companion);
+    } else {
+      await repo.insertQuotation(companion);
+    }
     
-    // Invalidate list
     ref.invalidate(quotationsRepositoryProvider);
     
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quotation Created')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.quotationId != null ? 'Quotation Updated' : 'Quotation Created')),
+      );
       context.pop();
     }
   }
@@ -81,13 +125,15 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
     return AppLayout(
       currentRoute: '/quotations',
       appBar: AppBar(
-        title: const Text('New Quotation'),
+        title: Text(widget.quotationId != null ? 'Edit Quotation' : 'New Quotation'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
       ),
-      child: Padding(
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
         padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
@@ -123,28 +169,72 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                       else ...[
                         AppTextField(
                           controller: _prospectiveNameCtrl,
-                          label: 'Name',
-                          hintText: 'Customer Name',
+                          label: 'Prospective Customer Name *',
+                          hintText: 'John Doe / XYZ Company',
+                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 16),
                         AppTextField(
                           controller: _prospectivePhoneCtrl,
-                          label: 'Phone (Optional)',
-                          hintText: 'e.g. 9876543210',
+                          label: 'Phone Number (Optional)',
+                          hintText: '9876543210',
+                          keyboardType: TextInputType.phone,
                         ),
                       ],
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Quotation Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Text('Dates & Terms', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: AppDateField(
+                              label: 'Quotation Date *',
+                              value: _quotationDate,
+                              isRequired: true,
+                              onChanged: (d) {
+                                if (d != null) {
+                                  setState(() => _quotationDate = IstDateUtils.toMidnightIst(d));
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: AppDateField(
+                              label: 'Valid Until (Optional)',
+                              value: _validUntil,
+                              onChanged: (d) {
+                                setState(() {
+                                  _validUntil = d != null ? IstDateUtils.toMidnightIst(d) : null;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Job / Item Scope', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 16),
                       RichTextInput(
                         controller: _descCtrl,
@@ -154,42 +244,16 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                         validator: (val) => val == null || val.isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              controller: _amountCtrl,
-                              label: 'Estimated Amount (₹)',
-                              hintText: '0.00',
-                              keyboardType: TextInputType.number,
-                              validator: (val) {
-                                if (val == null || val.isEmpty) return 'Required';
-                                if (double.tryParse(val) == null) return 'Invalid number';
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final date = await showDatePicker(
-                                  context: context,
-                                  initialDate: _validUntil ?? DateTime.now().add(const Duration(days: 15)),
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                                );
-                                if (date != null) {
-                                  setState(() => _validUntil = date);
-                                }
-                              },
-                              child: InputDecorator(
-                                decoration: const InputDecoration(labelText: 'Valid Until (Optional)', border: OutlineInputBorder()),
-                                child: Text(_validUntil != null ? DateFormat('dd/MM/yyyy').format(_validUntil!) : 'Select Date'),
-                              ),
-                            ),
-                          ),
-                        ],
+                      AppTextField(
+                        controller: _amountCtrl,
+                        label: 'Estimated Amount (₹) *',
+                        hintText: '0.00',
+                        keyboardType: TextInputType.number,
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return 'Required';
+                          if (double.tryParse(val) == null) return 'Invalid number';
+                          return null;
+                        },
                       ),
                     ],
                   ),
@@ -206,7 +270,7 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                   const SizedBox(width: 16),
                   FilledButton(
                     onPressed: _save,
-                    child: const Text('Save Quotation'),
+                    child: Text(widget.quotationId != null ? 'Update Quotation' : 'Save Quotation'),
                   ),
                 ],
               ),

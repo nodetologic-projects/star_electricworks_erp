@@ -25,7 +25,10 @@ class MotorJobsRepository {
       statement.where(_db.motorJobs.jobNo.like('%$query%') | _db.customers.name.like('%$query%'));
     }
     
-    statement.orderBy([OrderingTerm(expression: _db.motorJobs.createdAt, mode: OrderingMode.desc)]);
+    statement.orderBy([
+      OrderingTerm(expression: _db.motorJobs.dateReceived, mode: OrderingMode.desc),
+      OrderingTerm(expression: _db.motorJobs.createdAt, mode: OrderingMode.desc),
+    ]);
     
     return statement.watch().map((rows) {
       return rows.map((row) {

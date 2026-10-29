@@ -671,16 +671,19 @@ class InvoicePdfGenerator {
     bool isPurchase = false,
     bool isDeliveryChallan = false,
   }) {
-    final taxMode = invoice.taxMode;
+    final taxMode = invoice.taxMode == TaxMode.all_three
+        ? TaxMode.cgst_sgst
+        : invoice.taxMode;
+    final isIgst = taxMode == TaxMode.igst_only;
 
     final headers = [
       'Description',
       if (!isDeliveryChallan) 'SAC/HSN',
       'Qty',
       'Rate',
-      if (showGst && taxMode != TaxMode.igst_only) 'CGST',
-      if (showGst && taxMode != TaxMode.igst_only) 'SGST',
-      if (showGst && (taxMode == TaxMode.all_three || taxMode == TaxMode.igst_only)) 'IGST',
+      if (showGst && !isIgst) 'CGST',
+      if (showGst && !isIgst) 'SGST',
+      if (showGst && isIgst) 'IGST',
       'Total',
     ];
 
@@ -718,11 +721,9 @@ class InvoicePdfGenerator {
       final gstAmount = showGst ? (lineTaxableValue * (rate / 100)) : 0.0;
       final cgstAmount = gstAmount / 2;
       final sgstAmount = gstAmount / 2;
+      final igstAmount = gstAmount;
       final halfRateStr = '${(rate / 2).toStringAsFixed(1).replaceAll('.0', '')}%';
       final fullRateStr = '${rate.toStringAsFixed(1).replaceAll('.0', '')}%';
-
-      final igstCellAmount = taxMode == TaxMode.all_three ? 0.0 : gstAmount;
-      final igstCellRateStr = taxMode == TaxMode.all_three ? '0%' : fullRateStr;
 
       final total = showGst ? (lineTaxableValue + gstAmount) : lineTaxableValue;
 
@@ -737,7 +738,7 @@ class InvoicePdfGenerator {
           item.unitPrice.toStringAsFixed(2),
           style: const pw.TextStyle(fontSize: 8),
         ),
-        if (showGst && taxMode != TaxMode.igst_only)
+        if (showGst && !isIgst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -748,7 +749,7 @@ class InvoicePdfGenerator {
               pw.Text('($halfRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
-        if (showGst && taxMode != TaxMode.igst_only)
+        if (showGst && !isIgst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -759,15 +760,15 @@ class InvoicePdfGenerator {
               pw.Text('($halfRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
-        if (showGst && (taxMode == TaxMode.all_three || taxMode == TaxMode.igst_only))
+        if (showGst && isIgst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               pw.Text(
-                igstCellAmount.toStringAsFixed(2),
+                igstAmount.toStringAsFixed(2),
                 style: const pw.TextStyle(fontSize: 8),
               ),
-              pw.Text('($igstCellRateStr)', style: const pw.TextStyle(fontSize: 7)),
+              pw.Text('($fullRateStr)', style: const pw.TextStyle(fontSize: 7)),
             ],
           ),
         pw.Text(total.toStringAsFixed(2), style: const pw.TextStyle(fontSize: 8)),
@@ -805,28 +806,8 @@ class InvoicePdfGenerator {
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
       };
-    } else if (taxMode == TaxMode.all_three) {
-      columnWidths = {
-        0: const pw.FlexColumnWidth(2.8),
-        1: const pw.FlexColumnWidth(1.1),
-        2: const pw.FlexColumnWidth(0.7),
-        3: const pw.FlexColumnWidth(1.2),
-        4: const pw.FlexColumnWidth(1.2),
-        5: const pw.FlexColumnWidth(1.2),
-        6: const pw.FlexColumnWidth(1.2),
-        7: const pw.FlexColumnWidth(1.4),
-      };
-      alignments = {
-        0: pw.Alignment.centerLeft,
-        1: pw.Alignment.center,
-        2: pw.Alignment.center,
-        3: pw.Alignment.centerRight,
-        4: pw.Alignment.centerRight,
-        5: pw.Alignment.centerRight,
-        6: pw.Alignment.centerRight,
-        7: pw.Alignment.centerRight,
-      };
-    } else if (taxMode == TaxMode.igst_only) {
+    } else if (isIgst) {
+      // Option 2: IGST only (6 columns)
       columnWidths = {
         0: const pw.FlexColumnWidth(4.2),
         1: const pw.FlexColumnWidth(1.1),
@@ -844,7 +825,7 @@ class InvoicePdfGenerator {
         5: pw.Alignment.centerRight,
       };
     } else {
-      // TaxMode.cgst_sgst (7 columns)
+      // Option 1: CGST + SGST (7 columns)
       columnWidths = {
         0: const pw.FlexColumnWidth(3.8),
         1: const pw.FlexColumnWidth(1.1),

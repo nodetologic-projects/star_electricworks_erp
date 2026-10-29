@@ -29,7 +29,10 @@ class QuotationsRepository {
     final query = _db.select(_db.quotations).join([
       leftOuterJoin(_db.customers, _db.customers.id.equalsExp(_db.quotations.customerId)),
       leftOuterJoin(_db.motorJobs, _db.motorJobs.id.equalsExp(_db.quotations.motorJobId)),
-    ])..orderBy([OrderingTerm(expression: _db.quotations.createdAt, mode: OrderingMode.desc)]);
+    ])..orderBy([
+      OrderingTerm(expression: _db.quotations.createdAt, mode: OrderingMode.desc),
+      OrderingTerm(expression: _db.quotations.id, mode: OrderingMode.desc),
+    ]);
 
     final rows = await query.get();
     return rows.map((row) {

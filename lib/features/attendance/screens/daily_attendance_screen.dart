@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
-import 'package:intl/intl.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
+import 'package:starelectricerp/core/widgets/app_date_field.dart';
+import 'package:starelectricerp/core/ist_date_utils.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:rxdart/rxdart.dart';
@@ -15,25 +16,11 @@ class DailyAttendanceScreen extends ConsumerStatefulWidget {
 }
 
 class _DailyAttendanceScreenState extends ConsumerState<DailyAttendanceScreen> {
-  DateTime _selectedDate = DateTime.now();
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
-  }
+  DateTime _selectedDate = IstDateUtils.nowIst();
 
   void _markAttendance(int employeeId, AttendanceStatus status, AttendanceRecord? existingRecord) async {
     final db = ref.read(databaseProvider);
-    final normalizedDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final normalizedDate = IstDateUtils.toMidnightIst(_selectedDate);
 
     if (existingRecord == null) {
       await db.into(db.attendanceRecords).insertOnConflictUpdate(AttendanceRecordsCompanion.insert(
@@ -51,7 +38,7 @@ class _DailyAttendanceScreenState extends ConsumerState<DailyAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final db = ref.watch(databaseProvider);
-    final normalizedDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final normalizedDate = IstDateUtils.toMidnightIst(_selectedDate);
 
     return AppLayout(
       currentRoute: '/attendance',
@@ -63,16 +50,19 @@ class _DailyAttendanceScreenState extends ConsumerState<DailyAttendanceScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Date: ${DateFormat('dd MMM yyyy').format(_selectedDate)}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                ElevatedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today),
-                  label: const Text('Change Date'),
+                SizedBox(
+                  width: 250,
+                  child: AppDateField(
+                    label: 'Attendance Date *',
+                    value: _selectedDate,
+                    isRequired: true,
+                    onChanged: (d) {
+                      if (d != null) {
+                        setState(() => _selectedDate = IstDateUtils.toMidnightIst(d));
+                      }
+                    },
+                  ),
                 ),
               ],
             ),

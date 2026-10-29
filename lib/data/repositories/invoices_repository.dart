@@ -13,9 +13,19 @@ class InvoicesRepository {
   final AppDatabase _db;
   InvoicesRepository(this._db);
 
-  Future<List<Invoice>> getAllInvoices() => _db.select(_db.invoices).get();
+  Future<List<Invoice>> getAllInvoices() => (_db.select(_db.invoices)
+        ..orderBy([
+          (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc),
+          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+        ]))
+      .get();
   
-  Stream<List<Invoice>> watchAllInvoices() => _db.select(_db.invoices).watch();
+  Stream<List<Invoice>> watchAllInvoices() => (_db.select(_db.invoices)
+        ..orderBy([
+          (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc),
+          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+        ]))
+      .watch();
 
   Stream<List<Invoice>> watchFilteredInvoices({String query = '', InvoiceType? type}) {
     final statement = _db.select(_db.invoices);
@@ -27,7 +37,10 @@ class InvoicesRepository {
       statement.where((t) => t.invoiceType.equals(type.name));
     }
     
-    statement.orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)]);
+    statement.orderBy([
+      (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc),
+      (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+    ]);
     return statement.watch();
   }
 
@@ -159,19 +172,23 @@ class InvoicesRepository {
     required DateTime date,
     int? excludeInvoiceId,
   }) async {
-    final cutoff = date.subtract(const Duration(hours: 24));
+    final startOfDay = DateTime(date.year, date.month, date.day, 0, 0, 0);
+    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
     final query = _db.select(_db.invoices)
       ..where((t) {
         var expr = t.customerId.equals(customerId) &
                      t.invoiceType.equals(type.name) &
                      t.grandTotal.equals(grandTotal) &
-                     t.invoiceDate.isBetweenValues(cutoff, date);
+                     t.invoiceDate.isBetweenValues(startOfDay, endOfDay);
         if (excludeInvoiceId != null) {
           expr = expr & t.id.isNotValue(excludeInvoiceId);
         }
         return expr;
       })
-      ..orderBy([(t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc)])
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+      ])
       ..limit(1);
 
     return query.getSingleOrNull();
@@ -329,7 +346,8 @@ class InvoicesRepository {
           // Update sequence if applicable
           final typeEnum = invoiceCompanion.invoiceType.present ? invoiceCompanion.invoiceType.value : existingInvoice.invoiceType;
           final prefix = getPrefixForType(typeEnum);
-          final label = FinancialYear.getLabelForDate(existingInvoice.invoiceDate);
+          final dateForSeq = invoiceCompanion.invoiceDate.present ? invoiceCompanion.invoiceDate.value : existingInvoice.invoiceDate;
+          final label = FinancialYear.getLabelForDate(dateForSeq);
           final parsedSeqNum = parseSequenceNumber(prefix, label, newNo);
           if (parsedSeqNum != null) {
             final seqQuery = _db.select(_db.financialYearSequence)
@@ -356,7 +374,9 @@ class InvoicesRepository {
 
       final updateCompanion = invoiceCompanion.copyWith(
         invoiceNo: invoiceNoToUpdate, 
-        invoiceDate: const Value.absent(),
+        invoiceDate: existingInvoice.status == InvoiceStatus.draft && invoiceCompanion.invoiceDate.present
+            ? invoiceCompanion.invoiceDate
+            : const Value.absent(),
       );
       await (_db.update(_db.invoices)..where((t) => t.id.equals(invoiceId))).write(updateCompanion);
 
@@ -445,7 +465,10 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     final query = _db.select(_db.invoices).join([
       innerJoin(_db.customers, _db.customers.id.equalsExp(_db.invoices.customerId)),
     ])
-      ..orderBy([OrderingTerm(expression: _db.invoices.invoiceDate, mode: OrderingMode.desc)])
+      ..orderBy([
+        OrderingTerm(expression: _db.invoices.invoiceDate, mode: OrderingMode.desc),
+        OrderingTerm(expression: _db.invoices.createdAt, mode: OrderingMode.desc),
+      ])
       ..limit(limit);
 
     final rows = await query.get();
@@ -463,7 +486,10 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       innerJoin(_db.customers, _db.customers.id.equalsExp(_db.invoices.customerId)),
     ])
       ..where(_db.invoices.invoiceDate.isBetweenValues(start, endInclusive))
-      ..orderBy([OrderingTerm(expression: _db.invoices.invoiceDate, mode: OrderingMode.desc)]);
+      ..orderBy([
+        OrderingTerm(expression: _db.invoices.invoiceDate, mode: OrderingMode.desc),
+        OrderingTerm(expression: _db.invoices.createdAt, mode: OrderingMode.desc),
+      ]);
 
     final rows = await query.get();
     return rows.map((row) {
@@ -478,7 +504,10 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     // We fetch all non-draft/cancelled invoices and group them in dart to avoid complex sqlite date formatting
     final query = _db.select(_db.invoices)
       ..where((t) => t.status.isIn([InvoiceStatus.sent.name, InvoiceStatus.paid.name, InvoiceStatus.delivered.name, InvoiceStatus.overdue.name]))
-      ..orderBy([(t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc)]);
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
+      ]);
 
     final invoices = await query.get();
     
@@ -514,8 +543,30 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
   }
   Future<List<Payment>> getPaymentsForInvoice(int invoiceId) {
     return (_db.select(_db.payments)..where((t) => t.invoiceId.equals(invoiceId))
-      ..orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)])
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+      ])
     ).get();
+  }
+
+  Future<void> updatePayment(PaymentsCompanion payment) async {
+    await _db.transaction(() async {
+      await _db.update(_db.payments).replace(payment);
+      final invoiceId = payment.invoiceId.value;
+      final allPayments = await getPaymentsForInvoice(invoiceId);
+      final totalPaid = allPayments.fold<double>(0.0, (sum, p) => sum + p.amount);
+      final invoice = await getInvoiceById(invoiceId);
+      InvoiceStatus newStatus = invoice.status;
+      if (totalPaid >= invoice.grandTotal) {
+        newStatus = InvoiceStatus.paid;
+      } else if (totalPaid > 0) {
+        newStatus = InvoiceStatus.sent;
+      }
+      if (newStatus != invoice.status) {
+        await updateInvoiceStatus(invoiceId, newStatus);
+      }
+    });
   }
 
   Future<int> addPayment(PaymentsCompanion payment) {
@@ -620,7 +671,10 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
   Future<CustomerLedgerResult> getCustomerLedger(int customerId) async {
     final customer = await (_db.select(_db.customers)..where((t) => t.id.equals(customerId))).getSingle();
     final query = _db.select(_db.invoices)..where((t) => t.customerId.equals(customerId))
-      ..orderBy([(t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc)]);
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
+      ]);
       
     final invoices = await query.get();
     
@@ -629,7 +683,8 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     
     double totalBilled = 0.0;
     double totalPaid = 0.0;
-    List<LedgerInvoiceRow> ledgerRows = [];
+    double runningBalance = 0.0;
+    List<LedgerInvoiceRow> chronologicalRows = [];
     
     for (var inv in invoices) {
       // Exclude draft from totals? Usually yes, drafts aren't billed yet. But let's just include all non-draft for billed.
@@ -639,20 +694,29 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       
       final paymentsForInv = allPayments.where((p) => p.invoiceId == inv.id).fold<double>(0.0, (s, p) => s + p.amount);
       totalPaid += paymentsForInv;
+      final balanceDue = inv.grandTotal - paymentsForInv;
+
+      if (inv.status != InvoiceStatus.draft) {
+        runningBalance += balanceDue;
+      }
       
-      ledgerRows.add(LedgerInvoiceRow(
+      chronologicalRows.add(LedgerInvoiceRow(
         invoice: inv,
         totalPaid: paymentsForInv,
-        balanceDue: inv.grandTotal - paymentsForInv,
+        balanceDue: balanceDue,
+        runningBalance: runningBalance,
       ));
     }
     
+    // Reverse so the screen shows newest first, while each row retains its chronological running balance
+    final displayRows = chronologicalRows.reversed.toList();
+
     return CustomerLedgerResult(
       customer: customer,
       totalBilled: totalBilled,
       totalPaid: totalPaid,
       totalOutstanding: totalBilled - totalPaid,
-      invoices: ledgerRows,
+      invoices: displayRows,
     );
   }
 
@@ -741,11 +805,13 @@ class LedgerInvoiceRow {
   final Invoice invoice;
   final double totalPaid;
   final double balanceDue;
+  final double runningBalance;
 
   LedgerInvoiceRow({
     required this.invoice,
     required this.totalPaid,
     required this.balanceDue,
+    required this.runningBalance,
   });
 }
 

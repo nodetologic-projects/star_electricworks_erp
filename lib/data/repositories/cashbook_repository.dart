@@ -26,6 +26,10 @@ class CashbookRepository {
     return _db.into(_db.cashTransactions).insert(transaction);
   }
 
+  Future<bool> updateTransaction(CashTransactionsCompanion transaction) async {
+    return await _db.update(_db.cashTransactions).replace(transaction);
+  }
+
   Future<bool> deleteTransaction(int id) async {
     return await (_db.delete(_db.cashTransactions)..where((t) => t.id.equals(id))).go() > 0;
   }
@@ -43,7 +47,10 @@ class CashbookRepository {
         }
         return expr;
       })
-      ..orderBy([(t) => OrderingTerm(expression: t.transactionDate, mode: OrderingMode.desc)]);
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.transactionDate, mode: OrderingMode.desc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+      ]);
 
     return query.get();
   }

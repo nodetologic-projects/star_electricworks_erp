@@ -516,6 +516,27 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                           leading: const Icon(Icons.check_circle, color: Colors.green),
                           title: Text('₹${p.amount.toStringAsFixed(2)} via ${p.paymentMode.name.toUpperCase()}'),
                           subtitle: Text('${DateFormat('dd/MM/yyyy').format(p.paymentDate)} ${p.referenceNo != null ? " | Ref: ${p.referenceNo}" : ""}'),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.edit, size: 16),
+                            tooltip: 'Edit Payment',
+                            onPressed: () async {
+                              final totalPaidExcludingThis = data.payments
+                                  .where((item) => item.id != p.id)
+                                  .fold<double>(0, (s, x) => s + x.amount);
+                              final balanceDue = (data.invoice.grandTotal - totalPaidExcludingThis).clamp(0.0, double.infinity);
+                              final updated = await showDialog<bool>(
+                                context: context,
+                                builder: (_) => RecordPaymentDialog(
+                                  invoice: data.invoice,
+                                  balanceDue: balanceDue,
+                                  existingPayment: p,
+                                ),
+                              );
+                              if (updated == true) {
+                                ref.invalidate(invoiceDetailProvider(widget.invoiceId));
+                              }
+                            },
+                          ),
                         )),
                       ],
                     ],

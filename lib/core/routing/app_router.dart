@@ -102,6 +102,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const MotorJobFormScreen()),
       ),
       GoRoute(
+        path: '/jobs/:id/edit',
+        pageBuilder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return _fadeTransitionPage(context, state, MotorJobFormScreen(jobId: id));
+        },
+      ),
+      GoRoute(
         path: '/jobs/:id',
         pageBuilder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
@@ -250,6 +257,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           return _fadeTransitionPage(context, state, QuotationDetailScreen(quotationId: id));
+        },
+      ),
+      GoRoute(
+        path: '/quotations/:id/edit',
+        pageBuilder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return _fadeTransitionPage(context, state, QuotationFormScreen(quotationId: id));
         },
       ),
     ],

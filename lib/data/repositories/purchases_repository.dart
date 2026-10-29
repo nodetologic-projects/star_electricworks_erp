@@ -15,7 +15,10 @@ class PurchasesRepository {
   Stream<List<Purchase>> watchPurchases(DateTime startDate, DateTime endDate) {
     return (db.select(db.purchases)
           ..where((t) => t.purchaseDate.isBetweenValues(startDate, endDate))
-          ..orderBy([(t) => OrderingTerm(expression: t.purchaseDate, mode: OrderingMode.desc)]))
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.purchaseDate, mode: OrderingMode.desc),
+            (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+          ]))
         .watch();
   }
 

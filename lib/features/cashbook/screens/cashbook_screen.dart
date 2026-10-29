@@ -239,6 +239,15 @@ class _CashbookScreenState extends ConsumerState<CashbookScreen> {
                                 color: isIncome ? Colors.green : Colors.red,
                               ),
                             ),
+                            onTap: () async {
+                              final edited = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AddTransactionDialog(existingTransaction: t),
+                              );
+                              if (edited == true) {
+                                setState(() {});
+                              }
+                            },
                             title: Text(t.category, style: const TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text('${DateFormat('dd MMM yyyy').format(t.transactionDate)}${t.description != null ? ' - ${t.description}' : ''}'),
                             trailing: Row(

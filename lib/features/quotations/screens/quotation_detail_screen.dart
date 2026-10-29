@@ -77,12 +77,19 @@ class QuotationDetailScreen extends ConsumerWidget {
                     ],
 
                     
-                    if (q.status == QuotationStatus.draft)
+                    if (q.status == QuotationStatus.draft) ...[
+                      OutlinedButton.icon(
+                        onPressed: () => context.push('/quotations/${q.id}/edit'),
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Edit Quote'),
+                      ),
+                      const SizedBox(width: 8),
                       FilledButton.icon(
                         onPressed: () => _updateStatus(context, ref, QuotationStatus.sent),
                         icon: const Icon(Icons.send),
                         label: const Text('Mark Sent'),
                       ),
+                    ],
                     
                     if (q.status == QuotationStatus.sent) ...[
                       OutlinedButton.icon(

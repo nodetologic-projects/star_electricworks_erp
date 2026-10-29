@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:starelectricerp/core/ist_date_utils.dart';
 import 'package:starelectricerp/core/widgets/app_button.dart';
+import 'package:starelectricerp/core/widgets/app_date_field.dart';
 import 'package:starelectricerp/core/widgets/app_select.dart';
 import 'package:starelectricerp/core/widgets/app_text_field.dart';
 import 'package:starelectricerp/data/database.dart';
@@ -9,7 +11,12 @@ import 'package:starelectricerp/data/repositories/cashbook_repository.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 
 class AddTransactionDialog extends ConsumerStatefulWidget {
-  const AddTransactionDialog({super.key});
+  final CashTransaction? existingTransaction;
+
+  const AddTransactionDialog({super.key, this.existingPayment, this.existingTransaction});
+
+  // Backward compatibility alias
+  final dynamic existingPayment;
 
   @override
   ConsumerState<AddTransactionDialog> createState() => _AddTransactionDialogState();
@@ -21,17 +28,26 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
   CashTransactionType _type = CashTransactionType.income;
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
-  DateTime _date = DateTime.now();
+  DateTime _date = IstDateUtils.nowIst();
   String? _selectedCategory;
   
   bool _isLoading = false;
   List<CashCategory> _categories = [];
   bool _isCategoriesLoading = true;
 
-
   @override
   void initState() {
     super.initState();
+    if (widget.existingTransaction != null) {
+      final t = widget.existingTransaction!;
+      _type = t.transactionType;
+      _amountController.text = t.amount.toStringAsFixed(2);
+      _descriptionController.text = t.description ?? '';
+      _selectedCategory = t.category;
+      _date = IstDateUtils.toMidnightIst(t.transactionDate);
+    } else {
+      _date = IstDateUtils.nowIst();
+    }
     _loadCategories();
   }
 
@@ -58,26 +74,22 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
     final newCategory = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add New Category'),
-        content: AppTextField(
+        title: const Text('Add Category'),
+        content: TextField(
           controller: controller,
-          label: 'Category Name',
+          decoration: const InputDecoration(labelText: 'Category Name', border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                Navigator.pop(ctx, controller.text.trim());
-              }
-            },
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: const Text('Add'),
           ),
         ],
       ),
     );
 
-    if (newCategory != null && mounted) {
+    if (newCategory != null && newCategory.isNotEmpty) {
       final repo = ref.read(cashbookRepositoryProvider);
       await repo.addCategory(newCategory);
       await _loadCategories();
@@ -98,16 +110,28 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
     try {
       final repo = ref.read(cashbookRepositoryProvider);
       final amount = double.tryParse(_amountController.text) ?? 0.0;
-      
-      final companion = CashTransactionsCompanion.insert(
-        transactionType: _type,
-        amount: amount,
-        category: _selectedCategory!,
-        transactionDate: _date,
-        description: drift.Value(_descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim()),
-      );
-      
-      await repo.addTransaction(companion);
+      final normalizedDate = IstDateUtils.toMidnightIst(_date);
+
+      if (widget.existingTransaction != null) {
+        final companion = CashTransactionsCompanion(
+          id: drift.Value(widget.existingTransaction!.id),
+          transactionType: drift.Value(_type),
+          amount: drift.Value(amount),
+          category: drift.Value(_selectedCategory!),
+          transactionDate: drift.Value(normalizedDate),
+          description: drift.Value(_descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim()),
+        );
+        await repo.updateTransaction(companion);
+      } else {
+        final companion = CashTransactionsCompanion.insert(
+          transactionType: _type,
+          amount: amount,
+          category: _selectedCategory!,
+          transactionDate: normalizedDate,
+          description: drift.Value(_descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim()),
+        );
+        await repo.addTransaction(companion);
+      }
       if (mounted) Navigator.pop(context, true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -116,9 +140,8 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
 
   @override
   Widget build(BuildContext context) {
-
     return AlertDialog(
-      title: const Text('Add Cash Transaction'),
+      title: Text(widget.existingTransaction != null ? 'Edit Cash Transaction' : 'Add Cash Transaction'),
       content: SizedBox(
         width: 400,
         child: Form(
@@ -141,8 +164,10 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   ),
                 ],
                 selected: {_type},
-                onSelectionChanged: (set) {
-                  setState(() => _type = set.first);
+                onSelectionChanged: (newSelection) {
+                  setState(() {
+                    _type = newSelection.first;
+                  });
                 },
               ),
               const SizedBox(height: 16),
@@ -152,7 +177,8 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'Required';
-                  if (double.tryParse(val) == null) return 'Invalid number';
+                  final num = double.tryParse(val);
+                  if (num == null || num <= 0) return 'Invalid amount';
                   return null;
                 },
               ),
@@ -160,12 +186,15 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
               if (_isCategoriesLoading)
                 const CircularProgressIndicator()
               else
-                AppSelect<String?>(
+                AppSelect<String>(
                   label: 'Category',
                   value: _selectedCategory,
                   items: [
                     ..._categories.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))),
-                    const DropdownMenuItem(value: '__ADD_NEW__', child: Text('+ Add new category', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                    const DropdownMenuItem(
+                      value: '__ADD_NEW__',
+                      child: Text('+ Add New Category...', style: TextStyle(color: Colors.blue)),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val == '__ADD_NEW__') {
@@ -176,23 +205,13 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   },
                 ),
               const SizedBox(height: 16),
-              ListTile(
-                title: const Text('Date'),
-                subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
-                trailing: const Icon(Icons.calendar_today),
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                onTap: () async {
-                  final d = await showDatePicker(
-                    context: context,
-                    initialDate: _date,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
-                  );
+              AppDateField(
+                label: 'Date *',
+                value: _date,
+                isRequired: true,
+                onChanged: (d) {
                   if (d != null) {
-                    setState(() => _date = d);
+                    setState(() => _date = IstDateUtils.toMidnightIst(d));
                   }
                 },
               ),
@@ -210,7 +229,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         AppButton(
           onPressed: _isLoading ? null : _save,
-          label: 'Save',
+          label: widget.existingTransaction != null ? 'Update' : 'Save',
         ),
       ],
     );
