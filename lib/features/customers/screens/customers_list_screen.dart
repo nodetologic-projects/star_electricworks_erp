@@ -7,6 +7,7 @@ import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/features/customers/providers/customers_provider.dart';
 import 'package:starelectricerp/features/customers/screens/customer_form_dialog.dart';
+import 'package:starelectricerp/features/customers/ledger/customer_ledger_export_dialog.dart';
 
 class CustomersListScreen extends ConsumerWidget {
   const CustomersListScreen({super.key});
@@ -90,6 +91,16 @@ class CustomersListScreen extends ConsumerWidget {
                               onPressed: () => context.push('/customers/${c.id}/ledger'),
                               icon: const Icon(Icons.account_balance_wallet, size: 18),
                               label: const Text('Ledger'),
+                            ),
+                            TextButton.icon(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => CustomerLedgerExportDialog(customerId: c.id),
+                                );
+                              },
+                              icon: const Icon(Icons.picture_as_pdf, size: 18),
+                              label: const Text('Export'),
                             ),
                           ],
                         ),

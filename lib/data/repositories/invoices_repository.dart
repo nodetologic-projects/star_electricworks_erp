@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/core/financial_year.dart';
+import 'package:starelectricerp/core/ist_date_utils.dart';
 
 final invoicesRepositoryProvider = Provider((ref) {
   return InvoicesRepository(ref.watch(databaseProvider));
@@ -678,7 +679,16 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       
     final invoices = await query.get();
     
-    final invoiceIds = invoices.map((i) => i.id).toSet();
+    // Only customer-billing documents with a value (Service Tax Invoice, Sales Tax Invoice, Bill of Supply)
+    // Exclude drafts, Delivery Challans, and Purchase Vouchers
+    final billingInvoices = invoices.where((inv) =>
+      inv.status != InvoiceStatus.draft &&
+      (inv.invoiceType == InvoiceType.serviceTaxInvoice ||
+       inv.invoiceType == InvoiceType.salesTaxInvoice ||
+       inv.invoiceType == InvoiceType.billOfSupply)
+    ).toList();
+    
+    final invoiceIds = billingInvoices.map((i) => i.id).toSet();
     final allPayments = invoiceIds.isEmpty ? <Payment>[] : await (_db.select(_db.payments)..where((t) => t.invoiceId.isIn(invoiceIds))).get();
     
     double totalBilled = 0.0;
@@ -686,19 +696,14 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     double runningBalance = 0.0;
     List<LedgerInvoiceRow> chronologicalRows = [];
     
-    for (var inv in invoices) {
-      // Exclude draft from totals? Usually yes, drafts aren't billed yet. But let's just include all non-draft for billed.
-      if (inv.status != InvoiceStatus.draft) {
-        totalBilled += inv.grandTotal;
-      }
+    for (var inv in billingInvoices) {
+      totalBilled += inv.grandTotal;
       
       final paymentsForInv = allPayments.where((p) => p.invoiceId == inv.id).fold<double>(0.0, (s, p) => s + p.amount);
       totalPaid += paymentsForInv;
       final balanceDue = inv.grandTotal - paymentsForInv;
 
-      if (inv.status != InvoiceStatus.draft) {
-        runningBalance += balanceDue;
-      }
+      runningBalance += balanceDue;
       
       chronologicalRows.add(LedgerInvoiceRow(
         invoice: inv,
@@ -717,6 +722,158 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       totalPaid: totalPaid,
       totalOutstanding: totalBilled - totalPaid,
       invoices: displayRows,
+    );
+  }
+
+  Future<CustomerLedgerStatement> getCustomerLedgerStatement({
+    required int customerId,
+    required DateTime? fromDate,
+    required DateTime toDate,
+  }) async {
+    final customer = await (_db.select(_db.customers)..where((t) => t.id.equals(customerId))).getSingle();
+    final normToDate = IstDateUtils.toMidnightIst(toDate);
+    final endOfToDate = DateTime(normToDate.year, normToDate.month, normToDate.day, 23, 59, 59, 999);
+    final normFromDate = fromDate != null ? IstDateUtils.toMidnightIst(fromDate) : null;
+
+    final query = _db.select(_db.invoices)..where((t) => t.customerId.equals(customerId))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
+      ]);
+      
+    final allInvoices = await query.get();
+    final billingInvoices = allInvoices.where((inv) =>
+      inv.status != InvoiceStatus.draft &&
+      (inv.invoiceType == InvoiceType.serviceTaxInvoice ||
+       inv.invoiceType == InvoiceType.salesTaxInvoice ||
+       inv.invoiceType == InvoiceType.billOfSupply)
+    ).toList();
+
+    final invoiceIds = billingInvoices.map((i) => i.id).toSet();
+    final allPayments = invoiceIds.isEmpty
+        ? <Payment>[]
+        : await (_db.select(_db.payments)..where((t) => t.invoiceId.isIn(invoiceIds))).get();
+
+    final List<_LedgerTimelineEvent> events = [];
+
+    for (final inv in billingInvoices) {
+      String typeLabel;
+      switch (inv.invoiceType) {
+        case InvoiceType.serviceTaxInvoice:
+          typeLabel = 'Service Tax Invoice';
+          break;
+        case InvoiceType.salesTaxInvoice:
+          typeLabel = 'Sales Tax Invoice';
+          break;
+        case InvoiceType.billOfSupply:
+          typeLabel = 'Bill of Supply';
+          break;
+        default:
+          typeLabel = 'Invoice';
+      }
+      events.add(_LedgerTimelineEvent(
+        date: IstDateUtils.toMidnightIst(inv.invoiceDate),
+        createdAt: inv.createdAt,
+        isDebit: true,
+        amount: inv.grandTotal,
+        document: '$typeLabel - ${inv.invoiceNo}',
+      ));
+    }
+
+    for (final p in allPayments) {
+      String modeStr;
+      switch (p.paymentMode) {
+        case PaymentMode.cash:
+          modeStr = 'Cash';
+          break;
+        case PaymentMode.bankTransfer:
+          modeStr = 'Bank Transfer';
+          break;
+        case PaymentMode.upi:
+          modeStr = 'UPI';
+          break;
+        case PaymentMode.cheque:
+          modeStr = 'Cheque';
+          break;
+      }
+      final refStr = (p.referenceNo != null && p.referenceNo!.trim().isNotEmpty)
+          ? ' (Ref: ${p.referenceNo!.trim()})'
+          : '';
+      events.add(_LedgerTimelineEvent(
+        date: IstDateUtils.toMidnightIst(p.paymentDate),
+        createdAt: p.createdAt,
+        isDebit: false,
+        amount: p.amount,
+        document: 'Payment Received - $modeStr$refStr',
+      ));
+    }
+
+    // Sort chronologically:
+    // 1. by date ASC
+    // 2. on same date: Invoices (Debit) before Payments (Credit)
+    // 3. then by createdAt ASC
+    events.sort((a, b) {
+      final dateCmp = a.date.compareTo(b.date);
+      if (dateCmp != 0) return dateCmp;
+      final typeCmp = (a.isDebit ? 0 : 1).compareTo(b.isDebit ? 0 : 1);
+      if (typeCmp != 0) return typeCmp;
+      return a.createdAt.compareTo(b.createdAt);
+    });
+
+    double openingBalance = 0.0;
+    final List<_LedgerTimelineEvent> inPeriodEvents = [];
+
+    for (final ev in events) {
+      if (normFromDate != null && ev.date.isBefore(normFromDate)) {
+        if (ev.isDebit) {
+          openingBalance += ev.amount;
+        } else {
+          openingBalance -= ev.amount;
+        }
+      } else if (!ev.date.isAfter(endOfToDate)) {
+        inPeriodEvents.add(ev);
+      }
+    }
+
+    double runningBalance = openingBalance;
+    double totalDebit = 0.0;
+    double totalCredit = 0.0;
+    final List<CustomerLedgerStatementEntry> statementEntries = [];
+
+    for (final ev in inPeriodEvents) {
+      if (ev.isDebit) {
+        totalDebit += ev.amount;
+        runningBalance += ev.amount;
+        statementEntries.add(CustomerLedgerStatementEntry(
+          date: ev.date,
+          document: ev.document,
+          debit: ev.amount,
+          credit: null,
+          runningBalance: runningBalance,
+        ));
+      } else {
+        totalCredit += ev.amount;
+        runningBalance -= ev.amount;
+        statementEntries.add(CustomerLedgerStatementEntry(
+          date: ev.date,
+          document: ev.document,
+          debit: null,
+          credit: ev.amount,
+          runningBalance: runningBalance,
+        ));
+      }
+    }
+
+    return CustomerLedgerStatement(
+      customer: customer,
+      fromDate: normFromDate,
+      toDate: normToDate,
+      isAllTime: normFromDate == null,
+      openingBalance: openingBalance,
+      entries: statementEntries,
+      totalDebit: totalDebit,
+      totalCredit: totalCredit,
+      closingBalance: runningBalance,
     );
   }
 
@@ -858,6 +1015,60 @@ class GstSummaryRow {
     required this.sgst,
     required this.igst,
   });
+}
 
+class _LedgerTimelineEvent {
+  final DateTime date;
+  final DateTime createdAt;
+  final bool isDebit;
+  final double amount;
+  final String document;
 
+  _LedgerTimelineEvent({
+    required this.date,
+    required this.createdAt,
+    required this.isDebit,
+    required this.amount,
+    required this.document,
+  });
+}
+
+class CustomerLedgerStatementEntry {
+  final DateTime date;
+  final String document;
+  final double? debit;
+  final double? credit;
+  final double runningBalance;
+
+  CustomerLedgerStatementEntry({
+    required this.date,
+    required this.document,
+    this.debit,
+    this.credit,
+    required this.runningBalance,
+  });
+}
+
+class CustomerLedgerStatement {
+  final Customer customer;
+  final DateTime? fromDate;
+  final DateTime toDate;
+  final bool isAllTime;
+  final double openingBalance;
+  final List<CustomerLedgerStatementEntry> entries;
+  final double totalDebit;
+  final double totalCredit;
+  final double closingBalance;
+
+  CustomerLedgerStatement({
+    required this.customer,
+    required this.fromDate,
+    required this.toDate,
+    required this.isAllTime,
+    required this.openingBalance,
+    required this.entries,
+    required this.totalDebit,
+    required this.totalCredit,
+    required this.closingBalance,
+  });
 }

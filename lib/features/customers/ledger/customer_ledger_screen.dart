@@ -7,6 +7,7 @@ import 'package:starelectricerp/core/widgets/status_badge.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/features/customers/providers/ledger_providers.dart';
 import 'package:starelectricerp/data/repositories/invoices_repository.dart';
+import 'package:starelectricerp/features/customers/ledger/customer_ledger_export_dialog.dart';
 
 class CustomerLedgerScreen extends ConsumerWidget {
   final int customerId;
@@ -35,6 +36,21 @@ class CustomerLedgerScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: FilledButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => CustomerLedgerExportDialog(customerId: customerId),
+                );
+              },
+              icon: const Icon(Icons.picture_as_pdf, size: 18),
+              label: const Text('Export Ledger (PDF)'),
+            ),
+          ),
+        ],
       ),
       child: ledgerAsync.when(
         data: (result) {
@@ -43,9 +59,26 @@ class CustomerLedgerScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${result.customer.name} - Ledger',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${result.customer.name} - Ledger',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => CustomerLedgerExportDialog(customerId: customerId),
+                        );
+                      },
+                      icon: const Icon(Icons.picture_as_pdf, size: 18),
+                      label: const Text('Export Ledger (PDF)'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 // Summary Cards

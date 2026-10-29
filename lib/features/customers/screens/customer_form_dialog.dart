@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:starelectricerp/data/database.dart';
+import 'package:starelectricerp/features/customers/ledger/customer_ledger_export_dialog.dart';
 
 class CustomerFormDialog extends ConsumerStatefulWidget {
   final int? customerId;
@@ -150,6 +151,17 @@ class _CustomerFormDialogState extends ConsumerState<CustomerFormDialog> {
         ),
       ),
       actions: [
+        if (widget.customerId != null)
+          OutlinedButton.icon(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => CustomerLedgerExportDialog(customerId: widget.customerId!),
+              );
+            },
+            icon: const Icon(Icons.picture_as_pdf, size: 16),
+            label: const Text('Export Ledger (PDF)'),
+          ),
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCEL')),
         FilledButton(onPressed: _save, child: const Text('SAVE')),
       ],
