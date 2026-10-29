@@ -615,7 +615,13 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
 
   Future<List<OutstandingSummaryRow>> getOutstandingSummary() async {
     final customers = await (_db.select(_db.customers)..where((t) => t.isActive.equals(true))).get();
-    final invoices = await (_db.select(_db.invoices)..where((t) => t.status.isNotIn([InvoiceStatus.draft.name]))).get();
+    final invoices = await (_db.select(_db.invoices)..where((t) =>
+      t.invoiceType.isIn([
+        InvoiceType.serviceTaxInvoice.name,
+        InvoiceType.salesTaxInvoice.name,
+        InvoiceType.billOfSupply.name,
+      ])
+    )).get();
     final payments = await _db.select(_db.payments).get();
     
     final Map<int, OutstandingSummaryRow> summary = {};
@@ -680,12 +686,12 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     final invoices = await query.get();
     
     // Only customer-billing documents with a value (Service Tax Invoice, Sales Tax Invoice, Bill of Supply)
-    // Exclude drafts, Delivery Challans, and Purchase Vouchers
+    // Include EVERY saved billing invoice regardless of status (draft/pending, sent, paid, partiallyPaid, overdue)
+    // Exclude only Delivery Challans and Purchase Vouchers
     final billingInvoices = invoices.where((inv) =>
-      inv.status != InvoiceStatus.draft &&
-      (inv.invoiceType == InvoiceType.serviceTaxInvoice ||
-       inv.invoiceType == InvoiceType.salesTaxInvoice ||
-       inv.invoiceType == InvoiceType.billOfSupply)
+      inv.invoiceType == InvoiceType.serviceTaxInvoice ||
+      inv.invoiceType == InvoiceType.salesTaxInvoice ||
+      inv.invoiceType == InvoiceType.billOfSupply
     ).toList();
     
     final invoiceIds = billingInvoices.map((i) => i.id).toSet();
@@ -743,10 +749,9 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       
     final allInvoices = await query.get();
     final billingInvoices = allInvoices.where((inv) =>
-      inv.status != InvoiceStatus.draft &&
-      (inv.invoiceType == InvoiceType.serviceTaxInvoice ||
-       inv.invoiceType == InvoiceType.salesTaxInvoice ||
-       inv.invoiceType == InvoiceType.billOfSupply)
+      inv.invoiceType == InvoiceType.serviceTaxInvoice ||
+      inv.invoiceType == InvoiceType.salesTaxInvoice ||
+      inv.invoiceType == InvoiceType.billOfSupply
     ).toList();
 
     final invoiceIds = billingInvoices.map((i) => i.id).toSet();
@@ -771,12 +776,32 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         default:
           typeLabel = 'Invoice';
       }
+
+      final paymentsForInv = allPayments.where((p) => p.invoiceId == inv.id).fold<double>(0.0, (s, p) => s + p.amount);
+      final balanceDue = inv.grandTotal - paymentsForInv;
+      String statusLabel;
+      if (balanceDue <= 0.001) {
+        statusLabel = 'Paid';
+      } else if (paymentsForInv > 0.001) {
+        statusLabel = 'Partially Paid';
+      } else {
+        final now = IstDateUtils.nowIst();
+        final isOverdue = inv.status == InvoiceStatus.overdue ||
+            (inv.dueDate != null && IstDateUtils.toMidnightIst(inv.dueDate!).isBefore(IstDateUtils.toMidnightIst(now)));
+        if (isOverdue) {
+          statusLabel = 'Overdue';
+        } else {
+          statusLabel = 'Unpaid';
+        }
+      }
+
       events.add(_LedgerTimelineEvent(
         date: IstDateUtils.toMidnightIst(inv.invoiceDate),
         createdAt: inv.createdAt,
         isDebit: true,
         amount: inv.grandTotal,
         document: '$typeLabel - ${inv.invoiceNo}',
+        status: statusLabel,
       ));
     }
 
@@ -805,6 +830,7 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         isDebit: false,
         amount: p.amount,
         document: 'Payment Received - $modeStr$refStr',
+        status: null,
       ));
     }
 
@@ -847,6 +873,7 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         statementEntries.add(CustomerLedgerStatementEntry(
           date: ev.date,
           document: ev.document,
+          status: ev.status,
           debit: ev.amount,
           credit: null,
           runningBalance: runningBalance,
@@ -857,6 +884,7 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         statementEntries.add(CustomerLedgerStatementEntry(
           date: ev.date,
           document: ev.document,
+          status: null,
           debit: null,
           credit: ev.amount,
           runningBalance: runningBalance,
@@ -874,6 +902,80 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       totalDebit: totalDebit,
       totalCredit: totalCredit,
       closingBalance: runningBalance,
+    );
+  }
+
+  Future<CustomerOutstandingStatement> getCustomerOutstandingStatement({
+    required int customerId,
+    DateTime? asOfDate,
+  }) async {
+    final customer = await (_db.select(_db.customers)..where((t) => t.id.equals(customerId))).getSingle();
+    final effectiveAsOfDate = IstDateUtils.toMidnightIst(asOfDate ?? IstDateUtils.nowIst());
+
+    final query = _db.select(_db.invoices)..where((t) => t.customerId.equals(customerId))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
+      ]);
+
+    final allInvoices = await query.get();
+    final billingInvoices = allInvoices.where((inv) =>
+      inv.invoiceType == InvoiceType.serviceTaxInvoice ||
+      inv.invoiceType == InvoiceType.salesTaxInvoice ||
+      inv.invoiceType == InvoiceType.billOfSupply
+    ).toList();
+
+    final invoiceIds = billingInvoices.map((i) => i.id).toSet();
+    final allPayments = invoiceIds.isEmpty
+        ? <Payment>[]
+        : await (_db.select(_db.payments)..where((t) => t.invoiceId.isIn(invoiceIds))).get();
+
+    final List<CustomerOutstandingBill> bills = [];
+
+    for (final inv in billingInvoices) {
+      final paymentsForInv = allPayments.where((p) => p.invoiceId == inv.id).fold<double>(0.0, (s, p) => s + p.amount);
+      final balanceDue = inv.grandTotal - paymentsForInv;
+
+      if (balanceDue > 0.001) {
+        int daysOverdue = 0;
+        if (inv.dueDate != null) {
+          final due = IstDateUtils.toMidnightIst(inv.dueDate!);
+          if (effectiveAsOfDate.isAfter(due)) {
+            daysOverdue = effectiveAsOfDate.difference(due).inDays;
+          }
+        }
+
+        bills.add(CustomerOutstandingBill(
+          invoice: inv,
+          invoiceNo: inv.invoiceNo,
+          invoiceDate: IstDateUtils.toMidnightIst(inv.invoiceDate),
+          dueDate: inv.dueDate != null ? IstDateUtils.toMidnightIst(inv.dueDate!) : null,
+          billAmount: inv.grandTotal,
+          amountPaid: paymentsForInv,
+          balanceDue: balanceDue,
+          daysOverdue: daysOverdue,
+        ));
+      }
+    }
+
+    // Sorted oldest first (invoiceDate ASC, then createdAt ASC)
+    bills.sort((a, b) {
+      final dateCmp = a.invoiceDate.compareTo(b.invoiceDate);
+      if (dateCmp != 0) return dateCmp;
+      return a.invoice.createdAt.compareTo(b.invoice.createdAt);
+    });
+
+    final totalBillAmount = bills.fold<double>(0.0, (s, b) => s + b.billAmount);
+    final totalAmountPaid = bills.fold<double>(0.0, (s, b) => s + b.amountPaid);
+    final totalOutstanding = bills.fold<double>(0.0, (s, b) => s + b.balanceDue);
+
+    return CustomerOutstandingStatement(
+      customer: customer,
+      asOfDate: effectiveAsOfDate,
+      bills: bills,
+      totalBillAmount: totalBillAmount,
+      totalAmountPaid: totalAmountPaid,
+      totalOutstanding: totalOutstanding,
     );
   }
 
@@ -1023,6 +1125,7 @@ class _LedgerTimelineEvent {
   final bool isDebit;
   final double amount;
   final String document;
+  final String? status;
 
   _LedgerTimelineEvent({
     required this.date,
@@ -1030,12 +1133,14 @@ class _LedgerTimelineEvent {
     required this.isDebit,
     required this.amount,
     required this.document,
+    this.status,
   });
 }
 
 class CustomerLedgerStatementEntry {
   final DateTime date;
   final String document;
+  final String? status;
   final double? debit;
   final double? credit;
   final double runningBalance;
@@ -1043,6 +1148,7 @@ class CustomerLedgerStatementEntry {
   CustomerLedgerStatementEntry({
     required this.date,
     required this.document,
+    this.status,
     this.debit,
     this.credit,
     required this.runningBalance,
@@ -1070,5 +1176,45 @@ class CustomerLedgerStatement {
     required this.totalDebit,
     required this.totalCredit,
     required this.closingBalance,
+  });
+}
+
+class CustomerOutstandingBill {
+  final Invoice invoice;
+  final String invoiceNo;
+  final DateTime invoiceDate;
+  final DateTime? dueDate;
+  final double billAmount;
+  final double amountPaid;
+  final double balanceDue;
+  final int daysOverdue;
+
+  CustomerOutstandingBill({
+    required this.invoice,
+    required this.invoiceNo,
+    required this.invoiceDate,
+    this.dueDate,
+    required this.billAmount,
+    required this.amountPaid,
+    required this.balanceDue,
+    required this.daysOverdue,
+  });
+}
+
+class CustomerOutstandingStatement {
+  final Customer customer;
+  final DateTime asOfDate;
+  final List<CustomerOutstandingBill> bills;
+  final double totalBillAmount;
+  final double totalAmountPaid;
+  final double totalOutstanding;
+
+  CustomerOutstandingStatement({
+    required this.customer,
+    required this.asOfDate,
+    required this.bills,
+    required this.totalBillAmount,
+    required this.totalAmountPaid,
+    required this.totalOutstanding,
   });
 }
