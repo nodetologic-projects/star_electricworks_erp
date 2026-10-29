@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as drift;
 import 'package:starelectricerp/data/repositories/settings_repository.dart';
+import 'package:starelectricerp/data/repositories/motor_jobs_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
