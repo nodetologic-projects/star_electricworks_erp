@@ -85,13 +85,11 @@ class InvoicePdfGenerator {
               _buildBody(invoice.invoiceType, items, invoice, originalInvoice: originalInvoice),
               pw.SizedBox(height: 10),
 
-              if (!isDeliveryChallan) ...[
-                _buildTotalsRow(
-                  invoice,
-                  items,
-                  totalPaid,
-                ),
-              ],
+              _buildTotalsRow(
+                invoice,
+                items,
+                totalPaid,
+              ),
 
               if (invoice.notes != null && invoice.notes!.isNotEmpty) ...[
                 pw.SizedBox(height: 12),
@@ -124,7 +122,7 @@ class InvoicePdfGenerator {
                 ),
               ],
 
-              pw.SizedBox(height: 24),
+              pw.SizedBox(height: isDeliveryChallan ? 12 : 24),
               _buildFooter(company, invoice, totalPaid),
             ];
           },
@@ -714,6 +712,7 @@ class InvoicePdfGenerator {
       isDeliveryChallan ? 'HSN' : 'SAC/HSN',
       'Qty',
       'Rate',
+      if (isDeliveryChallan) 'Disc',
       if (showGst && !isIgst) 'CGST',
       if (showGst && !isIgst) 'SGST',
       if (showGst && isIgst) 'IGST',
@@ -771,6 +770,23 @@ class InvoicePdfGenerator {
           item.unitPrice.toStringAsFixed(2),
           style: const pw.TextStyle(fontSize: 8),
         ),
+        if (isDeliveryChallan)
+          itemDiscount > 0
+              ? pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      itemDiscount.toStringAsFixed(2),
+                      style: const pw.TextStyle(fontSize: 8),
+                    ),
+                    if (item.discountPercent != null && item.discountPercent! > 0)
+                      pw.Text(
+                        '(${item.discountPercent!.toStringAsFixed(1).replaceAll('.0', '')}%)',
+                        style: const pw.TextStyle(fontSize: 7),
+                      ),
+                  ],
+                )
+              : pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
         if (showGst && !isIgst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -811,7 +827,24 @@ class InvoicePdfGenerator {
     Map<int, pw.TableColumnWidth> columnWidths;
     Map<int, pw.Alignment> alignments;
 
-    if (isDeliveryChallan || !showGst) {
+    if (isDeliveryChallan) {
+      columnWidths = {
+        0: const pw.FlexColumnWidth(4.2),
+        1: const pw.FlexColumnWidth(1.1),
+        2: const pw.FlexColumnWidth(0.7),
+        3: const pw.FlexColumnWidth(1.3),
+        4: const pw.FlexColumnWidth(1.3),
+        5: const pw.FlexColumnWidth(1.6),
+      };
+      alignments = {
+        0: pw.Alignment.centerLeft,
+        1: pw.Alignment.center,
+        2: pw.Alignment.center,
+        3: pw.Alignment.centerRight,
+        4: pw.Alignment.centerRight,
+        5: pw.Alignment.centerRight,
+      };
+    } else if (!showGst) {
       columnWidths = {
         0: const pw.FlexColumnWidth(5.0),
         1: const pw.FlexColumnWidth(1.2),
@@ -924,6 +957,7 @@ class InvoicePdfGenerator {
     double totalPaid,
   ) {
     final bool isBillOfSupply = invoice.invoiceType == InvoiceType.billOfSupply;
+    final bool isDeliveryChallan = invoice.invoiceType == InvoiceType.deliveryChallan;
 
     double sumItemDiscounts = 0.0;
     for (final item in items) {
@@ -936,10 +970,14 @@ class InvoicePdfGenerator {
 
     final totalTaxVal =
         invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
-    final exactGrandTotal =
-        (invoice.subtotal - discountToShow) +
-        totalTaxVal +
-        (invoice.deliveryCharge ?? 0);
+    final subtotalToShow = isDeliveryChallan
+        ? (invoice.subtotal - discountToShow)
+        : invoice.subtotal;
+    final exactGrandTotal = isDeliveryChallan
+        ? (subtotalToShow + (invoice.deliveryCharge ?? 0))
+        : ((invoice.subtotal - discountToShow) +
+            totalTaxVal +
+            (invoice.deliveryCharge ?? 0));
     final roundedOff = invoice.grandTotal - exactGrandTotal;
     final amountDue = invoice.grandTotal - totalPaid;
 
@@ -953,13 +991,13 @@ class InvoicePdfGenerator {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                'Total: INR ${invoice.amountInWords} Only',
+                'Total: INR ${invoice.amountInWords}${invoice.amountInWords.trim().toLowerCase().endsWith('only') ? '' : ' Only'}',
                 style: pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   fontStyle: pw.FontStyle.italic,
                 ),
               ),
-              pw.SizedBox(height: 50),
+              pw.SizedBox(height: isDeliveryChallan ? 20 : 50),
               pw.Text(
                 'SIG_LOC',
                 style: const pw.TextStyle(
@@ -983,7 +1021,8 @@ class InvoicePdfGenerator {
                   fontStyle: pw.FontStyle.italic,
                 ),
               ),
-              pw.SizedBox(height: 40), // space for stamp/signature
+              if (!isDeliveryChallan)
+                pw.SizedBox(height: 40), // space for stamp/signature
             ],
           ),
         ),
@@ -996,14 +1035,14 @@ class InvoicePdfGenerator {
             children: [
               _buildTotalsLine(
                 'Subtotal:',
-                invoice.subtotal,
+                subtotalToShow,
               ),
-              if (discountToShow > 0)
+              if (discountToShow > 0 && !isDeliveryChallan)
                 _buildTotalsLine(
                   'Discount:',
                   -discountToShow,
                 ),
-              if (discountToShow > 0)
+              if (discountToShow > 0 && !isDeliveryChallan && !isBillOfSupply)
                 _buildTotalsLine(
                   'Total Before Tax:',
                   (invoice.subtotal - discountToShow),
@@ -1015,7 +1054,7 @@ class InvoicePdfGenerator {
                   invoice.deliveryCharge!,
                 ),
 
-              if (!isBillOfSupply && totalTaxVal > 0)
+              if (!isBillOfSupply && !isDeliveryChallan && totalTaxVal > 0)
                 _buildTotalsLine(
                   'Total Tax Amount:',
                   totalTaxVal,
@@ -1031,12 +1070,14 @@ class InvoicePdfGenerator {
                 invoice.grandTotal,
                 isBold: true,
               ),
-              pw.Divider(thickness: 1),
-              _buildTotalsLine(
-                'Amount Due:',
-                amountDue,
-                isBold: true,
-              ),
+              if (!isDeliveryChallan) ...[
+                pw.Divider(thickness: 1),
+                _buildTotalsLine(
+                  'Amount Due:',
+                  amountDue,
+                  isBold: true,
+                ),
+              ],
             ],
           ),
         ),
@@ -1141,8 +1182,8 @@ class InvoicePdfGenerator {
 
               if (isDeliveryChallan) ...[
                 pw.Container(
-                  width: 100,
-                  height: 100,
+                  width: 70,
+                  height: 70,
                   decoration: pw.BoxDecoration(
                     border: pw.Border.all(
                       color: PdfColors.black,
@@ -1192,7 +1233,7 @@ class InvoicePdfGenerator {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.SizedBox(height: 40),
+                pw.SizedBox(height: 20),
                 pw.Divider(thickness: 1),
                 pw.Text(
                   'Received in good condition',

@@ -449,9 +449,11 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))
                           else ...[
                             Text('Total: ₹${data.invoice.grandTotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
-                            const SizedBox(width: 16),
-                            Text('Balance Due: ₹${data.balanceDue.toStringAsFixed(2)}', 
-                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                            if (data.invoice.invoiceType != InvoiceType.deliveryChallan) ...[
+                              const SizedBox(width: 16),
+                              Text('Balance Due: ₹${data.balanceDue.toStringAsFixed(2)}', 
+                                   style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                            ],
                           ],
                           if (data.invoice.status == InvoiceStatus.draft)
                             ElevatedButton.icon(
@@ -570,7 +572,8 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                             label: const Text('Sign'),
                             style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
                           ),
-                          if (!data.invoice.invoiceType.isCreditNote) ...[
+                          if (!data.invoice.invoiceType.isCreditNote &&
+                              data.invoice.invoiceType != InvoiceType.deliveryChallan) ...[
                             const SizedBox(width: 8),
                             FilledButton.icon(
                               onPressed: () async {

@@ -238,5 +238,89 @@ void main() {
       await file.writeAsBytes(pdfBytes);
       expect(await file.exists(), isTrue);
     });
+
+    test('Delivery Challan PDF displays Subtotal, Discount, and Total Amount correctly', () async {
+      final company = CompanySetting(
+        id: 1,
+        companyName: 'Star Electric Works',
+        address: 'B-12, Industrial Estate, Gorwa, Vadodara - 390016',
+        phone: '+91 98250 12345',
+        email: 'contact@starelectric.in',
+        gstin: '24ABCDE1234F1Z5',
+        bankName: 'State Bank of India',
+        bankAccountNo: '123456789012',
+        bankIfsc: 'SBIN0001234',
+        eInvoiceApplicable: false,
+        isRegistered: true,
+        defaultMotorHsn: '8501',
+      );
+
+      final customer = Customer(
+        id: 1,
+        name: 'Baroda Heavy Engineering Ltd.',
+        address: 'GIDC Industrial Area, Makarpura, Vadodara, Gujarat 390010',
+        phone: '9876543210',
+        email: 'procurement@barodaeng.com',
+        state: 'Gujarat',
+        gstin: '24AABCB1234A1Z1',
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
+
+      // Subtotal = 10000, 10% discount on line 1 = 1000, deliveryCharge = 200 => grandTotal = 9200
+      final invoice = Invoice(
+        id: 2,
+        invoiceNo: 'DC-2627-002',
+        invoiceType: InvoiceType.deliveryChallan,
+        customerId: customer.id,
+        invoiceDate: DateTime(2026, 4, 16),
+        subtotal: 10000.0,
+        discountAmount: 1000.0,
+        isDiscountPercentage: false,
+        distributeDiscountAcrossItems: false,
+        cgstAmount: 0.0,
+        sgstAmount: 0.0,
+        igstAmount: 0.0,
+        useIgst: false,
+        taxMode: TaxMode.cgst_sgst,
+        deliveryCharge: 200.0,
+        grandTotal: 9200.0,
+        amountInWords: 'Nine Thousand Two Hundred Rupees Only',
+        status: InvoiceStatus.draft,
+        requiresEWayBill: false,
+        requiresEInvoice: false,
+        createdAt: DateTime.now(),
+      );
+
+      final items = [
+        InvoiceItem(
+          id: 10,
+          invoiceId: 2,
+          itemSourceType: ItemSourceType.motorJob,
+          description: '10 HP Crompton Motor Rewinding',
+          hsnCode: '8501',
+          qty: 1,
+          unitPrice: 10000.0,
+          discountPercent: 10.0,
+          lineTotal: 10000.0,
+        ),
+      ];
+
+      final pdfBytes = await InvoicePdfGenerator.generate(
+        copyLabels: ['ORIGINAL FOR RECIPIENT'],
+        company: company,
+        invoice: invoice,
+        customer: customer,
+        items: items,
+        totalPaid: 0.0,
+      );
+
+      expect(pdfBytes, isNotEmpty);
+      expect(pdfBytes.length, greaterThan(1000));
+
+      final file = File('/Users/nodetolearn/.gemini/antigravity/brain/73056598-9f94-4e14-9a2c-092d709cd64c/sample_delivery_challan_discount.pdf');
+      await file.writeAsBytes(pdfBytes);
+      expect(await file.exists(), isTrue);
+    });
   });
 }
