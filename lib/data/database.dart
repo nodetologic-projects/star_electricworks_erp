@@ -53,7 +53,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 27;
+  int get schemaVersion => 28;
 
   @override
   MigrationStrategy get migration {
@@ -112,6 +112,11 @@ class AppDatabase extends _$AppDatabase {
         if (from < 27) {
           try { await m.addColumn(motorJobs, motorJobs.hsnCode); } catch (_) {}
           try { await m.addColumn(companySettings, companySettings.defaultMotorHsn); } catch (_) {}
+        }
+        if (from < 28) {
+          try { await m.addColumn(invoices, invoices.originalInvoiceId); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.noteReason); } catch (_) {}
+          try { await m.addColumn(invoices, invoices.noteReasonText); } catch (_) {}
         }
         if (from < 3) {
           try { await m.createTable(employees); } catch (_) {}
@@ -271,6 +276,8 @@ String _getPrefixForType(InvoiceType type) {
     case InvoiceType.billOfSupply: return 'BOS';
     case InvoiceType.purchaseVoucher: return 'PUR';
     case InvoiceType.deliveryChallan: return 'DC';
+    case InvoiceType.credit_note: return 'CN';
+    case InvoiceType.debit_note: return 'DN';
   }
 }
 

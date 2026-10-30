@@ -3,12 +3,18 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
+import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/invoices_repository.dart';
+import 'package:starelectricerp/data/repositories/customers_repository.dart';
+import 'package:starelectricerp/data/repositories/settings_repository.dart';
+import 'package:starelectricerp/features/billing/pdf/invoice_pdf.dart';
 
 class CAExportService {
   final InvoicesRepository repo;
+  final CustomersRepository customersRepo;
+  final SettingsRepository settingsRepo;
   
-  CAExportService(this.repo);
+  CAExportService(this.repo, this.customersRepo, this.settingsRepo);
 
   Future<String?> exportInvoicesZip(DateTime month, bool gstOnly) async {
     // 1. Fetch invoices for the month
@@ -26,6 +32,12 @@ class CAExportService {
             inv.invoiceType == InvoiceType.deliveryChallan) {
           return false;
         }
+        if (inv.invoiceType.isNote &&
+            inv.cgstAmount == 0 &&
+            inv.sgstAmount == 0 &&
+            inv.igstAmount == 0) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -37,18 +49,40 @@ class CAExportService {
     });
 
     if (filtered.isEmpty) {
-      return 'No invoices found for the selected period.';
+      return 'No invoices or notes found for the selected period.';
     }
 
     // 2. Prepare zip
     final archive = Archive();
     int addedCount = 0;
+    final company = await settingsRepo.getSettings();
     
     for (var invoice in filtered) {
-      
+      Uint8List? fileBytes;
       final pdfPath = invoice.signedPdfPath;
       if (pdfPath != null && File(pdfPath).existsSync()) {
-        final fileBytes = await File(pdfPath).readAsBytes();
+        fileBytes = await File(pdfPath).readAsBytes();
+      } else {
+        try {
+          final items = await repo.getItemsForInvoice(invoice.id);
+          final customer = await customersRepo.getCustomerById(invoice.customerId);
+          Invoice? orig;
+          if (invoice.originalInvoiceId != null) {
+            orig = await repo.getInvoiceById(invoice.originalInvoiceId!);
+          }
+          fileBytes = await InvoicePdfGenerator.generate(
+            company: company,
+            invoice: invoice,
+            items: items,
+            customer: customer,
+            originalInvoice: orig,
+          );
+        } catch (_) {
+          // If generation fails for a particular invoice, continue
+        }
+      }
+
+      if (fileBytes != null) {
         final fileName = '${invoice.invoiceNo.replaceAll('/', '_')}.pdf';
         final archiveFile = ArchiveFile(fileName, fileBytes.length, fileBytes);
         archive.addFile(archiveFile);
@@ -57,7 +91,7 @@ class CAExportService {
     }
     
     if (addedCount == 0) {
-      return 'No generated PDF files found for the selected invoices.';
+      return 'No PDF files could be prepared for the selected invoices and notes.';
     }
 
     // 3. Encode zip

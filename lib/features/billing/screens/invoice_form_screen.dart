@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as drift;
+import 'package:intl/intl.dart';
 import 'package:starelectricerp/data/repositories/settings_repository.dart';
 import 'package:starelectricerp/data/repositories/motor_jobs_repository.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +50,7 @@ class InvoiceFormScreen extends ConsumerStatefulWidget {
   final int? sourceQuotationId;
   final String? prefillDescription;
   final double? prefillAmount;
+  final int? prefillOriginalInvoiceId;
 
   const InvoiceFormScreen({
     super.key,
@@ -59,6 +61,7 @@ class InvoiceFormScreen extends ConsumerStatefulWidget {
     this.sourceQuotationId,
     this.prefillDescription,
     this.prefillAmount,
+    this.prefillOriginalInvoiceId,
   });
 
   @override
@@ -108,6 +111,14 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   double _deliveryCharge = 0;
   TaxMode _taxMode = TaxMode.cgst_sgst;
+
+  int? _selectedOriginalInvoiceId;
+  Invoice? _originalInvoice;
+  NoteReason? _selectedNoteReason;
+  final TextEditingController _noteReasonTextController = TextEditingController();
+  bool _returnStockToInventory = false;
+  double _remainingCreditableAmount = 0.0;
+  List<Invoice> _customerInvoices = [];
 
   static const Map<String, String> _gstStateCodes = {
     '01': 'Jammu & Kashmir',
@@ -186,13 +197,22 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _selectedType = widget.prefillType ?? InvoiceType.serviceTaxInvoice;
     _selectedCustomer = widget.prefillCustomerId;
 
+    if (widget.prefillType == InvoiceType.credit_note) {
+      _selectedNoteReason = NoteReason.sales_return;
+    } else if (widget.prefillType == InvoiceType.debit_note) {
+      _selectedNoteReason = NoteReason.additional_charges;
+    }
+
     if (widget.invoiceId != null) {
       _isInvoiceNoManuallyEdited = false;
       Future.microtask(() => _loadExistingInvoice(widget.invoiceId!));
     } else {
       _fetchNextInvoiceNumber();
-      if (widget.prefillCustomerId != null) {
+      if (widget.prefillOriginalInvoiceId != null) {
+        Future.microtask(() => _loadPrefillOriginalInvoice(widget.prefillOriginalInvoiceId!));
+      } else if (widget.prefillCustomerId != null) {
         _loadPrefillCustomer(widget.prefillCustomerId!);
+        Future.microtask(() => _loadCustomerInvoices(widget.prefillCustomerId!));
       }
       if (widget.prefillJobId != null) {
         // We prepopulate later when async data loads, for now just add a row
@@ -201,12 +221,14 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         item.descController = TextEditingController(text: item.description);
         _items.add(item);
         _loadPrefillJob(widget.prefillJobId!);
-      } else {
+      } else if (widget.prefillOriginalInvoiceId == null || widget.prefillType != InvoiceType.credit_note) {
         final item = _LineItem(type: ItemSourceType.custom);
-        if (widget.prefillDescription != null)
+        if (widget.prefillDescription != null) {
           item.description = widget.prefillDescription!;
-        if (widget.prefillAmount != null)
+        }
+        if (widget.prefillAmount != null) {
           item.unitPrice = widget.prefillAmount!;
+        }
         item.descController = TextEditingController(text: item.description);
         _items.add(item);
       }
@@ -297,6 +319,77 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     }
   }
 
+  Future<void> _loadCustomerInvoices(int customerId, {int? preselectInvoiceId}) async {
+    final repo = ref.read(invoicesRepositoryProvider);
+    final allInvoices = await repo.getAllInvoices();
+    final custInvoices = allInvoices.where((inv) =>
+      inv.customerId == customerId &&
+      inv.status != InvoiceStatus.draft &&
+      (inv.invoiceType == InvoiceType.serviceTaxInvoice ||
+       inv.invoiceType == InvoiceType.salesTaxInvoice ||
+       inv.invoiceType == InvoiceType.billOfSupply)
+    ).toList();
+
+    if (mounted) {
+      setState(() {
+        _customerInvoices = custInvoices;
+      });
+      if (preselectInvoiceId != null) {
+        final match = custInvoices.where((i) => i.id == preselectInvoiceId).firstOrNull;
+        if (match != null) {
+          await _onOriginalInvoiceSelected(match, prefillLines: _selectedType == InvoiceType.credit_note);
+        }
+      }
+    }
+  }
+
+  Future<void> _onOriginalInvoiceSelected(Invoice orig, {bool prefillLines = false}) async {
+    final repo = ref.read(invoicesRepositoryProvider);
+    final remaining = await repo.getRemainingCreditableAmount(orig.id, excludeNoteId: widget.invoiceId);
+    
+    List<_LineItem>? newLines;
+    if (prefillLines) {
+      final origItems = await repo.getItemsForInvoice(orig.id);
+      newLines = origItems.map((item) {
+        final line = _LineItem(type: item.itemSourceType);
+        line.linkedId = item.itemSourceType == ItemSourceType.motorJob ? item.motorJobId : item.copperStockId;
+        line.description = item.description;
+        line.descController = TextEditingController(text: item.description);
+        line.hsnCode = item.hsnCode;
+        line.qty = item.qty ?? 1.0;
+        line.unitPrice = item.unitPrice;
+        line.discountPercent = item.discountPercent;
+        line.gstRate = orig.invoiceType == InvoiceType.billOfSupply ? null : item.gstRate;
+        return line;
+      }).toList();
+    }
+
+    if (mounted) {
+      setState(() {
+        _selectedOriginalInvoiceId = orig.id;
+        _originalInvoice = orig;
+        _remainingCreditableAmount = remaining;
+        _taxMode = orig.taxMode == TaxMode.all_three ? TaxMode.cgst_sgst : orig.taxMode;
+        if (newLines != null && newLines.isNotEmpty) {
+          _items.clear();
+          _items.addAll(newLines);
+        }
+        if (_selectedCustomer == null) {
+          _selectedCustomer = orig.customerId;
+          _loadPrefillCustomer(orig.customerId);
+        }
+      });
+      _recalculate();
+    }
+  }
+
+  Future<void> _loadPrefillOriginalInvoice(int origId) async {
+    final repo = ref.read(invoicesRepositoryProvider);
+    final orig = await repo.getInvoiceById(origId);
+    await _loadCustomerInvoices(orig.customerId, preselectInvoiceId: orig.id);
+    await _onOriginalInvoiceSelected(orig, prefillLines: _selectedType == InvoiceType.credit_note);
+  }
+
   Future<void> _loadExistingInvoice(int id) async {
     final repo = ref.read(invoicesRepositoryProvider);
     final custRepo = ref.read(customersRepositoryProvider);
@@ -304,11 +397,29 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     final existingInvoice = await repo.getInvoiceById(id);
     final existingItems = await repo.getItemsForInvoice(id);
     final existingCustomer = await custRepo.getCustomerById(existingInvoice.customerId);
+
+    Invoice? orig;
+    double remaining = 0.0;
+    bool hasStockReturn = false;
+    if (existingInvoice.originalInvoiceId != null) {
+      orig = await repo.getInvoiceById(existingInvoice.originalInvoiceId!);
+      remaining = await repo.getRemainingCreditableAmount(existingInvoice.originalInvoiceId!, excludeNoteId: id);
+      final db = ref.read(databaseProvider);
+      final movements = await (db.select(db.stockMovements)..where((t) => t.referenceInvoiceId.equals(id))).get();
+      hasStockReturn = movements.any((m) => m.movementType == MovementType.sales_return_in);
+      await _loadCustomerInvoices(existingInvoice.customerId);
+    }
     
     if (mounted) {
       setState(() {
         _selectedType = existingInvoice.invoiceType;
         _selectedCustomer = existingInvoice.customerId;
+        _selectedOriginalInvoiceId = existingInvoice.originalInvoiceId;
+        _selectedNoteReason = existingInvoice.noteReason;
+        _noteReasonTextController.text = existingInvoice.noteReasonText ?? '';
+        _originalInvoice = orig;
+        _remainingCreditableAmount = remaining;
+        _returnStockToInventory = hasStockReturn;
         _invoiceNoController.text = existingInvoice.invoiceNo;
         _isInvoiceNoEditable = existingInvoice.status == InvoiceStatus.draft;
         _isInvoiceNoManuallyEdited = false;
@@ -377,6 +488,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
     _placeOfSupplyController.dispose();
     _poNumberController.dispose();
     _gpNumberController.dispose();
+    _noteReasonTextController.dispose();
     super.dispose();
   }
 
@@ -411,6 +523,34 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         const SnackBar(content: Text('Please add at least one line item')),
       );
       return;
+    }
+
+    if (_selectedType.isNote && _selectedOriginalInvoiceId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please select an original invoice for the ${_selectedType == InvoiceType.credit_note ? 'Credit Note' : 'Debit Note'}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedType.isNote && _originalInvoice != null) {
+      final origDate = IstDateUtils.toMidnightIst(_originalInvoice!.invoiceDate);
+      final noteDate = IstDateUtils.toMidnightIst(_invoiceDate);
+      if (noteDate.isBefore(origDate)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Note date cannot be before original invoice date (${DateFormat('dd/MM/yyyy').format(_originalInvoice!.invoiceDate)})',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
     }
 
     setState(() => _isSaving = true);
@@ -459,26 +599,40 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
         items: inputs,
         taxMode: _taxMode,
         deliveryCharge: _deliveryCharge,
+        isOriginalBillOfSupply:
+            _selectedType.isNote &&
+            _originalInvoice?.invoiceType == InvoiceType.billOfSupply,
       );
 
-      final duplicate = await repo.findDuplicateInvoice(
-        customerId: finalCustomerId,
-        type: _selectedType,
-        grandTotal: totals.grandTotal,
-        date: _invoiceDate,
-        excludeInvoiceId: widget.invoiceId,
-      );
+      if (_selectedType == InvoiceType.credit_note) {
+        if (totals.grandTotal > _remainingCreditableAmount + 0.001) {
+          if (mounted) {
+            setState(() => _isSaving = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Credit note total (₹${totals.grandTotal.toStringAsFixed(2)}) cannot exceed remaining creditable amount (₹${_remainingCreditableAmount.toStringAsFixed(2)})',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
 
-      if (duplicate != null) {
-        bool shouldProceed = false;
-        if (mounted) {
-          shouldProceed =
-              await showDialog<bool>(
+        if (_originalInvoice != null) {
+          final origDate = _originalInvoice!.invoiceDate;
+          final fyEndYear = origDate.month >= 4 ? origDate.year + 1 : origDate.year;
+          final gstDeadline = DateTime(fyEndYear, 11, 30, 23, 59, 59);
+          if (_invoiceDate.isAfter(gstDeadline)) {
+            bool proceed = false;
+            if (mounted) {
+              proceed = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Possible Duplicate Invoice'),
+                  title: const Text('GST Time Limit Warning'),
                   content: Text(
-                    'A similar invoice for ${_customerNameController.text.trim()} totaling ₹${totals.grandTotal.toStringAsFixed(2)} was created on ${duplicate.invoiceDate.toString().split('.')[0]} (Invoice #${duplicate.invoiceNo}). Continue and create anyway, or cancel?',
+                    'This may be past the GST time limit for a credit note against this invoice — confirm with your CA.\n\n(30 November $fyEndYear has passed).\n\nDo you want to proceed and save anyway?',
                   ),
                   actions: [
                     TextButton(
@@ -487,20 +641,101 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text(
-                        'Create Anyway',
-                        style: TextStyle(color: Colors.red),
-                      ),
+                      child: const Text('Proceed Anyway'),
                     ),
                   ],
                 ),
-              ) ??
-              false;
+              ) ?? false;
+            }
+            if (!proceed) {
+              if (mounted) setState(() => _isSaving = false);
+              return;
+            }
+          }
         }
+      }
 
-        if (!shouldProceed) {
-          if (mounted) setState(() => _isSaving = false);
-          return;
+      if (_selectedType.isNote && _selectedOriginalInvoiceId != null) {
+        final duplicateNote = await repo.findDuplicateNote(
+          originalInvoiceId: _selectedOriginalInvoiceId!,
+          type: _selectedType,
+          grandTotal: totals.grandTotal,
+          date: _invoiceDate,
+          excludeInvoiceId: widget.invoiceId,
+        );
+        if (duplicateNote != null) {
+          bool shouldProceed = false;
+          if (mounted) {
+            shouldProceed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: Text('Possible Duplicate ${_selectedType == InvoiceType.credit_note ? 'Credit' : 'Debit'} Note'),
+                content: Text(
+                  'A similar ${_selectedType == InvoiceType.credit_note ? 'Credit Note' : 'Debit Note'} against invoice ${_originalInvoice?.invoiceNo ?? ''} totaling ₹${totals.grandTotal.toStringAsFixed(2)} was created within the last 24 hours (Note #${duplicateNote.invoiceNo}). Continue and create anyway, or cancel?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text(
+                      'Create Anyway',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+            ) ?? false;
+          }
+          if (!shouldProceed) {
+            if (mounted) setState(() => _isSaving = false);
+            return;
+          }
+        }
+      } else {
+        final duplicate = await repo.findDuplicateInvoice(
+          customerId: finalCustomerId,
+          type: _selectedType,
+          grandTotal: totals.grandTotal,
+          date: _invoiceDate,
+          excludeInvoiceId: widget.invoiceId,
+        );
+
+        if (duplicate != null) {
+          bool shouldProceed = false;
+          if (mounted) {
+            shouldProceed =
+                await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Possible Duplicate Invoice'),
+                    content: Text(
+                      'A similar invoice for ${_customerNameController.text.trim()} totaling ₹${totals.grandTotal.toStringAsFixed(2)} was created on ${duplicate.invoiceDate.toString().split('.')[0]} (Invoice #${duplicate.invoiceNo}). Continue and create anyway, or cancel?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text(
+                          'Create Anyway',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                ) ??
+                false;
+          }
+
+          if (!shouldProceed) {
+            if (mounted) setState(() => _isSaving = false);
+            return;
+          }
         }
       }
 
@@ -624,8 +859,15 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               : null,
         ),
 
-        requiresEWayBill: drift.Value(reqEway),
+        requiresEWayBill: drift.Value(!_selectedType.isCreditNote && reqEway),
         requiresEInvoice: drift.Value(reqEinvoice),
+        originalInvoiceId: drift.Value(_selectedOriginalInvoiceId),
+        noteReason: drift.Value(_selectedNoteReason),
+        noteReasonText: drift.Value(
+          _noteReasonTextController.text.trim().isNotEmpty
+              ? _noteReasonTextController.text.trim()
+              : null,
+        ),
       );
 
       final itemCompanions = _items.map<InvoiceItemsCompanion>((i) {
@@ -654,12 +896,18 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
       int savedInvoiceId = 0;
       if (widget.invoiceId != null) {
-        await repo.updateInvoiceWithItems(widget.invoiceId!, invoiceCompanion, itemCompanions);
+        await repo.updateInvoiceWithItems(
+          widget.invoiceId!,
+          invoiceCompanion,
+          itemCompanions,
+          returnStockToInventory: _returnStockToInventory,
+        );
         savedInvoiceId = widget.invoiceId!;
       } else {
         savedInvoiceId = await repo.createInvoiceWithItems(
           invoiceCompanion,
           itemCompanions,
+          returnStockToInventory: _returnStockToInventory,
         );
       }
 
@@ -708,7 +956,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   }) {
     final showGst =
         _selectedType != InvoiceType.billOfSupply &&
-        _selectedType != InvoiceType.deliveryChallan;
+        _selectedType != InvoiceType.deliveryChallan &&
+        !(_selectedType.isNote && _originalInvoice?.invoiceType == InvoiceType.billOfSupply);
 
     final rowContent = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1062,19 +1311,36 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     value: InvoiceType.deliveryChallan,
                     child: Text('Delivery Challan'),
                   ),
+                  DropdownMenuItem(
+                    value: InvoiceType.credit_note,
+                    child: Text('Credit Note'),
+                  ),
+                  DropdownMenuItem(
+                    value: InvoiceType.debit_note,
+                    child: Text('Debit Note'),
+                  ),
                 ],
                 onChanged: (val) {
                   if (val != null) {
                     setState(() {
                       _selectedType = val;
+                      if (val == InvoiceType.credit_note && _selectedNoteReason == null) {
+                        _selectedNoteReason = NoteReason.sales_return;
+                      } else if (val == InvoiceType.debit_note && _selectedNoteReason == null) {
+                        _selectedNoteReason = NoteReason.additional_charges;
+                      }
                       // Reset items to avoid incorrect gst application when switching types
                       for (var item in _items) {
                         if (val == InvoiceType.billOfSupply ||
-                            val == InvoiceType.deliveryChallan) {
+                            val == InvoiceType.deliveryChallan ||
+                            (val.isNote && _originalInvoice?.invoiceType == InvoiceType.billOfSupply)) {
                           item.gstRate = null;
                         }
                       }
                     });
+                    if (val.isNote && _selectedCustomer != null) {
+                      _loadCustomerInvoices(_selectedCustomer!);
+                    }
                     _recalculate();
                     if (!_isInvoiceNoManuallyEdited && widget.invoiceId == null) {
                       _fetchNextInvoiceNumber();
@@ -1089,6 +1355,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 child: AppSelect<TaxMode>(
                   label: 'Tax Type',
                   value: _taxMode == TaxMode.all_three ? TaxMode.cgst_sgst : _taxMode,
+                  helperText: _selectedType.isNote
+                      ? 'Inherited from original (${_taxMode == TaxMode.igst_only ? 'IGST' : 'CGST+SGST'})'
+                      : null,
                   items: [
                     DropdownMenuItem(
                       value: TaxMode.cgst_sgst,
@@ -1127,7 +1396,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       )),
                     ),
                   ],
-                  onChanged: _isInvoiceNoEditable
+                  onChanged: (_isInvoiceNoEditable && !_selectedType.isNote)
                       ? (val) {
                           if (val != null) {
                             setState(() => _taxMode = val);
@@ -1174,6 +1443,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                         _placeOfSupplyController.text = selection
                             .state; // Auto-derive place of supply from state
                       });
+                      if (_selectedType.isNote) {
+                        _loadCustomerInvoices(selection.id);
+                      }
                       _recalculate();
                     },
                     fieldViewBuilder:
@@ -1379,12 +1651,194 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             ),
           ],
         ),
+        if (_selectedType.isNote) ...[
+          const SizedBox(height: 16),
+          Card(
+            margin: EdgeInsets.zero,
+            color: _selectedType == InvoiceType.credit_note
+                ? Colors.teal.shade50.withValues(alpha: 0.4)
+                : Colors.orange.shade50.withValues(alpha: 0.4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(
+                color: _selectedType == InvoiceType.credit_note
+                    ? Colors.teal.shade200
+                    : Colors.orange.shade200,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _selectedType == InvoiceType.credit_note
+                            ? Icons.assignment_return
+                            : Icons.note_add,
+                        color: _selectedType == InvoiceType.credit_note
+                            ? Colors.teal.shade800
+                            : Colors.deepOrange.shade800,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _selectedType == InvoiceType.credit_note
+                            ? 'Credit Note Details'
+                            : 'Debit Note Details',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _selectedType == InvoiceType.credit_note
+                              ? Colors.teal.shade900
+                              : Colors.deepOrange.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      SizedBox(
+                        width: isDesktop ? 340 : double.infinity,
+                        child: AppSelect<int?>(
+                          label: 'Original Invoice *',
+                          value: _selectedOriginalInvoiceId,
+                          helperText: _customerInvoices.isEmpty
+                              ? (_selectedCustomer == null
+                                  ? 'Select a customer above first'
+                                  : 'No finalized invoices found for this customer')
+                              : 'Must link to a finalized invoice',
+                          items: [
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text('-- Select Original Invoice --'),
+                            ),
+                            ..._customerInvoices.map(
+                              (inv) => DropdownMenuItem(
+                                value: inv.id,
+                                child: Text(
+                                  '${inv.invoiceNo} (${DateFormat('dd/MM/yyyy').format(inv.invoiceDate)}) - ₹${inv.grandTotal.toStringAsFixed(2)}',
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              final match = _customerInvoices
+                                  .where((i) => i.id == val)
+                                  .firstOrNull;
+                              if (match != null) {
+                                _onOriginalInvoiceSelected(
+                                  match,
+                                  prefillLines:
+                                      _selectedType == InvoiceType.credit_note,
+                                );
+                              }
+                            } else {
+                              setState(() {
+                                _selectedOriginalInvoiceId = null;
+                                _originalInvoice = null;
+                                _remainingCreditableAmount = 0.0;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: isDesktop ? 220 : double.infinity,
+                        child: AppSelect<NoteReason?>(
+                          label: 'Reason *',
+                          value: _selectedNoteReason,
+                          items: NoteReason.values
+                              .map(
+                                (r) => DropdownMenuItem(
+                                  value: r,
+                                  child: Text(r.displayName),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _selectedNoteReason = val);
+                            }
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: isDesktop ? 300 : double.infinity,
+                        child: TextFormField(
+                          controller: _noteReasonTextController,
+                          decoration: const InputDecoration(
+                            labelText: 'Reason Remarks (Optional)',
+                            helperText: 'Additional context for this note',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_selectedType == InvoiceType.credit_note &&
+                      _selectedOriginalInvoiceId != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.blue.shade800,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Remaining Creditable Limit: ₹${_remainingCreditableAmount.toStringAsFixed(2)} (Original: ₹${_originalInvoice?.grandTotal.toStringAsFixed(2) ?? "0"})',
+                              style: TextStyle(
+                                color: Colors.blue.shade900,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (_selectedType == InvoiceType.credit_note &&
+                      _selectedNoteReason == NoteReason.sales_return &&
+                      _items.any((i) => i.type == ItemSourceType.copperStock)) ...[
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: const Text('Add returned quantity back to stock'),
+                      subtitle: const Text(
+                        'Creates a sales_return_in movement to increment inventory',
+                      ),
+                      value: _returnStockToInventory,
+                      onChanged: (val) =>
+                          setState(() => _returnStockToInventory = val ?? false),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
-
-        const SizedBox(height: 24),
-        const Text(
-          'Invoice Dates & Terms',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        Text(
+          _selectedType.isCreditNote ? 'Credit Note Dates & Terms' : (_selectedType.isDebitNote ? 'Debit Note Dates & Terms' : 'Invoice Dates & Terms'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Builder(
@@ -1396,7 +1850,20 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
             final isOlderThan30Days = _invoiceDate.isBefore(IstDateUtils.nowIst().subtract(const Duration(days: 30)));
             final isFutureInvoice = _invoiceDate.isAfter(IstDateUtils.nowIst());
 
-            if (!isDifferentFY && !isOlderThan30Days && !isFutureInvoice) {
+            final isNoteBeforeOrig = _selectedType.isNote &&
+                _originalInvoice != null &&
+                IstDateUtils.toMidnightIst(_invoiceDate).isBefore(IstDateUtils.toMidnightIst(_originalInvoice!.invoiceDate));
+
+            bool isAfterGstDeadline = false;
+            int fyEndYear = 0;
+            if (_selectedType == InvoiceType.credit_note && _originalInvoice != null) {
+              final origDate = _originalInvoice!.invoiceDate;
+              fyEndYear = origDate.month >= 4 ? origDate.year + 1 : origDate.year;
+              final gstDeadline = DateTime(fyEndYear, 11, 30, 23, 59, 59);
+              isAfterGstDeadline = _invoiceDate.isAfter(gstDeadline);
+            }
+
+            if (!isDifferentFY && !isOlderThan30Days && !isFutureInvoice && !isNoteBeforeOrig && !isAfterGstDeadline) {
               return const SizedBox.shrink();
             }
 
@@ -1405,13 +1872,41 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
+                  color: isNoteBeforeOrig ? Colors.red.shade50 : Colors.amber.shade50,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade300),
+                  border: Border.all(color: isNoteBeforeOrig ? Colors.red.shade300 : Colors.amber.shade300),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (isNoteBeforeOrig)
+                      Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red.shade900, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Note date cannot be before original invoice date (${DateFormat('dd/MM/yyyy').format(_originalInvoice!.invoiceDate)})',
+                              style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (isAfterGstDeadline) ...[
+                      if (isNoteBeforeOrig) const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Note date is after 30 November $fyEndYear following original invoice FY end — this may be past the GST time limit. Confirm with your CA.',
+                              style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.w600, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (isDifferentFY)
                       Row(
                         children: [
@@ -1729,6 +2224,27 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                 color: Colors.grey,
               ),
             ),
+            if (_selectedType == InvoiceType.credit_note && _selectedOriginalInvoiceId != null) ...[
+              const Divider(),
+              _buildSummaryRow('Creditable Limit:', _remainingCreditableAmount),
+              if (totals.grandTotal > _remainingCreditableAmount + 0.001)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Exceeds Limit by:',
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      Text(
+                        '₹${(totals.grandTotal - _remainingCreditableAmount).toStringAsFixed(2)}',
+                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13).mono,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
       ),
@@ -1745,7 +2261,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
     final showGst =
         _selectedType != InvoiceType.billOfSupply &&
-        _selectedType != InvoiceType.deliveryChallan;
+        _selectedType != InvoiceType.deliveryChallan &&
+        !(_selectedType.isNote && _originalInvoice?.invoiceType == InvoiceType.billOfSupply);
     final isSupplier = _selectedType == InvoiceType.purchaseVoucher;
 
     // Calculate totals for preview
@@ -1760,6 +2277,9 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       items: inputs,
       taxMode: _taxMode,
       deliveryCharge: _deliveryCharge,
+      isOriginalBillOfSupply:
+          _selectedType.isNote &&
+          _originalInvoice?.invoiceType == InvoiceType.billOfSupply,
     );
 
     final isDesktop = MediaQuery.of(context).size.width > 900;
@@ -1822,7 +2342,17 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          widget.invoiceId != null ? 'Edit Invoice' : 'New Invoice',
+                          widget.invoiceId != null
+                              ? (_selectedType.isCreditNote
+                                  ? 'Edit Credit Note'
+                                  : (_selectedType.isDebitNote
+                                      ? 'Edit Debit Note'
+                                      : 'Edit Invoice'))
+                              : (_selectedType.isCreditNote
+                                  ? 'New Credit Note'
+                                  : (_selectedType.isDebitNote
+                                      ? 'New Debit Note'
+                                      : 'New Invoice')),
                           style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),

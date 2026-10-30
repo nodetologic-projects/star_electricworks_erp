@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/core/widgets/app_button.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/repositories/copper_stock_repository.dart';
@@ -8,6 +9,7 @@ import 'package:starelectricerp/data/repositories/invoices_repository.dart';
 import 'package:starelectricerp/features/reports/utils/excel_export.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/features/reports/screens/ca_export_dialog.dart';
+import 'package:starelectricerp/features/reports/screens/tally_export_dialog.dart';
 
 // State managed internally by StatefulWidget
 
@@ -23,6 +25,13 @@ class ReportsScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text('Reports'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              tooltip: 'Export Vouchers for Tally',
+              onPressed: () {
+                showDialog(context: context, builder: (_) => const TallyExportDialog());
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.archive),
               tooltip: 'Export Invoices for CA',
@@ -116,8 +125,10 @@ class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
               double totalSales = 0;
               double totalGst = 0;
               for (var i in invoices) {
-                totalSales += i.invoice.grandTotal;
-                totalGst += i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount;
+                final isCredit = i.invoice.invoiceType == InvoiceType.credit_note;
+                final mult = isCredit ? -1.0 : 1.0;
+                totalSales += mult * i.invoice.grandTotal;
+                totalGst += mult * (i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount);
               }
 
               return Column(
@@ -129,20 +140,32 @@ class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
                         child: DataTable(
                         columns: const [
                           DataColumn(label: Text('Date')),
-                          DataColumn(label: Text('Invoice No')),
+                          DataColumn(label: Text('Type')),
+                          DataColumn(label: Text('Doc No')),
                           DataColumn(label: Text('Customer')),
                           DataColumn(label: Text('Taxable Amt')),
                           DataColumn(label: Text('GST')),
                           DataColumn(label: Text('Grand Total')),
                         ],
                         rows: invoices.map((i) {
+                          final isCredit = i.invoice.invoiceType == InvoiceType.credit_note;
+                          final typeLabel = i.invoice.invoiceType == InvoiceType.credit_note
+                              ? 'Credit Note'
+                              : (i.invoice.invoiceType == InvoiceType.debit_note
+                                  ? 'Debit Note'
+                                  : (i.invoice.invoiceType == InvoiceType.deliveryChallan
+                                      ? 'Challan'
+                                      : (i.invoice.invoiceType == InvoiceType.billOfSupply
+                                          ? 'Bill of Supply'
+                                          : 'Invoice')));
                           return DataRow(cells: [
                             DataCell(Text(DateFormat('dd-MMM-yyyy').format(i.invoice.invoiceDate))),
+                            DataCell(Text(typeLabel)),
                             DataCell(Text(i.invoice.invoiceNo)),
                             DataCell(Text(i.customer.name)),
-                            DataCell(Text('₹${i.invoice.subtotal.toStringAsFixed(2)}')),
-                            DataCell(Text('₹${(i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount).toStringAsFixed(2)}')),
-                            DataCell(Text('₹${i.invoice.grandTotal.toStringAsFixed(2)}')),
+                            DataCell(Text(isCredit ? '-₹${i.invoice.subtotal.toStringAsFixed(2)}' : '₹${i.invoice.subtotal.toStringAsFixed(2)}')),
+                            DataCell(Text(isCredit ? '-₹${(i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount).toStringAsFixed(2)}' : '₹${(i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount).toStringAsFixed(2)}')),
+                            DataCell(Text(isCredit ? '-₹${i.invoice.grandTotal.toStringAsFixed(2)}' : '₹${i.invoice.grandTotal.toStringAsFixed(2)}')),
                           ]);
                         }).toList(),
                       ),
@@ -161,17 +184,22 @@ class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
                           label: 'Export to Excel',
                           onPressed: () async {
                             final rows = [
-                              ['Date', 'Invoice No', 'Customer', 'Taxable Amt', 'GST', 'Grand Total'],
-                              ...invoices.map((i) => [
-                                DateFormat('dd-MMM-yyyy').format(i.invoice.invoiceDate),
-                                i.invoice.invoiceNo,
-                                i.customer.name,
-                                i.invoice.subtotal,
-                                i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount,
-                                i.invoice.grandTotal,
-                              ]),
+                              ['Date', 'Type', 'Doc No', 'Customer', 'Taxable Amt', 'GST', 'Grand Total'],
+                              ...invoices.map((i) {
+                                final isCredit = i.invoice.invoiceType == InvoiceType.credit_note;
+                                final mult = isCredit ? -1.0 : 1.0;
+                                return [
+                                  DateFormat('dd-MMM-yyyy').format(i.invoice.invoiceDate),
+                                  i.invoice.invoiceType.name,
+                                  i.invoice.invoiceNo,
+                                  i.customer.name,
+                                  mult * i.invoice.subtotal,
+                                  mult * (i.invoice.cgstAmount + i.invoice.sgstAmount + i.invoice.igstAmount),
+                                  mult * i.invoice.grandTotal,
+                                ];
+                              }),
                               [],
-                              ['Total', '', '', '', totalGst, totalSales]
+                              ['Total', '', '', '', '', totalGst, totalSales]
                             ];
 try {
                             final path = await ExcelExport.exportData('Sales_Report', rows);

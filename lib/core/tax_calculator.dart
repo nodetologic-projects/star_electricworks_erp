@@ -73,6 +73,7 @@ class TaxCalculator {
     bool isBundleDiscountPercentage = false,
     bool distributeBundleDiscount = true,
     double deliveryCharge = 0.0,
+    bool isOriginalBillOfSupply = false,
   }) {
     final effectiveTaxMode = useIgst != null
         ? (useIgst ? TaxMode.igst_only : TaxMode.cgst_sgst)
@@ -86,7 +87,9 @@ class TaxCalculator {
     double totalIgst = 0.0;
 
     final skipTax =
-        invoiceType == InvoiceType.billOfSupply || invoiceType == InvoiceType.deliveryChallan;
+        invoiceType == InvoiceType.billOfSupply ||
+        invoiceType == InvoiceType.deliveryChallan ||
+        isOriginalBillOfSupply;
 
     for (final item in items) {
       rawSubtotal += item.lineTotal;

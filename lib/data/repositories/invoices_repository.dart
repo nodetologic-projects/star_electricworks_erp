@@ -28,13 +28,15 @@ class InvoicesRepository {
         ]))
       .watch();
 
-  Stream<List<Invoice>> watchFilteredInvoices({String query = '', InvoiceType? type}) {
+  Stream<List<Invoice>> watchFilteredInvoices({String query = '', InvoiceType? type, bool notesOnly = false}) {
     final statement = _db.select(_db.invoices);
     
     if (query.isNotEmpty) {
       statement.where((t) => t.invoiceNo.like('%$query%'));
     }
-    if (type != null) {
+    if (notesOnly) {
+      statement.where((t) => t.invoiceType.isIn([InvoiceType.credit_note.name, InvoiceType.debit_note.name]));
+    } else if (type != null) {
       statement.where((t) => t.invoiceType.equals(type.name));
     }
     
@@ -60,10 +62,12 @@ class InvoicesRepository {
         return 'PUR';
       case InvoiceType.deliveryChallan:
         return 'DC';
+      case InvoiceType.credit_note:
+        return 'CN';
+      case InvoiceType.debit_note:
+        return 'DN';
     }
   }
-
-  String _getPrefixForType(InvoiceType type) => getPrefixForType(type);
 
   static int? parseSequenceNumber(String prefix, String label, String invoiceNo) {
     final clean = invoiceNo.trim().toUpperCase();
@@ -195,7 +199,11 @@ class InvoicesRepository {
     return query.getSingleOrNull();
   }
 
-  Future<int> createInvoiceWithItems(InvoicesCompanion invoice, List<InvoiceItemsCompanion> items) {
+  Future<int> createInvoiceWithItems(
+    InvoicesCompanion invoice,
+    List<InvoiceItemsCompanion> items, {
+    bool returnStockToInventory = false,
+  }) {
     return _db.transaction(() async {
       final typeEnum = invoice.invoiceType.value;
       final prefix = getPrefixForType(typeEnum);
@@ -252,85 +260,89 @@ class InvoicesRepository {
           final qty = item.qty.value ?? 0.0;
           
           if (qty > 0) {
-            MovementType movementType;
+            MovementType? movementType;
             final invoiceType = invoice.invoiceType.value;
             
             if (invoiceType == InvoiceType.purchaseVoucher) {
               movementType = MovementType.purchaseIn;
+            } else if (invoiceType == InvoiceType.credit_note) {
+              final noteReasonVal = invoice.noteReason.present ? invoice.noteReason.value : null;
+              if (noteReasonVal == NoteReason.sales_return && returnStockToInventory) {
+                movementType = MovementType.sales_return_in;
+              }
+            } else if (invoiceType == InvoiceType.debit_note || invoiceType == InvoiceType.deliveryChallan) {
+              movementType = null;
             } else {
               movementType = MovementType.saleOut;
             }
             
-            // Record Movement
-            await _db.into(_db.stockMovements).insert(
-              StockMovementsCompanion.insert(
-                copperStockId: stockId,
-                movementType: movementType,
-                weightKg: qty,
-                referenceInvoiceId: Value(invoiceId),
-                notes: Value('Invoice $finalInvoiceNo'),
-              )
-            );
-            
-            // Update CopperStock qty
-            final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(stockId))).getSingle();
-            double newQty = currentStock.stockQtyKg;
-            if (movementType == MovementType.purchaseIn) {
-              newQty += qty;
-            } else {
-              newQty -= qty;
+            if (movementType != null) {
+              // Record Movement
+              await _db.into(_db.stockMovements).insert(
+                StockMovementsCompanion.insert(
+                  copperStockId: stockId,
+                  movementType: movementType,
+                  weightKg: qty,
+                  referenceInvoiceId: Value(invoiceId),
+                  notes: Value(movementType == MovementType.sales_return_in
+                      ? 'Credit Note $finalInvoiceNo (Sales Return)'
+                      : 'Invoice $finalInvoiceNo'),
+                )
+              );
+              
+              // Update CopperStock qty
+              final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(stockId))).getSingle();
+              double newQty = currentStock.stockQtyKg;
+              if (movementType == MovementType.purchaseIn || movementType == MovementType.sales_return_in) {
+                newQty += qty;
+              } else {
+                newQty -= qty;
+              }
+              
+              await (_db.update(_db.copperStock)..where((t) => t.id.equals(stockId)))
+                  .write(CopperStockCompanion(stockQtyKg: Value(newQty)));
             }
-            
-            await (_db.update(_db.copperStock)..where((t) => t.id.equals(stockId)))
-                .write(CopperStockCompanion(stockQtyKg: Value(newQty)));
           }
         }
       }
       
+      if (invoice.originalInvoiceId.present && invoice.originalInvoiceId.value != null) {
+        await recomputeAndUpdateInvoiceStatus(invoice.originalInvoiceId.value!);
+      }
+
       return invoiceId;
     });
   }
 
   
-  Future<void> updateInvoiceWithItems(int invoiceId, InvoicesCompanion invoiceCompanion, List<InvoiceItemsCompanion> newItems) {
+  Future<void> updateInvoiceWithItems(
+    int invoiceId,
+    InvoicesCompanion invoiceCompanion,
+    List<InvoiceItemsCompanion> newItems, {
+    bool returnStockToInventory = false,
+  }) {
     return _db.transaction(() async {
       final existingInvoice = await (_db.select(_db.invoices)..where((t) => t.id.equals(invoiceId))).getSingle();
       if (existingInvoice.status != InvoiceStatus.draft) {
         throw Exception("Only draft invoices can be edited.");
       }
 
-      final existingItems = await (_db.select(_db.invoiceItems)..where((t) => t.invoiceId.equals(invoiceId))).get();
-      
-      for (var oldItem in existingItems) {
-        if (oldItem.itemSourceType == ItemSourceType.copperStock && oldItem.copperStockId != null) {
-          final stockId = oldItem.copperStockId!;
-          final qty = oldItem.qty ?? 0.0;
-          if (qty > 0) {
-            MovementType movementType;
-            if (existingInvoice.invoiceType == InvoiceType.purchaseVoucher) {
-              movementType = MovementType.purchaseIn;
-            } else {
-              movementType = MovementType.saleOut;
-            }
-
-            final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(stockId))).getSingleOrNull();
-            if (currentStock != null) {
-              double revertedQty = currentStock.stockQtyKg;
-              if (movementType == MovementType.purchaseIn) {
-                revertedQty -= qty; 
-              } else {
-                revertedQty += qty; 
-              }
-              await (_db.update(_db.copperStock)..where((t) => t.id.equals(stockId)))
-                  .write(CopperStockCompanion(stockQtyKg: Value(revertedQty)));
-            }
-
-            await (_db.delete(_db.stockMovements)
-                  ..where((t) => t.referenceInvoiceId.equals(invoiceId) & t.copperStockId.equals(stockId) & t.movementType.equals(movementType.name)))
-                .go();
+      // Revert previous stock movements
+      final existingMovements = await (_db.select(_db.stockMovements)..where((t) => t.referenceInvoiceId.equals(invoiceId))).get();
+      for (var mov in existingMovements) {
+        final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(mov.copperStockId))).getSingleOrNull();
+        if (currentStock != null) {
+          double revertedQty = currentStock.stockQtyKg;
+          if (mov.movementType == MovementType.purchaseIn || mov.movementType == MovementType.sales_return_in) {
+            revertedQty -= mov.weightKg;
+          } else {
+            revertedQty += mov.weightKg;
           }
+          await (_db.update(_db.copperStock)..where((t) => t.id.equals(mov.copperStockId)))
+              .write(CopperStockCompanion(stockQtyKg: Value(revertedQty)));
         }
       }
+      await (_db.delete(_db.stockMovements)..where((t) => t.referenceInvoiceId.equals(invoiceId))).go();
 
       await (_db.delete(_db.invoiceItems)..where((t) => t.invoiceId.equals(invoiceId))).go();
 
@@ -388,35 +400,53 @@ class InvoicesRepository {
           final stockId = newItem.copperStockId.value!;
           final qty = newItem.qty.value ?? 0.0;
           if (qty > 0) {
-            MovementType movementType;
+            MovementType? movementType;
             final newInvoiceType = invoiceCompanion.invoiceType.present ? invoiceCompanion.invoiceType.value : existingInvoice.invoiceType;
             if (newInvoiceType == InvoiceType.purchaseVoucher) {
               movementType = MovementType.purchaseIn;
+            } else if (newInvoiceType == InvoiceType.credit_note) {
+              final reason = invoiceCompanion.noteReason.present ? invoiceCompanion.noteReason.value : existingInvoice.noteReason;
+              if (reason == NoteReason.sales_return && returnStockToInventory) {
+                movementType = MovementType.sales_return_in;
+              }
+            } else if (newInvoiceType == InvoiceType.debit_note || newInvoiceType == InvoiceType.deliveryChallan) {
+              movementType = null;
             } else {
               movementType = MovementType.saleOut;
             }
             
-            await _db.into(_db.stockMovements).insert(
-              StockMovementsCompanion.insert(
-                copperStockId: stockId,
-                movementType: movementType,
-                weightKg: qty,
-                referenceInvoiceId: Value(invoiceId),
-                notes: Value('Invoice ${invoiceNoToUpdate.present ? invoiceNoToUpdate.value : existingInvoice.invoiceNo} (Edited)'),
-              )
-            );
-            
-            final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(stockId))).getSingle();
-            double newQty = currentStock.stockQtyKg;
-            if (movementType == MovementType.purchaseIn) {
-              newQty += qty;
-            } else {
-              newQty -= qty;
+            if (movementType != null) {
+              await _db.into(_db.stockMovements).insert(
+                StockMovementsCompanion.insert(
+                  copperStockId: stockId,
+                  movementType: movementType,
+                  weightKg: qty,
+                  referenceInvoiceId: Value(invoiceId),
+                  notes: Value(movementType == MovementType.sales_return_in
+                      ? 'Credit Note ${invoiceNoToUpdate.present ? invoiceNoToUpdate.value : existingInvoice.invoiceNo} (Sales Return - Edited)'
+                      : 'Invoice ${invoiceNoToUpdate.present ? invoiceNoToUpdate.value : existingInvoice.invoiceNo} (Edited)'),
+                )
+              );
+              
+              final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(stockId))).getSingle();
+              double newQty = currentStock.stockQtyKg;
+              if (movementType == MovementType.purchaseIn || movementType == MovementType.sales_return_in) {
+                newQty += qty;
+              } else {
+                newQty -= qty;
+              }
+              await (_db.update(_db.copperStock)..where((t) => t.id.equals(stockId)))
+                  .write(CopperStockCompanion(stockQtyKg: Value(newQty)));
             }
-            await (_db.update(_db.copperStock)..where((t) => t.id.equals(stockId)))
-                .write(CopperStockCompanion(stockQtyKg: Value(newQty)));
           }
         }
+      }
+
+      final origId = invoiceCompanion.originalInvoiceId.present
+          ? invoiceCompanion.originalInvoiceId.value
+          : existingInvoice.originalInvoiceId;
+      if (origId != null) {
+        await recomputeAndUpdateInvoiceStatus(origId);
       }
     });
   }
@@ -519,12 +549,13 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         grouped[monthStr] = GstSummaryRow(month: monthStr, totalSales: 0, cgst: 0, sgst: 0, igst: 0);
       }
       final current = grouped[monthStr]!;
+      final double sign = inv.invoiceType == InvoiceType.credit_note ? -1.0 : 1.0;
       grouped[monthStr] = GstSummaryRow(
         month: current.month,
-        totalSales: current.totalSales + inv.grandTotal,
-        cgst: current.cgst + inv.cgstAmount,
-        sgst: current.sgst + inv.sgstAmount,
-        igst: current.igst + inv.igstAmount,
+        totalSales: current.totalSales + (inv.grandTotal * sign),
+        cgst: current.cgst + (inv.cgstAmount * sign),
+        sgst: current.sgst + (inv.sgstAmount * sign),
+        igst: current.igst + (inv.igstAmount * sign),
       );
     }
     
@@ -555,56 +586,122 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     await _db.transaction(() async {
       await _db.update(_db.payments).replace(payment);
       final invoiceId = payment.invoiceId.value;
-      final allPayments = await getPaymentsForInvoice(invoiceId);
-      final totalPaid = allPayments.fold<double>(0.0, (sum, p) => sum + p.amount);
-      final invoice = await getInvoiceById(invoiceId);
-      InvoiceStatus newStatus = invoice.status;
-      if (totalPaid >= invoice.grandTotal) {
-        newStatus = InvoiceStatus.paid;
-      } else if (totalPaid > 0) {
-        newStatus = InvoiceStatus.sent;
-      }
-      if (newStatus != invoice.status) {
-        await updateInvoiceStatus(invoiceId, newStatus);
-      }
+      await recomputeAndUpdateInvoiceStatus(invoiceId);
     });
   }
 
   Future<int> addPayment(PaymentsCompanion payment) {
     return _db.transaction(() async {
-      // 1. Insert the payment
       final paymentId = await _db.into(_db.payments).insert(payment);
-      
       final invoiceId = payment.invoiceId.value;
-      
-      // 2. Compute total payments
-      final allPayments = await getPaymentsForInvoice(invoiceId);
-      final totalPaid = allPayments.fold<double>(0.0, (sum, p) => sum + p.amount);
-      
-      // 3. Fetch invoice grand total
-      final invoice = await getInvoiceById(invoiceId);
-      
-      // 4. Determine new status
-      InvoiceStatus newStatus = invoice.status;
-      if (totalPaid >= invoice.grandTotal) {
-        newStatus = InvoiceStatus.paid;
-      } else if (totalPaid > 0) {
-        newStatus = InvoiceStatus.partiallyPaid;
-      } else {
-        // If 0, and somehow was paid before, we might revert to sent. 
-        // But usually this only goes forward.
-        if (invoice.status == InvoiceStatus.paid || invoice.status == InvoiceStatus.partiallyPaid) {
-           newStatus = InvoiceStatus.sent;
-        }
-      }
-      
-      // 5. Update invoice status
-      if (newStatus != invoice.status) {
-        await updateInvoiceStatus(invoiceId, newStatus);
-      }
-      
+      await recomputeAndUpdateInvoiceStatus(invoiceId);
       return paymentId;
     });
+  }
+
+  Future<List<Invoice>> getNotesForInvoice(int invoiceId) {
+    return (_db.select(_db.invoices)
+          ..where((t) =>
+              t.originalInvoiceId.equals(invoiceId) &
+              t.invoiceType.isIn([InvoiceType.credit_note.name, InvoiceType.debit_note.name]))
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
+            (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
+          ]))
+        .get();
+  }
+
+  Future<double> getRemainingCreditableAmount(int invoiceId, {int? excludeNoteId}) async {
+    final origInvoice = await getInvoiceById(invoiceId);
+    final notes = await getNotesForInvoice(invoiceId);
+    
+    double remaining = origInvoice.grandTotal;
+    for (final note in notes) {
+      if (excludeNoteId != null && note.id == excludeNoteId) continue;
+      if (note.invoiceType == InvoiceType.credit_note) {
+        remaining -= note.grandTotal;
+      } else if (note.invoiceType == InvoiceType.debit_note) {
+        remaining += note.grandTotal;
+      }
+    }
+    return remaining;
+  }
+
+  Future<Invoice?> findDuplicateNote({
+    required int originalInvoiceId,
+    required InvoiceType type,
+    required double grandTotal,
+    required DateTime date,
+    int? excludeInvoiceId,
+  }) async {
+    final start = date.subtract(const Duration(hours: 24));
+    final end = date.add(const Duration(hours: 24));
+    final query = _db.select(_db.invoices)
+      ..where((t) {
+        var expr = t.originalInvoiceId.equals(originalInvoiceId) &
+            t.invoiceType.equals(type.name) &
+            t.grandTotal.equals(grandTotal) &
+            (t.createdAt.isBetweenValues(start, end) | t.invoiceDate.isBetweenValues(start, end));
+        if (excludeInvoiceId != null) {
+          expr = expr & t.id.isNotValue(excludeInvoiceId);
+        }
+        return expr;
+      })
+      ..limit(1);
+    return query.getSingleOrNull();
+  }
+
+  Future<InvoiceBalanceDetails> getInvoiceBalanceDetails(int invoiceId) async {
+    final invoice = await getInvoiceById(invoiceId);
+    final payments = await getPaymentsForInvoice(invoiceId);
+    final totalPaid = payments.fold<double>(0.0, (s, p) => s + p.amount);
+
+    final notes = await getNotesForInvoice(invoiceId);
+    double totalCreditNotes = 0.0;
+    double totalDebitNotes = 0.0;
+    for (final note in notes) {
+      if (note.invoiceType == InvoiceType.credit_note) {
+        totalCreditNotes += note.grandTotal;
+      } else if (note.invoiceType == InvoiceType.debit_note) {
+        totalDebitNotes += note.grandTotal;
+      }
+    }
+
+    final balanceDue = invoice.grandTotal + totalDebitNotes - totalCreditNotes - totalPaid;
+
+    InvoiceStatus computedStatus = invoice.status;
+    if (invoice.status != InvoiceStatus.draft) {
+      if (balanceDue <= 0.001) {
+        computedStatus = InvoiceStatus.paid;
+      } else if (totalPaid > 0.001) {
+        computedStatus = InvoiceStatus.partiallyPaid;
+      } else {
+        final now = IstDateUtils.nowIst();
+        final isOverdue = invoice.dueDate != null &&
+            IstDateUtils.toMidnightIst(invoice.dueDate!).isBefore(IstDateUtils.toMidnightIst(now));
+        if (isOverdue) {
+          computedStatus = InvoiceStatus.overdue;
+        } else {
+          computedStatus = InvoiceStatus.sent;
+        }
+      }
+    }
+
+    return InvoiceBalanceDetails(
+      invoice: invoice,
+      totalPaid: totalPaid,
+      totalCreditNotes: totalCreditNotes,
+      totalDebitNotes: totalDebitNotes,
+      balanceDue: balanceDue,
+      computedStatus: computedStatus,
+    );
+  }
+
+  Future<void> recomputeAndUpdateInvoiceStatus(int invoiceId) async {
+    final details = await getInvoiceBalanceDetails(invoiceId);
+    if (details.computedStatus != details.invoice.status) {
+      await updateInvoiceStatus(invoiceId, details.computedStatus);
+    }
   }
 
   Future<void> markReminderSent(int invoiceId) async {
@@ -623,6 +720,12 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       ])
     )).get();
     final payments = await _db.select(_db.payments).get();
+    final allNotes = await (_db.select(_db.invoices)..where((t) =>
+      t.invoiceType.isIn([
+        InvoiceType.credit_note.name,
+        InvoiceType.debit_note.name,
+      ])
+    )).get();
     
     final Map<int, OutstandingSummaryRow> summary = {};
     
@@ -639,7 +742,13 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       if (!summary.containsKey(invoice.customerId)) continue;
       
       final invoicePayments = payments.where((p) => p.invoiceId == invoice.id).fold<double>(0.0, (s, p) => s + p.amount);
-      final balanceDue = invoice.grandTotal - invoicePayments;
+      final creditNotes = allNotes
+          .where((n) => n.originalInvoiceId == invoice.id && n.invoiceType == InvoiceType.credit_note)
+          .fold<double>(0.0, (s, n) => s + n.grandTotal);
+      final debitNotes = allNotes
+          .where((n) => n.originalInvoiceId == invoice.id && n.invoiceType == InvoiceType.debit_note)
+          .fold<double>(0.0, (s, n) => s + n.grandTotal);
+      final balanceDue = invoice.grandTotal + debitNotes - creditNotes - invoicePayments;
       
       final current = summary[invoice.customerId]!;
       
@@ -647,7 +756,7 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       double addedOut = 0.0;
       DateTime? oldest = current.oldestOverdueDate;
       
-      if (balanceDue > 0) {
+      if (balanceDue > 0.001) {
         addedOpen = 1;
         addedOut = balanceDue;
         if (invoice.status == InvoiceStatus.overdue || (invoice.dueDate != null && invoice.dueDate!.isBefore(DateTime.now()))) {
@@ -694,6 +803,11 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       inv.invoiceType == InvoiceType.billOfSupply
     ).toList();
     
+    final allNotes = invoices.where((inv) =>
+      inv.invoiceType == InvoiceType.credit_note ||
+      inv.invoiceType == InvoiceType.debit_note
+    ).toList();
+
     final invoiceIds = billingInvoices.map((i) => i.id).toSet();
     final allPayments = invoiceIds.isEmpty ? <Payment>[] : await (_db.select(_db.payments)..where((t) => t.invoiceId.isIn(invoiceIds))).get();
     
@@ -703,17 +817,25 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     List<LedgerInvoiceRow> chronologicalRows = [];
     
     for (var inv in billingInvoices) {
-      totalBilled += inv.grandTotal;
-      
       final paymentsForInv = allPayments.where((p) => p.invoiceId == inv.id).fold<double>(0.0, (s, p) => s + p.amount);
-      totalPaid += paymentsForInv;
-      final balanceDue = inv.grandTotal - paymentsForInv;
+      final creditNotesForInv = allNotes
+          .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.credit_note)
+          .fold<double>(0.0, (s, n) => s + n.grandTotal);
+      final debitNotesForInv = allNotes
+          .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.debit_note)
+          .fold<double>(0.0, (s, n) => s + n.grandTotal);
 
+      final effectiveBilled = inv.grandTotal + debitNotesForInv;
+      final effectivePaid = paymentsForInv + creditNotesForInv;
+      final balanceDue = effectiveBilled - effectivePaid;
+
+      totalBilled += effectiveBilled;
+      totalPaid += effectivePaid;
       runningBalance += balanceDue;
       
       chronologicalRows.add(LedgerInvoiceRow(
         invoice: inv,
-        totalPaid: paymentsForInv,
+        totalPaid: effectivePaid,
         balanceDue: balanceDue,
         runningBalance: runningBalance,
       ));
@@ -754,10 +876,19 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       inv.invoiceType == InvoiceType.billOfSupply
     ).toList();
 
+    final notes = allInvoices.where((inv) =>
+      inv.invoiceType == InvoiceType.credit_note ||
+      inv.invoiceType == InvoiceType.debit_note
+    ).toList();
+
     final invoiceIds = billingInvoices.map((i) => i.id).toSet();
     final allPayments = invoiceIds.isEmpty
         ? <Payment>[]
         : await (_db.select(_db.payments)..where((t) => t.invoiceId.isIn(invoiceIds))).get();
+
+    final Map<int, String> invoiceNoMap = {
+      for (var inv in allInvoices) inv.id: inv.invoiceNo,
+    };
 
     final List<_LedgerTimelineEvent> events = [];
 
@@ -778,11 +909,18 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       }
 
       final paymentsForInv = allPayments.where((p) => p.invoiceId == inv.id).fold<double>(0.0, (s, p) => s + p.amount);
-      final balanceDue = inv.grandTotal - paymentsForInv;
+      final creditNotesForInv = notes
+          .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.credit_note)
+          .fold<double>(0.0, (s, n) => s + n.grandTotal);
+      final debitNotesForInv = notes
+          .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.debit_note)
+          .fold<double>(0.0, (s, n) => s + n.grandTotal);
+      final balanceDue = inv.grandTotal + debitNotesForInv - creditNotesForInv - paymentsForInv;
+
       String statusLabel;
       if (balanceDue <= 0.001) {
         statusLabel = 'Paid';
-      } else if (paymentsForInv > 0.001) {
+      } else if (paymentsForInv > 0.001 || creditNotesForInv > 0.001) {
         statusLabel = 'Partially Paid';
       } else {
         final now = IstDateUtils.nowIst();
@@ -803,6 +941,32 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         document: '$typeLabel - ${inv.invoiceNo}',
         status: statusLabel,
       ));
+    }
+
+    // Add Credit and Debit Notes to Ledger
+    for (final note in notes) {
+      final origNo = note.originalInvoiceId != null ? (invoiceNoMap[note.originalInvoiceId!] ?? '') : '';
+      final againstStr = origNo.isNotEmpty ? ' (against $origNo)' : '';
+
+      if (note.invoiceType == InvoiceType.credit_note) {
+        events.add(_LedgerTimelineEvent(
+          date: IstDateUtils.toMidnightIst(note.invoiceDate),
+          createdAt: note.createdAt,
+          isDebit: false, // Credit note appears in Credit column (reduces outstanding)
+          amount: note.grandTotal,
+          document: 'Credit Note ${note.invoiceNo}$againstStr',
+          status: null,
+        ));
+      } else if (note.invoiceType == InvoiceType.debit_note) {
+        events.add(_LedgerTimelineEvent(
+          date: IstDateUtils.toMidnightIst(note.invoiceDate),
+          createdAt: note.createdAt,
+          isDebit: true, // Debit note appears in Debit column (increases outstanding)
+          amount: note.grandTotal,
+          document: 'Debit Note ${note.invoiceNo}$againstStr',
+          status: null,
+        ));
+      }
     }
 
     for (final p in allPayments) {
@@ -836,7 +1000,7 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
 
     // Sort chronologically:
     // 1. by date ASC
-    // 2. on same date: Invoices (Debit) before Payments (Credit)
+    // 2. on same date: Invoices & Debit Notes (Debit) before Payments & Credit Notes (Credit)
     // 3. then by createdAt ASC
     events.sort((a, b) {
       final dateCmp = a.date.compareTo(b.date);
@@ -925,6 +1089,11 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       inv.invoiceType == InvoiceType.billOfSupply
     ).toList();
 
+    final allNotes = allInvoices.where((inv) =>
+      inv.invoiceType == InvoiceType.credit_note ||
+      inv.invoiceType == InvoiceType.debit_note
+    ).toList();
+
     final invoiceIds = billingInvoices.map((i) => i.id).toSet();
     final allPayments = invoiceIds.isEmpty
         ? <Payment>[]
@@ -934,7 +1103,14 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
 
     for (final inv in billingInvoices) {
       final paymentsForInv = allPayments.where((p) => p.invoiceId == inv.id).fold<double>(0.0, (s, p) => s + p.amount);
-      final balanceDue = inv.grandTotal - paymentsForInv;
+      final creditNotesForInv = allNotes
+          .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.credit_note)
+          .fold<double>(0.0, (s, n) => s + n.grandTotal);
+      final debitNotesForInv = allNotes
+          .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.debit_note)
+          .fold<double>(0.0, (s, n) => s + n.grandTotal);
+
+      final balanceDue = inv.grandTotal + debitNotesForInv - creditNotesForInv - paymentsForInv;
 
       if (balanceDue > 0.001) {
         int daysOverdue = 0;
@@ -950,8 +1126,8 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
           invoiceNo: inv.invoiceNo,
           invoiceDate: IstDateUtils.toMidnightIst(inv.invoiceDate),
           dueDate: inv.dueDate != null ? IstDateUtils.toMidnightIst(inv.dueDate!) : null,
-          billAmount: inv.grandTotal,
-          amountPaid: paymentsForInv,
+          billAmount: inv.grandTotal + debitNotesForInv,
+          amountPaid: paymentsForInv + creditNotesForInv,
           balanceDue: balanceDue,
           daysOverdue: daysOverdue,
         ));
@@ -996,37 +1172,22 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         throw Exception("Only draft invoices can be deleted.");
       }
       
-      final existingItems = await (_db.select(_db.invoiceItems)..where((t) => t.invoiceId.equals(id))).get();
-      for (var oldItem in existingItems) {
-        if (oldItem.itemSourceType == ItemSourceType.copperStock && oldItem.copperStockId != null) {
-          final stockId = oldItem.copperStockId!;
-          final qty = oldItem.qty ?? 0.0;
-          if (qty > 0) {
-            MovementType movementType;
-            if (invoice.invoiceType == InvoiceType.purchaseVoucher) {
-              movementType = MovementType.purchaseIn;
-            } else {
-              movementType = MovementType.saleOut;
-            }
-
-            final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(stockId))).getSingleOrNull();
-            if (currentStock != null) {
-              double revertedQty = currentStock.stockQtyKg;
-              if (movementType == MovementType.purchaseIn) {
-                revertedQty -= qty; 
-              } else {
-                revertedQty += qty; 
-              }
-              await (_db.update(_db.copperStock)..where((t) => t.id.equals(stockId)))
-                  .write(CopperStockCompanion(stockQtyKg: Value(revertedQty)));
-            }
-
-            await (_db.delete(_db.stockMovements)
-                  ..where((t) => t.referenceInvoiceId.equals(id) & t.copperStockId.equals(stockId) & t.movementType.equals(movementType.name)))
-                .go();
+      // Revert stock movements
+      final existingMovements = await (_db.select(_db.stockMovements)..where((t) => t.referenceInvoiceId.equals(id))).get();
+      for (var mov in existingMovements) {
+        final currentStock = await (_db.select(_db.copperStock)..where((t) => t.id.equals(mov.copperStockId))).getSingleOrNull();
+        if (currentStock != null) {
+          double revertedQty = currentStock.stockQtyKg;
+          if (mov.movementType == MovementType.purchaseIn || mov.movementType == MovementType.sales_return_in) {
+            revertedQty -= mov.weightKg;
+          } else {
+            revertedQty += mov.weightKg;
           }
+          await (_db.update(_db.copperStock)..where((t) => t.id.equals(mov.copperStockId)))
+              .write(CopperStockCompanion(stockQtyKg: Value(revertedQty)));
         }
       }
+      await (_db.delete(_db.stockMovements)..where((t) => t.referenceInvoiceId.equals(id))).go();
 
       await _db.into(_db.deletedRecordsLog).insert(
         DeletedRecordsLogCompanion.insert(
@@ -1040,11 +1201,33 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       await (_db.delete(_db.invoiceItems)..where((t) => t.invoiceId.equals(id))).go();
       await (_db.delete(_db.payments)..where((t) => t.invoiceId.equals(id))).go();
       await (_db.delete(_db.invoices)..where((t) => t.id.equals(id))).go();
+
+      if (invoice.originalInvoiceId != null) {
+        await recomputeAndUpdateInvoiceStatus(invoice.originalInvoiceId!);
+      }
     });
   }
 
 }
 
+
+class InvoiceBalanceDetails {
+  final Invoice invoice;
+  final double totalPaid;
+  final double totalCreditNotes;
+  final double totalDebitNotes;
+  final double balanceDue;
+  final InvoiceStatus computedStatus;
+
+  InvoiceBalanceDetails({
+    required this.invoice,
+    required this.totalPaid,
+    required this.totalCreditNotes,
+    required this.totalDebitNotes,
+    required this.balanceDue,
+    required this.computedStatus,
+  });
+}
 
 class OutstandingSummaryRow {
   final Customer customer;

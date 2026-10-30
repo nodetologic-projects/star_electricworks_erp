@@ -6,6 +6,7 @@ class AppSelect<T> extends StatelessWidget {
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?>? onChanged;
   final String? hintText;
+  final String? helperText;
   final String? Function(T?)? validator;
 
   const AppSelect({
@@ -15,6 +16,7 @@ class AppSelect<T> extends StatelessWidget {
     this.value,
     this.onChanged,
     this.hintText,
+    this.helperText,
     this.validator,
   });
 
@@ -38,6 +40,7 @@ class AppSelect<T> extends StatelessWidget {
           isExpanded: true,
           decoration: InputDecoration(
             hintText: hintText,
+            helperText: helperText,
           ),
           icon: const Icon(Icons.keyboard_arrow_down),
         ),

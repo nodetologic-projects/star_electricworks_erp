@@ -8,7 +8,6 @@ import 'package:starelectricerp/core/widgets/app_button.dart';
 import 'package:starelectricerp/core/widgets/app_data_table.dart';
 import 'package:starelectricerp/core/widgets/app_select.dart';
 import 'package:starelectricerp/core/widgets/app_layout.dart';
-import 'package:starelectricerp/features/reports/screens/ca_export_dialog.dart';
 import 'package:starelectricerp/core/widgets/status_badge.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/features/billing/providers/invoices_provider.dart';
@@ -24,6 +23,8 @@ class InvoicesListScreen extends ConsumerWidget {
       case InvoiceType.billOfSupply: return 'Bill of Supply';
       case InvoiceType.purchaseVoucher: return 'Purchase Voucher';
       case InvoiceType.deliveryChallan: return 'Delivery Challan';
+      case InvoiceType.credit_note: return 'Credit Note';
+      case InvoiceType.debit_note: return 'Debit Note';
     }
   }
 
@@ -105,15 +106,48 @@ class InvoicesListScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 12,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'all', label: Text('All')),
+                          ButtonSegment(value: 'invoices', label: Text('Invoices')),
+                          ButtonSegment(value: 'notes', label: Text('Notes (CN/DN)')),
+                          ButtonSegment(value: 'challans', label: Text('Delivery Challans')),
+                        ],
+                        selected: {
+                          if (currentFilter.notesOnly)
+                            'notes'
+                          else if (currentFilter.type == InvoiceType.deliveryChallan)
+                            'challans'
+                          else if (currentFilter.type == null)
+                            'all'
+                          else
+                            'invoices'
+                        },
+                        onSelectionChanged: (selected) {
+                          final val = selected.first;
+                          if (val == 'all') {
+                            ref.read(invoiceFilterProvider.notifier).updateType(null);
+                          } else if (val == 'notes') {
+                            ref.read(invoiceFilterProvider.notifier).updateNotesOnly(true);
+                          } else if (val == 'challans') {
+                            ref.read(invoiceFilterProvider.notifier).updateType(InvoiceType.deliveryChallan);
+                          } else if (val == 'invoices') {
+                            ref.read(invoiceFilterProvider.notifier).updateType(InvoiceType.serviceTaxInvoice);
+                          }
+                        },
+                      ),
                       SizedBox(
-                        width: 250,
+                        width: 220,
                         child: AppSelect<InvoiceType?>(
-                          label: 'Filter by Type',
+                          label: 'Specific Type',
                           value: currentFilter.type,
                           items: [
-                            const DropdownMenuItem(value: null, child: Text('All Types')),
+                            const DropdownMenuItem(value: null, child: Text('All Specific Types')),
                             ...InvoiceType.values.map((t) => DropdownMenuItem(value: t, child: Text(_formatType(t)))),
                           ],
                           onChanged: (val) {

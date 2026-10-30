@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:starelectricerp/core/ist_date_utils.dart';
 import 'package:starelectricerp/core/widgets/app_date_field.dart';
 import 'package:starelectricerp/data/repositories/invoices_repository.dart';
+import 'package:starelectricerp/data/repositories/customers_repository.dart';
+import 'package:starelectricerp/data/repositories/settings_repository.dart';
 import 'package:starelectricerp/features/reports/services/ca_export_service.dart';
 
 class CAExportDialog extends ConsumerStatefulWidget {
@@ -22,7 +24,9 @@ class _CAExportDialogState extends ConsumerState<CAExportDialog> {
     
     try {
       final repo = ref.read(invoicesRepositoryProvider);
-      final service = CAExportService(repo);
+      final custRepo = ref.read(customersRepositoryProvider);
+      final settingsRepo = ref.read(settingsRepositoryProvider);
+      final service = CAExportService(repo, custRepo, settingsRepo);
       final error = await service.exportInvoicesZip(_selectedMonth, _gstOnly);
       
       if (mounted) {

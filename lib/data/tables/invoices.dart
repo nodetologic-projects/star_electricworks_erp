@@ -43,5 +43,8 @@ class Invoices extends Table {
   TextColumn get gpNumber => text().nullable()();
   DateTimeColumn get gpDate => dateTime().nullable()();
   IntColumn get paymentTermDays => integer().nullable()();
+  IntColumn get originalInvoiceId => integer().nullable().references(Invoices, #id)();
+  TextColumn get noteReason => textEnum<NoteReason>().nullable()();
+  TextColumn get noteReasonText => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }

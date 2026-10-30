@@ -15,6 +15,7 @@ class InvoicePdfGenerator {
     required Invoice invoice,
     required List<InvoiceItem> items,
     required Customer customer,
+    Invoice? originalInvoice,
     double totalPaid = 0.0,
   }) async {
     final theme = await PdfFontHelper.loadTheme();
@@ -65,6 +66,7 @@ class InvoicePdfGenerator {
                 customer,
                 isPurchase,
                 copyLabel,
+                originalInvoice: originalInvoice,
               ),
 
               pw.SizedBox(height: 10),
@@ -80,7 +82,7 @@ class InvoicePdfGenerator {
               ],
 
               pw.SizedBox(height: 10),
-              _buildBody(invoice.invoiceType, items, invoice),
+              _buildBody(invoice.invoiceType, items, invoice, originalInvoice: originalInvoice),
               pw.SizedBox(height: 10),
 
               if (!isDeliveryChallan) ...[
@@ -139,8 +141,9 @@ class InvoicePdfGenerator {
     Invoice invoice,
     Customer customer,
     bool isPurchase,
-    String copyLabel,
-  ) {
+    String copyLabel, {
+    Invoice? originalInvoice,
+  }) {
     String typeLabel = 'INVOICE';
     switch (invoice.invoiceType) {
       case InvoiceType.serviceTaxInvoice:
@@ -157,6 +160,12 @@ class InvoicePdfGenerator {
         break;
       case InvoiceType.deliveryChallan:
         typeLabel = 'DELIVERY CHALLAN';
+        break;
+      case InvoiceType.credit_note:
+        typeLabel = 'CREDIT NOTE';
+        break;
+      case InvoiceType.debit_note:
+        typeLabel = 'DEBIT NOTE';
         break;
     }
 
@@ -228,6 +237,28 @@ class InvoicePdfGenerator {
                       ],
                     ),
                   ),
+                ],
+                if (invoice.invoiceType.isNote) ...[
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Against Invoice No: ${originalInvoice?.invoiceNo ?? "INV"} dated ${originalInvoice != null ? PdfDateFormatter.formatDate(originalInvoice.invoiceDate) : "-"}',
+                    style: pw.TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.black,
+                    ),
+                  ),
+                  if (invoice.noteReason != null) ...[
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      'Reason: ${invoice.noteReason!.displayName}${invoice.noteReasonText != null && invoice.noteReasonText!.isNotEmpty ? ' (${invoice.noteReasonText})' : ''}',
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey800,
+                      ),
+                    ),
+                  ],
                 ],
                 // if (invoice.poNumber != null && invoice.poNumber!.isNotEmpty) ...[
                 //   pw.SizedBox(height: 2),
@@ -648,12 +679,14 @@ class InvoicePdfGenerator {
   static pw.Widget _buildBody(
     InvoiceType type,
     List<InvoiceItem> items,
-    Invoice invoice,
-  ) {
+    Invoice invoice, {
+    Invoice? originalInvoice,
+  }) {
     final bool isPurchase = type == InvoiceType.purchaseVoucher;
     final bool isDeliveryChallan = type == InvoiceType.deliveryChallan;
+    final bool isBosOriginal = originalInvoice?.invoiceType == InvoiceType.billOfSupply;
     final bool showGst =
-        type != InvoiceType.billOfSupply && type != InvoiceType.deliveryChallan;
+        type != InvoiceType.billOfSupply && type != InvoiceType.deliveryChallan && !isBosOriginal;
 
     return _buildStandardTable(
       items,
@@ -1047,6 +1080,7 @@ class InvoicePdfGenerator {
     double totalPaid,
   ) {
     final bool shouldShowQr =
+        invoice.invoiceType != InvoiceType.credit_note &&
         company.upiId != null &&
         company.upiId!.isNotEmpty &&
         (invoice.grandTotal - totalPaid) > 0;

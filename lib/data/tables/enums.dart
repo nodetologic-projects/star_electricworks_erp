@@ -57,6 +57,45 @@ enum InvoiceType {
   billOfSupply,
   purchaseVoucher,
   deliveryChallan,
+  // ignore: constant_identifier_names
+  credit_note,
+  // ignore: constant_identifier_names
+  debit_note;
+
+  bool get isCreditNote => this == InvoiceType.credit_note;
+  bool get isDebitNote => this == InvoiceType.debit_note;
+  bool get isNote => isCreditNote || isDebitNote;
+}
+
+enum NoteReason {
+  // ignore: constant_identifier_names
+  sales_return,
+  // ignore: constant_identifier_names
+  post_sale_discount,
+  // ignore: constant_identifier_names
+  price_correction,
+  // ignore: constant_identifier_names
+  quantity_correction,
+  // ignore: constant_identifier_names
+  additional_charges,
+  other;
+
+  String get displayName {
+    switch (this) {
+      case NoteReason.sales_return:
+        return 'Sales Return';
+      case NoteReason.post_sale_discount:
+        return 'Post-Sale Discount';
+      case NoteReason.price_correction:
+        return 'Price Correction';
+      case NoteReason.quantity_correction:
+        return 'Quantity Correction';
+      case NoteReason.additional_charges:
+        return 'Additional Charges';
+      case NoteReason.other:
+        return 'Other';
+    }
+  }
 }
 
 enum InvoiceStatus {
@@ -94,6 +133,8 @@ enum MovementType {
   purchaseIn,
   saleOut,
   adjustment,
+  // ignore: constant_identifier_names
+  sales_return_in,
 }
 
 enum DscSigningMethod {

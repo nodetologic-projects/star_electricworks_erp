@@ -60,6 +60,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           invoice: data.invoice,
           items: data.items,
           customer: data.customer,
+          originalInvoice: data.originalInvoice,
           totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
         );
       }
@@ -349,7 +350,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
         data: (data) {
             return Column(
               children: [
-                if (data.invoice.requiresEWayBill)
+                if (data.invoice.requiresEWayBill && !data.invoice.invoiceType.isCreditNote)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
@@ -379,6 +380,49 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                       ],
                     ),
                   ),
+                if (data.invoice.invoiceType.isNote)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+                    color: Colors.blueGrey.shade50,
+                    child: Row(
+                      children: [
+                        Icon(Icons.link, color: Colors.blueGrey.shade800),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text('Against Invoice: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  if (data.originalInvoice != null)
+                                    InkWell(
+                                      onTap: () => context.push('/invoices/${data.originalInvoice!.id}'),
+                                      child: Text(
+                                        '${data.originalInvoice!.invoiceNo} (dated ${DateFormat('dd/MM/yyyy').format(data.originalInvoice!.invoiceDate)})',
+                                        style: TextStyle(
+                                          color: Theme.of(context).primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    Text(data.invoice.originalInvoiceId != null ? 'Invoice #${data.invoice.originalInvoiceId}' : 'N/A'),
+                                ],
+                              ),
+                              if (data.invoice.noteReason != null)
+                                Text(
+                                  'Reason: ${data.invoice.noteReason!.displayName}${data.invoice.noteReasonText != null && data.invoice.noteReasonText!.isNotEmpty ? ' - ${data.invoice.noteReasonText}' : ''}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -400,25 +444,64 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                                             : StatusBadgeType.dispatched,
                           ),
                           const SizedBox(width: 16),
-                          Text('Total: ₹${data.invoice.grandTotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(width: 16),
-                          Text('Balance Due: ₹${(data.invoice.grandTotal - data.payments.fold<double>(0, (s, p) => s + p.amount)).toStringAsFixed(2)}', 
-                               style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                          if (data.invoice.invoiceType.isCreditNote)
+                            Text('Credit Total: ₹${data.invoice.grandTotal.toStringAsFixed(2)}', 
+                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))
+                          else ...[
+                            Text('Total: ₹${data.invoice.grandTotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
+                            const SizedBox(width: 16),
+                            Text('Balance Due: ₹${data.balanceDue.toStringAsFixed(2)}', 
+                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                          ],
                           if (data.invoice.status == InvoiceStatus.draft)
                             ElevatedButton.icon(
                               onPressed: () => context.push('/invoices/edit/${data.invoice.id}'),
                               icon: const Icon(Icons.edit),
-                              label: const Text('Edit Invoice'),
+                              label: Text(data.invoice.invoiceType.isNote ? 'Edit Note' : 'Edit Invoice'),
                             )
                           else
                             Tooltip(
-                              message: "Finalized invoices can't be edited — create a credit note or new invoice for corrections instead.",
+                              message: data.invoice.invoiceType.isNote
+                                  ? "Finalized notes cannot be edited."
+                                  : "Finalized invoices can't be edited — create a credit note or new invoice for corrections instead.",
                               child: ElevatedButton.icon(
                                 onPressed: null,
                                 icon: const Icon(Icons.edit),
-                                label: const Text('Edit Invoice'),
+                                label: Text(data.invoice.invoiceType.isNote ? 'Edit Note' : 'Edit Invoice'),
                               ),
                             ),
+                          if (!data.invoice.invoiceType.isNote &&
+                              data.invoice.status != InvoiceStatus.draft &&
+                              (data.invoice.invoiceType == InvoiceType.serviceTaxInvoice ||
+                               data.invoice.invoiceType == InvoiceType.salesTaxInvoice ||
+                               data.invoice.invoiceType == InvoiceType.billOfSupply)) ...[
+                            FilledButton.icon(
+                              onPressed: () => context.push(
+                                '/invoices/new',
+                                extra: {
+                                  'type': InvoiceType.credit_note,
+                                  'customerId': data.invoice.customerId,
+                                  'originalInvoiceId': data.invoice.id,
+                                },
+                              ),
+                              icon: const Icon(Icons.remove_circle_outline, size: 18),
+                              label: const Text('Create Credit Note'),
+                              style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
+                            ),
+                            FilledButton.icon(
+                              onPressed: () => context.push(
+                                '/invoices/new',
+                                extra: {
+                                  'type': InvoiceType.debit_note,
+                                  'customerId': data.invoice.customerId,
+                                  'originalInvoiceId': data.invoice.id,
+                                },
+                              ),
+                              icon: const Icon(Icons.add_circle_outline, size: 18),
+                              label: const Text('Create Debit Note'),
+                              style: FilledButton.styleFrom(backgroundColor: Colors.teal.shade800),
+                            ),
+                          ],
                           const SizedBox(width: 8),
                           DropdownButton<String>(
                             value: _selectedCopyType,
@@ -439,6 +522,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                                 invoice: data.invoice,
                                 items: data.items,
                                 customer: data.customer,
+                                originalInvoice: data.originalInvoice,
                                 totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
                               )
                             ),
@@ -457,6 +541,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                                 invoice: data.invoice,
                                 items: data.items,
                                 customer: data.customer,
+                                originalInvoice: data.originalInvoice,
                                 totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
                               )
                             ),
@@ -485,23 +570,65 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                             label: const Text('Sign'),
                             style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
                           ),
-                          const SizedBox(width: 8),
-                          FilledButton.icon(
-                            onPressed: () async {
-                              final balance = data.invoice.grandTotal - data.payments.fold<double>(0, (s, p) => s + p.amount);
-                              final res = await showDialog<bool>(
-                                context: context,
-                                builder: (_) => RecordPaymentDialog(invoice: data.invoice, balanceDue: balance),
-                              );
-                              if (res == true) {
-                                ref.invalidate(invoiceDetailProvider(widget.invoiceId));
-                              }
-                            },
-                            icon: const Icon(Icons.payment),
-                            label: const Text('Record Payment'),
-                          ),
+                          if (!data.invoice.invoiceType.isCreditNote) ...[
+                            const SizedBox(width: 8),
+                            FilledButton.icon(
+                              onPressed: () async {
+                                final res = await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => RecordPaymentDialog(invoice: data.invoice, balanceDue: data.balanceDue),
+                                );
+                                if (res == true) {
+                                  ref.invalidate(invoiceDetailProvider(widget.invoiceId));
+                                }
+                              },
+                              icon: const Icon(Icons.payment),
+                              label: const Text('Record Payment'),
+                            ),
+                          ],
                         ],
                       ),
+                      if (data.creditNotes.isNotEmpty || data.debitNotes.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        Row(
+                          children: [
+                            const Icon(Icons.receipt_long, size: 20, color: Colors.blueGrey),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Linked Notes (${data.creditNotes.length} Credit, ${data.debitNotes.length} Debit)',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Net Adjustment: ₹${(data.totalDebitNotes - data.totalCreditNotes).toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: (data.totalDebitNotes - data.totalCreditNotes) >= 0 ? Colors.teal.shade800 : Colors.orange.shade900,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...data.creditNotes.map((cn) => ListTile(
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          leading: const Icon(Icons.remove_circle, color: Colors.orange),
+                          title: Text('Credit Note ${cn.invoiceNo} - ₹${cn.grandTotal.toStringAsFixed(2)}'),
+                          subtitle: Text('Date: ${DateFormat('dd/MM/yyyy').format(cn.invoiceDate)} | Reason: ${cn.noteReason?.displayName ?? "Sales Return"}${cn.noteReasonText != null ? " (${cn.noteReasonText})" : ""}'),
+                          trailing: const Icon(Icons.chevron_right, size: 18),
+                          onTap: () => context.push('/invoices/${cn.id}'),
+                        )),
+                        ...data.debitNotes.map((dn) => ListTile(
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          leading: const Icon(Icons.add_circle, color: Colors.teal),
+                          title: Text('Debit Note ${dn.invoiceNo} - ₹${dn.grandTotal.toStringAsFixed(2)}'),
+                          subtitle: Text('Date: ${DateFormat('dd/MM/yyyy').format(dn.invoiceDate)} | Reason: ${dn.noteReason?.displayName ?? "Additional Charges"}${dn.noteReasonText != null ? " (${dn.noteReasonText})" : ""}'),
+                          trailing: const Icon(Icons.chevron_right, size: 18),
+                          onTap: () => context.push('/invoices/${dn.id}'),
+                        )),
+                      ],
                       if (data.payments.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         const Divider(),
@@ -523,7 +650,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                               final totalPaidExcludingThis = data.payments
                                   .where((item) => item.id != p.id)
                                   .fold<double>(0, (s, x) => s + x.amount);
-                              final balanceDue = (data.invoice.grandTotal - totalPaidExcludingThis).clamp(0.0, double.infinity);
+                              final balanceDue = (data.invoice.grandTotal + data.totalDebitNotes - data.totalCreditNotes - totalPaidExcludingThis).clamp(0.0, double.infinity);
                               final updated = await showDialog<bool>(
                                 context: context,
                                 builder: (_) => RecordPaymentDialog(
@@ -562,6 +689,7 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                       invoice: data.invoice,
                       items: data.items,
                       customer: data.customer,
+                      originalInvoice: data.originalInvoice,
                       totalPaid: data.payments.fold<double>(0, (s, p) => s + p.amount),
                     );
                   },

@@ -3425,6 +3425,40 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _originalInvoiceIdMeta = const VerificationMeta(
+    'originalInvoiceId',
+  );
+  @override
+  late final GeneratedColumn<int> originalInvoiceId = GeneratedColumn<int>(
+    'original_invoice_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES invoices (id)',
+    ),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<NoteReason?, String> noteReason =
+      GeneratedColumn<String>(
+        'note_reason',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<NoteReason?>($InvoicesTable.$converternoteReasonn);
+  static const VerificationMeta _noteReasonTextMeta = const VerificationMeta(
+    'noteReasonText',
+  );
+  @override
+  late final GeneratedColumn<String> noteReasonText = GeneratedColumn<String>(
+    'note_reason_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3473,6 +3507,9 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     gpNumber,
     gpDate,
     paymentTermDays,
+    originalInvoiceId,
+    noteReason,
+    noteReasonText,
     createdAt,
   ];
   @override
@@ -3733,6 +3770,24 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         ),
       );
     }
+    if (data.containsKey('original_invoice_id')) {
+      context.handle(
+        _originalInvoiceIdMeta,
+        originalInvoiceId.isAcceptableOrUnknown(
+          data['original_invoice_id']!,
+          _originalInvoiceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note_reason_text')) {
+      context.handle(
+        _noteReasonTextMeta,
+        noteReasonText.isAcceptableOrUnknown(
+          data['note_reason_text']!,
+          _noteReasonTextMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3890,6 +3945,20 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.int,
         data['${effectivePrefix}payment_term_days'],
       ),
+      originalInvoiceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}original_invoice_id'],
+      ),
+      noteReason: $InvoicesTable.$converternoteReasonn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}note_reason'],
+        ),
+      ),
+      noteReasonText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_reason_text'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3908,6 +3977,10 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
       const EnumNameConverter<TaxMode>(TaxMode.values);
   static JsonTypeConverter2<InvoiceStatus, String, String> $converterstatus =
       const EnumNameConverter<InvoiceStatus>(InvoiceStatus.values);
+  static JsonTypeConverter2<NoteReason, String, String> $converternoteReason =
+      const EnumNameConverter<NoteReason>(NoteReason.values);
+  static JsonTypeConverter2<NoteReason?, String?, String?>
+  $converternoteReasonn = JsonTypeConverter2.asNullable($converternoteReason);
 }
 
 class Invoice extends DataClass implements Insertable<Invoice> {
@@ -3949,6 +4022,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   final String? gpNumber;
   final DateTime? gpDate;
   final int? paymentTermDays;
+  final int? originalInvoiceId;
+  final NoteReason? noteReason;
+  final String? noteReasonText;
   final DateTime createdAt;
   const Invoice({
     required this.id,
@@ -3985,6 +4061,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     this.gpNumber,
     this.gpDate,
     this.paymentTermDays,
+    this.originalInvoiceId,
+    this.noteReason,
+    this.noteReasonText,
     required this.createdAt,
   });
   @override
@@ -4068,6 +4147,17 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     if (!nullToAbsent || paymentTermDays != null) {
       map['payment_term_days'] = Variable<int>(paymentTermDays);
     }
+    if (!nullToAbsent || originalInvoiceId != null) {
+      map['original_invoice_id'] = Variable<int>(originalInvoiceId);
+    }
+    if (!nullToAbsent || noteReason != null) {
+      map['note_reason'] = Variable<String>(
+        $InvoicesTable.$converternoteReasonn.toSql(noteReason),
+      );
+    }
+    if (!nullToAbsent || noteReasonText != null) {
+      map['note_reason_text'] = Variable<String>(noteReasonText);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -4138,6 +4228,15 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       paymentTermDays: paymentTermDays == null && nullToAbsent
           ? const Value.absent()
           : Value(paymentTermDays),
+      originalInvoiceId: originalInvoiceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalInvoiceId),
+      noteReason: noteReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(noteReason),
+      noteReasonText: noteReasonText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(noteReasonText),
       createdAt: Value(createdAt),
     );
   }
@@ -4194,6 +4293,11 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       gpNumber: serializer.fromJson<String?>(json['gpNumber']),
       gpDate: serializer.fromJson<DateTime?>(json['gpDate']),
       paymentTermDays: serializer.fromJson<int?>(json['paymentTermDays']),
+      originalInvoiceId: serializer.fromJson<int?>(json['originalInvoiceId']),
+      noteReason: $InvoicesTable.$converternoteReasonn.fromJson(
+        serializer.fromJson<String?>(json['noteReason']),
+      ),
+      noteReasonText: serializer.fromJson<String?>(json['noteReasonText']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -4243,6 +4347,11 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'gpNumber': serializer.toJson<String?>(gpNumber),
       'gpDate': serializer.toJson<DateTime?>(gpDate),
       'paymentTermDays': serializer.toJson<int?>(paymentTermDays),
+      'originalInvoiceId': serializer.toJson<int?>(originalInvoiceId),
+      'noteReason': serializer.toJson<String?>(
+        $InvoicesTable.$converternoteReasonn.toJson(noteReason),
+      ),
+      'noteReasonText': serializer.toJson<String?>(noteReasonText),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -4282,6 +4391,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     Value<String?> gpNumber = const Value.absent(),
     Value<DateTime?> gpDate = const Value.absent(),
     Value<int?> paymentTermDays = const Value.absent(),
+    Value<int?> originalInvoiceId = const Value.absent(),
+    Value<NoteReason?> noteReason = const Value.absent(),
+    Value<String?> noteReasonText = const Value.absent(),
     DateTime? createdAt,
   }) => Invoice(
     id: id ?? this.id,
@@ -4331,6 +4443,13 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     paymentTermDays: paymentTermDays.present
         ? paymentTermDays.value
         : this.paymentTermDays,
+    originalInvoiceId: originalInvoiceId.present
+        ? originalInvoiceId.value
+        : this.originalInvoiceId,
+    noteReason: noteReason.present ? noteReason.value : this.noteReason,
+    noteReasonText: noteReasonText.present
+        ? noteReasonText.value
+        : this.noteReasonText,
     createdAt: createdAt ?? this.createdAt,
   );
   Invoice copyWithCompanion(InvoicesCompanion data) {
@@ -4411,6 +4530,15 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       paymentTermDays: data.paymentTermDays.present
           ? data.paymentTermDays.value
           : this.paymentTermDays,
+      originalInvoiceId: data.originalInvoiceId.present
+          ? data.originalInvoiceId.value
+          : this.originalInvoiceId,
+      noteReason: data.noteReason.present
+          ? data.noteReason.value
+          : this.noteReason,
+      noteReasonText: data.noteReasonText.present
+          ? data.noteReasonText.value
+          : this.noteReasonText,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -4454,6 +4582,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('gpNumber: $gpNumber, ')
           ..write('gpDate: $gpDate, ')
           ..write('paymentTermDays: $paymentTermDays, ')
+          ..write('originalInvoiceId: $originalInvoiceId, ')
+          ..write('noteReason: $noteReason, ')
+          ..write('noteReasonText: $noteReasonText, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -4495,6 +4626,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     gpNumber,
     gpDate,
     paymentTermDays,
+    originalInvoiceId,
+    noteReason,
+    noteReasonText,
     createdAt,
   ]);
   @override
@@ -4536,6 +4670,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.gpNumber == this.gpNumber &&
           other.gpDate == this.gpDate &&
           other.paymentTermDays == this.paymentTermDays &&
+          other.originalInvoiceId == this.originalInvoiceId &&
+          other.noteReason == this.noteReason &&
+          other.noteReasonText == this.noteReasonText &&
           other.createdAt == this.createdAt);
 }
 
@@ -4574,6 +4711,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<String?> gpNumber;
   final Value<DateTime?> gpDate;
   final Value<int?> paymentTermDays;
+  final Value<int?> originalInvoiceId;
+  final Value<NoteReason?> noteReason;
+  final Value<String?> noteReasonText;
   final Value<DateTime> createdAt;
   const InvoicesCompanion({
     this.id = const Value.absent(),
@@ -4610,6 +4750,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.gpNumber = const Value.absent(),
     this.gpDate = const Value.absent(),
     this.paymentTermDays = const Value.absent(),
+    this.originalInvoiceId = const Value.absent(),
+    this.noteReason = const Value.absent(),
+    this.noteReasonText = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   InvoicesCompanion.insert({
@@ -4647,6 +4790,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.gpNumber = const Value.absent(),
     this.gpDate = const Value.absent(),
     this.paymentTermDays = const Value.absent(),
+    this.originalInvoiceId = const Value.absent(),
+    this.noteReason = const Value.absent(),
+    this.noteReasonText = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : invoiceNo = Value(invoiceNo),
        invoiceType = Value(invoiceType),
@@ -4694,6 +4840,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<String>? gpNumber,
     Expression<DateTime>? gpDate,
     Expression<int>? paymentTermDays,
+    Expression<int>? originalInvoiceId,
+    Expression<String>? noteReason,
+    Expression<String>? noteReasonText,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -4733,6 +4882,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (gpNumber != null) 'gp_number': gpNumber,
       if (gpDate != null) 'gp_date': gpDate,
       if (paymentTermDays != null) 'payment_term_days': paymentTermDays,
+      if (originalInvoiceId != null) 'original_invoice_id': originalInvoiceId,
+      if (noteReason != null) 'note_reason': noteReason,
+      if (noteReasonText != null) 'note_reason_text': noteReasonText,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -4772,6 +4924,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<String?>? gpNumber,
     Value<DateTime?>? gpDate,
     Value<int?>? paymentTermDays,
+    Value<int?>? originalInvoiceId,
+    Value<NoteReason?>? noteReason,
+    Value<String?>? noteReasonText,
     Value<DateTime>? createdAt,
   }) {
     return InvoicesCompanion(
@@ -4810,6 +4965,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       gpNumber: gpNumber ?? this.gpNumber,
       gpDate: gpDate ?? this.gpDate,
       paymentTermDays: paymentTermDays ?? this.paymentTermDays,
+      originalInvoiceId: originalInvoiceId ?? this.originalInvoiceId,
+      noteReason: noteReason ?? this.noteReason,
+      noteReasonText: noteReasonText ?? this.noteReasonText,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -4929,6 +5087,17 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     if (paymentTermDays.present) {
       map['payment_term_days'] = Variable<int>(paymentTermDays.value);
     }
+    if (originalInvoiceId.present) {
+      map['original_invoice_id'] = Variable<int>(originalInvoiceId.value);
+    }
+    if (noteReason.present) {
+      map['note_reason'] = Variable<String>(
+        $InvoicesTable.$converternoteReasonn.toSql(noteReason.value),
+      );
+    }
+    if (noteReasonText.present) {
+      map['note_reason_text'] = Variable<String>(noteReasonText.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4974,6 +5143,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('gpNumber: $gpNumber, ')
           ..write('gpDate: $gpDate, ')
           ..write('paymentTermDays: $paymentTermDays, ')
+          ..write('originalInvoiceId: $originalInvoiceId, ')
+          ..write('noteReason: $noteReason, ')
+          ..write('noteReasonText: $noteReasonText, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -14095,6 +14267,9 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       Value<String?> gpNumber,
       Value<DateTime?> gpDate,
       Value<int?> paymentTermDays,
+      Value<int?> originalInvoiceId,
+      Value<NoteReason?> noteReason,
+      Value<String?> noteReasonText,
       Value<DateTime> createdAt,
     });
 typedef $$InvoicesTableUpdateCompanionBuilder =
@@ -14133,6 +14308,9 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<String?> gpNumber,
       Value<DateTime?> gpDate,
       Value<int?> paymentTermDays,
+      Value<int?> originalInvoiceId,
+      Value<NoteReason?> noteReason,
+      Value<String?> noteReasonText,
       Value<DateTime> createdAt,
     });
 
@@ -14151,6 +14329,23 @@ final class $$InvoicesTableReferences
       $_db.customers,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_customerIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $InvoicesTable _originalInvoiceIdTable(_$AppDatabase db) =>
+      db.invoices.createAlias('invoices__original_invoice_id__invoices__id');
+
+  $$InvoicesTableProcessedTableManager? get originalInvoiceId {
+    final $_column = $_itemColumn<int>('original_invoice_id');
+    if ($_column == null) return null;
+    final manager = $$InvoicesTableTableManager(
+      $_db,
+      $_db.invoices,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_originalInvoiceIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -14407,6 +14602,17 @@ class $$InvoicesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnWithTypeConverterFilters<NoteReason?, NoteReason, String>
+  get noteReason => $composableBuilder(
+    column: $table.noteReason,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get noteReasonText => $composableBuilder(
+    column: $table.noteReasonText,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -14426,6 +14632,29 @@ class $$InvoicesTableFilterComposer
           }) => $$CustomersTableFilterComposer(
             $db: $db,
             $table: $db.customers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvoicesTableFilterComposer get originalInvoiceId {
+    final $$InvoicesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originalInvoiceId,
+      referencedTable: $db.invoices,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvoicesTableFilterComposer(
+            $db: $db,
+            $table: $db.invoices,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -14710,6 +14939,16 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get noteReason => $composableBuilder(
+    column: $table.noteReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noteReasonText => $composableBuilder(
+    column: $table.noteReasonText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -14729,6 +14968,29 @@ class $$InvoicesTableOrderingComposer
           }) => $$CustomersTableOrderingComposer(
             $db: $db,
             $table: $db.customers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvoicesTableOrderingComposer get originalInvoiceId {
+    final $$InvoicesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originalInvoiceId,
+      referencedTable: $db.invoices,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvoicesTableOrderingComposer(
+            $db: $db,
+            $table: $db.invoices,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -14888,6 +15150,17 @@ class $$InvoicesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumnWithTypeConverter<NoteReason?, String> get noteReason =>
+      $composableBuilder(
+        column: $table.noteReason,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get noteReasonText => $composableBuilder(
+    column: $table.noteReasonText,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -14905,6 +15178,29 @@ class $$InvoicesTableAnnotationComposer
           }) => $$CustomersTableAnnotationComposer(
             $db: $db,
             $table: $db.customers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvoicesTableAnnotationComposer get originalInvoiceId {
+    final $$InvoicesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originalInvoiceId,
+      referencedTable: $db.invoices,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvoicesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.invoices,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -15030,6 +15326,7 @@ class $$InvoicesTableTableManager
           Invoice,
           PrefetchHooks Function({
             bool customerId,
+            bool originalInvoiceId,
             bool invoiceItemsRefs,
             bool stockMovementsRefs,
             bool paymentsRefs,
@@ -15084,6 +15381,9 @@ class $$InvoicesTableTableManager
                 Value<String?> gpNumber = const Value.absent(),
                 Value<DateTime?> gpDate = const Value.absent(),
                 Value<int?> paymentTermDays = const Value.absent(),
+                Value<int?> originalInvoiceId = const Value.absent(),
+                Value<NoteReason?> noteReason = const Value.absent(),
+                Value<String?> noteReasonText = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicesCompanion(
                 id: id,
@@ -15120,6 +15420,9 @@ class $$InvoicesTableTableManager
                 gpNumber: gpNumber,
                 gpDate: gpDate,
                 paymentTermDays: paymentTermDays,
+                originalInvoiceId: originalInvoiceId,
+                noteReason: noteReason,
+                noteReasonText: noteReasonText,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -15159,6 +15462,9 @@ class $$InvoicesTableTableManager
                 Value<String?> gpNumber = const Value.absent(),
                 Value<DateTime?> gpDate = const Value.absent(),
                 Value<int?> paymentTermDays = const Value.absent(),
+                Value<int?> originalInvoiceId = const Value.absent(),
+                Value<NoteReason?> noteReason = const Value.absent(),
+                Value<String?> noteReasonText = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicesCompanion.insert(
                 id: id,
@@ -15195,6 +15501,9 @@ class $$InvoicesTableTableManager
                 gpNumber: gpNumber,
                 gpDate: gpDate,
                 paymentTermDays: paymentTermDays,
+                originalInvoiceId: originalInvoiceId,
+                noteReason: noteReason,
+                noteReasonText: noteReasonText,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
@@ -15208,6 +15517,7 @@ class $$InvoicesTableTableManager
           prefetchHooksCallback:
               ({
                 customerId = false,
+                originalInvoiceId = false,
                 invoiceItemsRefs = false,
                 stockMovementsRefs = false,
                 paymentsRefs = false,
@@ -15246,6 +15556,19 @@ class $$InvoicesTableTableManager
                                         ._customerIdTable(db),
                                     referencedColumn: $$InvoicesTableReferences
                                         ._customerIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (originalInvoiceId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.originalInvoiceId,
+                                    referencedTable: $$InvoicesTableReferences
+                                        ._originalInvoiceIdTable(db),
+                                    referencedColumn: $$InvoicesTableReferences
+                                        ._originalInvoiceIdTable(db)
                                         .id,
                                   )
                                   as T;
@@ -15361,6 +15684,7 @@ typedef $$InvoicesTableProcessedTableManager =
       Invoice,
       PrefetchHooks Function({
         bool customerId,
+        bool originalInvoiceId,
         bool invoiceItemsRefs,
         bool stockMovementsRefs,
         bool paymentsRefs,

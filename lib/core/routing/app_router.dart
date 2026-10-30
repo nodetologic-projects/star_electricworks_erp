@@ -137,6 +137,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               sourceQuotationId: extra?['sourceQuotationId'] as int?,
               prefillDescription: extra?['description'] as String?,
               prefillAmount: extra?['amount'] as double?,
+              prefillOriginalInvoiceId: extra?['originalInvoiceId'] as int?,
             ),
           );
         },
