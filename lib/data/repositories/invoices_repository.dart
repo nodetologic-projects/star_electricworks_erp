@@ -814,9 +814,9 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     final endOfToDate = DateTime(normToDate.year, normToDate.month, normToDate.day, 23, 59, 59, 999);
     final normFromDate = fromDate != null ? IstDateUtils.toMidnightIst(fromDate) : null;
 
-    // 1. Fetch Invoices, Notes, Challans, Purchase Vouchers for this customer (excluding drafts)
+    // 1. Fetch Invoices, Notes, Challans, Purchase Vouchers for this customer
     final invoiceQuery = _db.select(_db.invoices)
-      ..where((t) => t.customerId.equals(customerId) & t.status.isNotIn([InvoiceStatus.draft.name]))
+      ..where((t) => t.customerId.equals(customerId))
       ..orderBy([
         (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
         (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
@@ -866,9 +866,9 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       ]);
     final customerMotorJobs = await motorJobsQuery.get();
 
-    // 3. Fetch Quotations for this customer (excluding drafts)
+    // 3. Fetch Quotations for this customer
     final quotationsQuery = _db.select(_db.quotations)
-      ..where((t) => t.customerId.equals(customerId) & t.status.isNotIn([QuotationStatus.draft.name]))
+      ..where((t) => t.customerId.equals(customerId))
       ..orderBy([
         (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
       ]);
@@ -1039,6 +1039,8 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         statusStr = 'Delivered';
       } else if (dc.status == InvoiceStatus.sent) {
         statusStr = 'Sent';
+      } else if (dc.status == InvoiceStatus.draft) {
+        statusStr = 'Pending';
       } else {
         statusStr = dc.status.name[0].toUpperCase() + dc.status.name.substring(1);
       }
@@ -1109,7 +1111,12 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       }
       final detailsText = parts.join('; ');
 
-      final statusStr = quote.status.name[0].toUpperCase() + quote.status.name.substring(1);
+      String statusStr;
+      if (quote.status == QuotationStatus.draft) {
+        statusStr = 'Pending';
+      } else {
+        statusStr = quote.status.name[0].toUpperCase() + quote.status.name.substring(1);
+      }
 
       events.add(_LedgerTimelineEvent(
         date: IstDateUtils.toMidnightIst(quote.createdAt),
@@ -1329,7 +1336,7 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     final effectiveAsOfDate = IstDateUtils.toMidnightIst(asOfDate ?? IstDateUtils.nowIst());
 
     final query = _db.select(_db.invoices)
-      ..where((t) => t.customerId.equals(customerId) & t.status.isNotIn([InvoiceStatus.draft.name]))
+      ..where((t) => t.customerId.equals(customerId))
       ..orderBy([
         (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
         (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),

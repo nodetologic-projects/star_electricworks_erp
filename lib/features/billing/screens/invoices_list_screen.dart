@@ -11,6 +11,7 @@ import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/status_badge.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/features/billing/providers/invoices_provider.dart';
+import 'package:starelectricerp/features/customers/providers/customers_provider.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
 
 class InvoicesListScreen extends ConsumerWidget {
@@ -81,6 +82,8 @@ class InvoicesListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoicesAsync = ref.watch(filteredInvoicesProvider);
     final currentFilter = ref.watch(invoiceFilterProvider);
+    final customersAsync = ref.watch(customersStreamProvider);
+    final customerMap = {for (final c in customersAsync.value ?? <Customer>[]) c.id: c.name};
 
     return AppLayout(
       currentRoute: '/invoices',
@@ -185,7 +188,7 @@ class InvoicesListScreen extends ConsumerWidget {
                                 style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
                               Text(_formatType(invoice.invoiceType)),
-                              Text('Customer #${invoice.customerId}'), // Will replace with joined query or provider
+                              Text(customerMap[invoice.customerId] ?? 'Customer #${invoice.customerId}'),
                               Text('₹${invoice.grandTotal.toStringAsFixed(2)}', style: const TextStyle().mono),
                               StatusBadge(type: _getStatusBadge(invoice.status)),
                               Wrap(

@@ -37,7 +37,7 @@ void main() {
   });
 
   group('Complete Party Ledger (Single Customer Ledger & Export PDF)', () {
-    test('Customer with invoice, partial payment, delivery challan, motor job, quotation, purchase voucher and credit note: verify all appear, balance only moves for accounting rows, closing balance equals Customer Ledger screen, checkbox filters work, drafts excluded', () async {
+    test('Customer with invoice, partial payment, delivery challan, motor job, quotation, purchase voucher and credit note: verify all appear, balance only moves for accounting rows, closing balance equals Customer Ledger screen, checkbox filters work', () async {
       final baseDate = DateTime(2026, 5, 1);
 
       // 1. Accounting Row: Service Tax Invoice, ₹10,000 (May 1)
@@ -180,53 +180,6 @@ void main() {
         [],
       );
 
-      // 8. Draft Documents: Should be EXCLUDED under the draft exclusion rule!
-      // Draft invoice
-      await repo.createInvoiceWithItems(
-        InvoicesCompanion.insert(
-          invoiceNo: 'INV-DRAFT-099',
-          invoiceType: InvoiceType.serviceTaxInvoice,
-          customerId: customerId,
-          invoiceDate: baseDate.add(const Duration(days: 20)),
-          subtotal: 8000,
-          cgstAmount: 0,
-          sgstAmount: 0,
-          discountAmount: 0,
-          grandTotal: 8000,
-          amountInWords: 'Eight Thousand Only',
-          status: InvoiceStatus.draft,
-        ),
-        [],
-      );
-      // Draft challan
-      await repo.createInvoiceWithItems(
-        InvoicesCompanion.insert(
-          invoiceNo: 'DC-DRAFT-099',
-          invoiceType: InvoiceType.deliveryChallan,
-          customerId: customerId,
-          invoiceDate: baseDate.add(const Duration(days: 21)),
-          subtotal: 0,
-          cgstAmount: 0,
-          sgstAmount: 0,
-          discountAmount: 0,
-          grandTotal: 0,
-          amountInWords: 'Zero Only',
-          status: InvoiceStatus.draft,
-        ),
-        [],
-      );
-      // Draft quotation
-      await db.into(db.quotations).insert(
-        QuotationsCompanion.insert(
-          quoteNo: 'QT-DRAFT-099',
-          customerId: drift.Value(customerId),
-          description: 'Draft Quote',
-          estimatedAmount: 9000,
-          status: QuotationStatus.draft,
-          createdAt: drift.Value(baseDate.add(const Duration(days: 22))),
-        ),
-      );
-
       // --- VERIFICATION 1: On-Screen Customer Ledger Detail ---
       final ledgerScreenResult = await repo.getCustomerLedger(customerId);
 
@@ -237,7 +190,7 @@ void main() {
       // Total Outstanding = 10,000 - 4,500 = 5,500
       expect(ledgerScreenResult.totalOutstanding, 5500.0);
 
-      // All 7 non-draft documents must appear, drafts excluded!
+      // All 7 documents must appear!
       expect(ledgerScreenResult.entries.length, 7);
       final docTypesOnScreen = ledgerScreenResult.entries.map((e) => e.documentType).toList();
       expect(docTypesOnScreen, contains('Service Tax Invoice'));
@@ -247,12 +200,6 @@ void main() {
       expect(docTypesOnScreen, contains('Quotation'));
       expect(docTypesOnScreen, contains('Purchase Voucher'));
       expect(docTypesOnScreen, contains('Credit Note'));
-
-      // Verify draft exclusion on screen
-      final docNosOnScreen = ledgerScreenResult.entries.map((e) => e.documentNo).toList();
-      expect(docNosOnScreen.contains('INV-DRAFT-099'), isFalse);
-      expect(docNosOnScreen.contains('DC-DRAFT-099'), isFalse);
-      expect(docNosOnScreen.contains('QT-DRAFT-099'), isFalse);
 
       // --- VERIFICATION 2: Full Ledger Statement Export ---
       final statement = await repo.getCustomerLedgerStatement(

@@ -958,8 +958,7 @@ class InvoicePdfGenerator {
 
     final totalTaxVal =
         invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
-    final subtotalToShow = invoice.subtotal - discountToShow;
-    final exactGrandTotal = subtotalToShow +
+    final exactGrandTotal = (invoice.subtotal - discountToShow) +
         totalTaxVal +
         (invoice.deliveryCharge ?? 0);
     final roundedOff = invoice.grandTotal - exactGrandTotal;
@@ -1019,8 +1018,20 @@ class InvoicePdfGenerator {
             children: [
               _buildTotalsLine(
                 'Subtotal:',
-                subtotalToShow,
+                invoice.subtotal,
               ),
+
+              if (discountToShow > 0)
+                _buildTotalsLine(
+                  'Discount:',
+                  -discountToShow,
+                ),
+
+              if (discountToShow > 0 && !isBillOfSupply && !isDeliveryChallan)
+                _buildTotalsLine(
+                  'Total Before Tax:',
+                  (invoice.subtotal - discountToShow),
+                ),
 
               if (invoice.deliveryCharge != null && invoice.deliveryCharge! > 0)
                 _buildTotalsLine(
