@@ -712,7 +712,7 @@ class InvoicePdfGenerator {
       isDeliveryChallan ? 'HSN' : 'SAC/HSN',
       'Qty',
       'Rate',
-      if (isDeliveryChallan) 'Disc',
+      'Disc',
       if (showGst && !isIgst) 'CGST',
       if (showGst && !isIgst) 'SGST',
       if (showGst && isIgst) 'IGST',
@@ -770,23 +770,22 @@ class InvoicePdfGenerator {
           item.unitPrice.toStringAsFixed(2),
           style: const pw.TextStyle(fontSize: 8),
         ),
-        if (isDeliveryChallan)
-          itemDiscount > 0
-              ? pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
+        itemDiscount > 0
+            ? pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    itemDiscount.toStringAsFixed(2),
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                  if (item.discountPercent != null && item.discountPercent! > 0)
                     pw.Text(
-                      itemDiscount.toStringAsFixed(2),
-                      style: const pw.TextStyle(fontSize: 8),
+                      '(${item.discountPercent!.toStringAsFixed(1).replaceAll('.0', '')}%)',
+                      style: const pw.TextStyle(fontSize: 7),
                     ),
-                    if (item.discountPercent != null && item.discountPercent! > 0)
-                      pw.Text(
-                        '(${item.discountPercent!.toStringAsFixed(1).replaceAll('.0', '')}%)',
-                        style: const pw.TextStyle(fontSize: 7),
-                      ),
-                  ],
-                )
-              : pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
+                ],
+              )
+            : pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
         if (showGst && !isIgst)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -827,7 +826,7 @@ class InvoicePdfGenerator {
     Map<int, pw.TableColumnWidth> columnWidths;
     Map<int, pw.Alignment> alignments;
 
-    if (isDeliveryChallan) {
+    if (!showGst) {
       columnWidths = {
         0: const pw.FlexColumnWidth(4.2),
         1: const pw.FlexColumnWidth(1.1),
@@ -843,48 +842,15 @@ class InvoicePdfGenerator {
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
         5: pw.Alignment.centerRight,
-      };
-    } else if (!showGst) {
-      columnWidths = {
-        0: const pw.FlexColumnWidth(5.0),
-        1: const pw.FlexColumnWidth(1.2),
-        2: const pw.FlexColumnWidth(0.8),
-        3: const pw.FlexColumnWidth(1.5),
-        4: const pw.FlexColumnWidth(1.7),
-      };
-      alignments = {
-        0: pw.Alignment.centerLeft,
-        1: pw.Alignment.center,
-        2: pw.Alignment.center,
-        3: pw.Alignment.centerRight,
-        4: pw.Alignment.centerRight,
       };
     } else if (isIgst) {
-      // Option 2: IGST only (6 columns)
-      columnWidths = {
-        0: const pw.FlexColumnWidth(4.2),
-        1: const pw.FlexColumnWidth(1.1),
-        2: const pw.FlexColumnWidth(0.8),
-        3: const pw.FlexColumnWidth(1.4),
-        4: const pw.FlexColumnWidth(1.4),
-        5: const pw.FlexColumnWidth(1.6),
-      };
-      alignments = {
-        0: pw.Alignment.centerLeft,
-        1: pw.Alignment.center,
-        2: pw.Alignment.center,
-        3: pw.Alignment.centerRight,
-        4: pw.Alignment.centerRight,
-        5: pw.Alignment.centerRight,
-      };
-    } else {
-      // Option 1: CGST + SGST (7 columns)
+      // Option 2: IGST only (7 columns)
       columnWidths = {
         0: const pw.FlexColumnWidth(3.8),
-        1: const pw.FlexColumnWidth(1.1),
-        2: const pw.FlexColumnWidth(0.7),
-        3: const pw.FlexColumnWidth(1.3),
-        4: const pw.FlexColumnWidth(1.3),
+        1: const pw.FlexColumnWidth(1.0),
+        2: const pw.FlexColumnWidth(0.6),
+        3: const pw.FlexColumnWidth(1.2),
+        4: const pw.FlexColumnWidth(1.2),
         5: const pw.FlexColumnWidth(1.3),
         6: const pw.FlexColumnWidth(1.5),
       };
@@ -896,6 +862,28 @@ class InvoicePdfGenerator {
         4: pw.Alignment.centerRight,
         5: pw.Alignment.centerRight,
         6: pw.Alignment.centerRight,
+      };
+    } else {
+      // Option 1: CGST + SGST (8 columns)
+      columnWidths = {
+        0: const pw.FlexColumnWidth(3.3),
+        1: const pw.FlexColumnWidth(1.0),
+        2: const pw.FlexColumnWidth(0.6),
+        3: const pw.FlexColumnWidth(1.1),
+        4: const pw.FlexColumnWidth(1.1),
+        5: const pw.FlexColumnWidth(1.2),
+        6: const pw.FlexColumnWidth(1.2),
+        7: const pw.FlexColumnWidth(1.4),
+      };
+      alignments = {
+        0: pw.Alignment.centerLeft,
+        1: pw.Alignment.center,
+        2: pw.Alignment.center,
+        3: pw.Alignment.centerRight,
+        4: pw.Alignment.centerRight,
+        5: pw.Alignment.centerRight,
+        6: pw.Alignment.centerRight,
+        7: pw.Alignment.centerRight,
       };
     }
 
@@ -970,14 +958,10 @@ class InvoicePdfGenerator {
 
     final totalTaxVal =
         invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
-    final subtotalToShow = isDeliveryChallan
-        ? (invoice.subtotal - discountToShow)
-        : invoice.subtotal;
-    final exactGrandTotal = isDeliveryChallan
-        ? (subtotalToShow + (invoice.deliveryCharge ?? 0))
-        : ((invoice.subtotal - discountToShow) +
-            totalTaxVal +
-            (invoice.deliveryCharge ?? 0));
+    final subtotalToShow = invoice.subtotal - discountToShow;
+    final exactGrandTotal = subtotalToShow +
+        totalTaxVal +
+        (invoice.deliveryCharge ?? 0);
     final roundedOff = invoice.grandTotal - exactGrandTotal;
     final amountDue = invoice.grandTotal - totalPaid;
 
@@ -1037,16 +1021,6 @@ class InvoicePdfGenerator {
                 'Subtotal:',
                 subtotalToShow,
               ),
-              if (discountToShow > 0 && !isDeliveryChallan)
-                _buildTotalsLine(
-                  'Discount:',
-                  -discountToShow,
-                ),
-              if (discountToShow > 0 && !isDeliveryChallan && !isBillOfSupply)
-                _buildTotalsLine(
-                  'Total Before Tax:',
-                  (invoice.subtotal - discountToShow),
-                ),
 
               if (invoice.deliveryCharge != null && invoice.deliveryCharge! > 0)
                 _buildTotalsLine(

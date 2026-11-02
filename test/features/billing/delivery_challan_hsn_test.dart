@@ -322,5 +322,83 @@ void main() {
       await file.writeAsBytes(pdfBytes);
       expect(await file.exists(), isTrue);
     });
+
+    test('All invoice types include Disc column in line items table', () async {
+      final company = CompanySetting(
+        id: 1,
+        companyName: 'Star Electric Works',
+        address: 'Vadodara, Gujarat',
+        phone: '+91 98250 12345',
+        email: 'contact@starelectric.in',
+        gstin: '24ABCDE1234F1Z5',
+        bankName: 'SBI',
+        bankAccountNo: '123456789012',
+        bankIfsc: 'SBIN0001234',
+        eInvoiceApplicable: false,
+        isRegistered: true,
+      );
+
+      final customer = Customer(
+        id: 1,
+        name: 'Baroda Heavy Engineering Ltd.',
+        address: 'Makarpura, Vadodara',
+        phone: '9876543210',
+        email: 'procurement@barodaeng.com',
+        state: 'Gujarat',
+        gstin: '24AABCB1234A1Z1',
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
+
+      final invoice = Invoice(
+        id: 3,
+        invoiceNo: 'SRV-2627-001',
+        invoiceType: InvoiceType.serviceTaxInvoice,
+        customerId: customer.id,
+        invoiceDate: DateTime(2026, 4, 16),
+        subtotal: 10000.0,
+        discountAmount: 1000.0,
+        isDiscountPercentage: false,
+        distributeDiscountAcrossItems: false,
+        cgstAmount: 810.0,
+        sgstAmount: 810.0,
+        igstAmount: 0.0,
+        useIgst: false,
+        taxMode: TaxMode.cgst_sgst,
+        grandTotal: 10620.0,
+        amountInWords: 'Ten Thousand Six Hundred Twenty Rupees Only',
+        status: InvoiceStatus.draft,
+        requiresEWayBill: false,
+        requiresEInvoice: false,
+        createdAt: DateTime.now(),
+      );
+
+      final items = [
+        InvoiceItem(
+          id: 20,
+          invoiceId: 3,
+          itemSourceType: ItemSourceType.custom,
+          description: 'Motor Overhaul Service',
+          hsnCode: '998719',
+          qty: 1,
+          unitPrice: 10000.0,
+          discountPercent: 10.0,
+          gstRate: 18.0,
+          lineTotal: 10000.0,
+        ),
+      ];
+
+      final pdfBytes = await InvoicePdfGenerator.generate(
+        copyLabels: ['ORIGINAL FOR RECIPIENT'],
+        company: company,
+        invoice: invoice,
+        customer: customer,
+        items: items,
+        totalPaid: 0.0,
+      );
+
+      expect(pdfBytes, isNotEmpty);
+      expect(pdfBytes.length, greaterThan(1000));
+    });
   });
 }
