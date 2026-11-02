@@ -31,11 +31,13 @@ class CustomerLedgerPdfGenerator {
 
     final headers = <String>[
       'Date',
-      'Document',
-      'Status',
+      'Document Type',
+      'Document No',
+      'Details',
       'Debit',
       'Credit',
-      'Running Balance',
+      'Balance',
+      'Status',
     ];
 
     final data = <List<dynamic>>[];
@@ -43,106 +45,128 @@ class CustomerLedgerPdfGenerator {
     // Opening Balance row
     final openingDateStr = statement.fromDate != null
         ? dateFmt.format(statement.fromDate!)
-        : '-';
+        : '—';
 
     data.add([
-      pw.Text(openingDateStr, style: const pw.TextStyle(fontSize: 8)),
-      pw.Text('Opening Balance', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-      pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
-      pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
-      pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
+      pw.Text(openingDateStr, style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('Opening Balance', style: pw.TextStyle(fontSize: 7.2, fontWeight: pw.FontWeight.bold)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
       pw.Text(
         '₹${statement.openingBalance.toStringAsFixed(2)}',
-        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+        style: pw.TextStyle(fontSize: 7.2, fontWeight: pw.FontWeight.bold),
       ),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
     ]);
 
     // Rows for each transaction
     for (final entry in statement.entries) {
-      data.add([
-        pw.Text(
-          dateFmt.format(entry.date),
-          style: const pw.TextStyle(fontSize: 8),
-        ),
-        pw.Text(
-          entry.document,
-          style: const pw.TextStyle(fontSize: 8),
-        ),
-        pw.Text(
-          entry.status ?? '-',
+      final rowColor = entry.isReference ? PdfColors.grey700 : PdfColors.black;
+      final rowStyle = pw.TextStyle(fontSize: 7.2, color: rowColor);
+
+      pw.Widget statusWidget;
+      if (entry.status == null || entry.status!.isEmpty) {
+        statusWidget = pw.Text('—', style: rowStyle);
+      } else {
+        PdfColor statusColor = rowColor;
+        if (!entry.isReference) {
+          if (entry.status == 'Paid') {
+            statusColor = PdfColors.green800;
+          } else if (entry.status == 'Overdue') {
+            statusColor = PdfColors.red800;
+          }
+        }
+        statusWidget = pw.Text(
+          entry.status!,
           style: pw.TextStyle(
-            fontSize: 7.5,
-            fontWeight: entry.status == 'Overdue' || entry.status == 'Unpaid'
+            fontSize: 7.2,
+            fontWeight: (entry.status == 'Overdue' || entry.status == 'Unpaid')
                 ? pw.FontWeight.bold
                 : pw.FontWeight.normal,
-            color: entry.status == 'Paid'
-                ? PdfColors.green800
-                : (entry.status == 'Overdue' ? PdfColors.red800 : PdfColors.black),
+            color: statusColor,
           ),
+        );
+      }
+
+      data.add([
+        pw.Text(dateFmt.format(entry.date), style: rowStyle),
+        pw.Text(entry.documentType, style: rowStyle),
+        pw.Text(entry.documentNo, style: rowStyle),
+        pw.Text(entry.details, style: rowStyle),
+        pw.Text(
+          entry.debit != null && entry.debit! > 0 ? '₹${entry.debit!.toStringAsFixed(2)}' : '—',
+          style: rowStyle,
         ),
         pw.Text(
-          entry.debit != null && entry.debit! > 0 ? '₹${entry.debit!.toStringAsFixed(2)}' : '-',
-          style: const pw.TextStyle(fontSize: 8),
-        ),
-        pw.Text(
-          entry.credit != null && entry.credit! > 0 ? '₹${entry.credit!.toStringAsFixed(2)}' : '-',
-          style: const pw.TextStyle(fontSize: 8),
+          entry.credit != null && entry.credit! > 0 ? '₹${entry.credit!.toStringAsFixed(2)}' : '—',
+          style: rowStyle,
         ),
         pw.Text(
           '₹${entry.runningBalance.toStringAsFixed(2)}',
-          style: const pw.TextStyle(fontSize: 8),
+          style: rowStyle,
         ),
+        statusWidget,
       ]);
     }
 
     // Totals row
     data.add([
-      pw.Text('', style: const pw.TextStyle(fontSize: 8)),
-      pw.Text('Total for Period', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-      pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('Total for Period', style: pw.TextStyle(fontSize: 7.2, fontWeight: pw.FontWeight.bold)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
       pw.Text(
-        statement.totalDebit > 0 ? '₹${statement.totalDebit.toStringAsFixed(2)}' : '-',
-        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+        statement.totalDebit > 0 ? '₹${statement.totalDebit.toStringAsFixed(2)}' : '—',
+        style: pw.TextStyle(fontSize: 7.2, fontWeight: pw.FontWeight.bold),
       ),
       pw.Text(
-        statement.totalCredit > 0 ? '₹${statement.totalCredit.toStringAsFixed(2)}' : '-',
-        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+        statement.totalCredit > 0 ? '₹${statement.totalCredit.toStringAsFixed(2)}' : '—',
+        style: pw.TextStyle(fontSize: 7.2, fontWeight: pw.FontWeight.bold),
       ),
-      pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
     ]);
 
     // Closing Balance row
     data.add([
-      pw.Text('', style: const pw.TextStyle(fontSize: 8)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
       pw.Text(
         'Closing Balance (Net Outstanding)',
-        style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColors.red800),
+        style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColors.red800),
       ),
-      pw.Text('-', style: const pw.TextStyle(fontSize: 8)),
-      pw.Text('', style: const pw.TextStyle(fontSize: 8)),
-      pw.Text('', style: const pw.TextStyle(fontSize: 8)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
       pw.Text(
         '₹${statement.closingBalance.toStringAsFixed(2)}',
-        style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColors.red800),
+        style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColors.red800),
       ),
+      pw.Text('—', style: const pw.TextStyle(fontSize: 7.2)),
     ]);
 
     final columnWidths = <int, pw.TableColumnWidth>{
-      0: const pw.FixedColumnWidth(55),
-      1: const pw.FlexColumnWidth(2.8),
-      2: const pw.FixedColumnWidth(65),
-      3: const pw.FixedColumnWidth(70),
-      4: const pw.FixedColumnWidth(70),
-      5: const pw.FixedColumnWidth(80),
+      0: const pw.FixedColumnWidth(48), // Date
+      1: const pw.FixedColumnWidth(68), // Document Type
+      2: const pw.FixedColumnWidth(58), // Document No
+      3: const pw.FlexColumnWidth(1.8), // Details (wraps cleanly)
+      4: const pw.FixedColumnWidth(50), // Debit
+      5: const pw.FixedColumnWidth(50), // Credit
+      6: const pw.FixedColumnWidth(56), // Balance
+      7: const pw.FixedColumnWidth(46), // Status
     };
 
     final alignments = <int, pw.Alignment>{
       0: pw.Alignment.center,
       1: pw.Alignment.centerLeft,
-      2: pw.Alignment.center,
-      3: pw.Alignment.centerRight,
+      2: pw.Alignment.centerLeft,
+      3: pw.Alignment.centerLeft,
       4: pw.Alignment.centerRight,
       5: pw.Alignment.centerRight,
+      6: pw.Alignment.centerRight,
+      7: pw.Alignment.center,
     };
 
     pdf.addPage(
@@ -508,10 +532,33 @@ class CustomerLedgerPdfGenerator {
   }
 
   static pw.Widget _buildFullLedgerSummaryBox(CustomerLedgerStatement statement) {
+    final countItems = <String>[];
+    final desiredOrder = [
+      'Invoices',
+      'Payments',
+      'Credit Notes',
+      'Debit Notes',
+      'Delivery Challans',
+      'Motor Jobs',
+      'Quotations',
+      'Purchase Vouchers',
+    ];
+    for (final key in desiredOrder) {
+      final count = statement.documentCounts[key];
+      if (count != null && count > 0) {
+        countItems.add('$count $key');
+      }
+    }
+    for (final entry in statement.documentCounts.entries) {
+      if (!desiredOrder.contains(entry.key) && entry.value > 0) {
+        countItems.add('${entry.value} ${entry.key}');
+      }
+    }
+
     return pw.Container(
       alignment: pw.Alignment.centerRight,
       child: pw.Container(
-        width: 260,
+        width: 320,
         padding: const pw.EdgeInsets.all(8),
         decoration: pw.BoxDecoration(
           border: pw.Border.all(color: PdfColors.black, width: 0.5),
@@ -519,7 +566,17 @@ class CustomerLedgerPdfGenerator {
           color: PdfColors.grey100,
         ),
         child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
+            if (countItems.isNotEmpty) ...[
+              pw.Text(
+                'Document Summary: ${countItems.join(', ')}',
+                style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+              ),
+              pw.SizedBox(height: 3),
+              pw.Divider(thickness: 0.5, color: PdfColors.grey400),
+              pw.SizedBox(height: 3),
+            ],
             if (statement.openingBalance != 0.0) ...[
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,

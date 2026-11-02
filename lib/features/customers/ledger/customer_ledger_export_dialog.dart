@@ -42,6 +42,14 @@ class _CustomerLedgerExportDialogState extends ConsumerState<CustomerLedgerExpor
   late DateTime _asOfDate;
   bool _isExporting = false;
 
+  final bool _includeInvoices = true;
+  final bool _includePayments = true;
+  final bool _includeCreditDebitNotes = true;
+  bool _includeDeliveryChallans = true;
+  bool _includeMotorJobs = true;
+  bool _includeQuotations = true;
+  bool _includePurchaseVouchers = true;
+
   @override
   void initState() {
     super.initState();
@@ -107,6 +115,15 @@ class _CustomerLedgerExportDialogState extends ConsumerState<CustomerLedgerExpor
           customerId: widget.customerId,
           fromDate: fromDate,
           toDate: toDate,
+          filterOptions: LedgerFilterOptions(
+            includeInvoices: _includeInvoices,
+            includePayments: _includePayments,
+            includeCreditDebitNotes: _includeCreditDebitNotes,
+            includeDeliveryChallans: _includeDeliveryChallans,
+            includeMotorJobs: _includeMotorJobs,
+            includeQuotations: _includeQuotations,
+            includePurchaseVouchers: _includePurchaseVouchers,
+          ),
         );
 
         if (statement.openingBalance == 0.0 && statement.entries.isEmpty) {
@@ -193,6 +210,58 @@ class _CustomerLedgerExportDialogState extends ConsumerState<CustomerLedgerExpor
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
+  }
+
+  Widget _buildFilterCheckbox(
+    String label,
+    bool value,
+    ValueChanged<bool?>? onChanged, {
+    bool isAccounting = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Checkbox(
+              value: value,
+              onChanged: onChanged,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isAccounting ? FontWeight.w600 : FontWeight.normal,
+                color: isAccounting ? Colors.black87 : Colors.grey.shade800,
+              ),
+            ),
+          ),
+          if (isAccounting)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Text(
+                'Accounting (Required)',
+                style: TextStyle(fontSize: 10, color: Colors.blue.shade800, fontWeight: FontWeight.w500),
+              ),
+            )
+          else
+            Text(
+              'Reference',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -301,6 +370,31 @@ class _CustomerLedgerExportDialogState extends ConsumerState<CustomerLedgerExpor
                   onChanged: (d) {
                     if (d != null) setState(() => _toDate = IstDateUtils.toMidnightIst(d));
                   },
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Include in Statement:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildFilterCheckbox('Invoices & Bills', _includeInvoices, null, isAccounting: true),
+                      _buildFilterCheckbox('Payments', _includePayments, null, isAccounting: true),
+                      _buildFilterCheckbox('Credit/Debit Notes', _includeCreditDebitNotes, null, isAccounting: true),
+                      _buildFilterCheckbox('Delivery Challans', _includeDeliveryChallans, (v) => setState(() => _includeDeliveryChallans = v ?? true)),
+                      _buildFilterCheckbox('Motor Jobs', _includeMotorJobs, (v) => setState(() => _includeMotorJobs = v ?? true)),
+                      _buildFilterCheckbox('Quotations', _includeQuotations, (v) => setState(() => _includeQuotations = v ?? true)),
+                      _buildFilterCheckbox('Purchase Vouchers', _includePurchaseVouchers, (v) => setState(() => _includePurchaseVouchers = v ?? true)),
+                    ],
+                  ),
                 ),
               ] else ...[
                 // Outstanding Bills Only

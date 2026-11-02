@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart';
 import 'package:starelectricerp/data/database.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
+import 'package:intl/intl.dart';
 import 'package:starelectricerp/core/financial_year.dart';
 import 'package:starelectricerp/core/ist_date_utils.dart';
 
@@ -785,71 +786,20 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
   }
 
   Future<CustomerLedgerResult> getCustomerLedger(int customerId) async {
-    final customer = await (_db.select(_db.customers)..where((t) => t.id.equals(customerId))).getSingle();
-    final query = _db.select(_db.invoices)..where((t) => t.customerId.equals(customerId))
-      ..orderBy([
-        (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
-        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
-      ]);
-      
-    final invoices = await query.get();
-    
-    // Only customer-billing documents with a value (Service Tax Invoice, Sales Tax Invoice, Bill of Supply)
-    // Include EVERY saved billing invoice regardless of status (draft/pending, sent, paid, partiallyPaid, overdue)
-    // Exclude only Delivery Challans and Purchase Vouchers
-    final billingInvoices = invoices.where((inv) =>
-      inv.invoiceType == InvoiceType.serviceTaxInvoice ||
-      inv.invoiceType == InvoiceType.salesTaxInvoice ||
-      inv.invoiceType == InvoiceType.billOfSupply
-    ).toList();
-    
-    final allNotes = invoices.where((inv) =>
-      inv.invoiceType == InvoiceType.credit_note ||
-      inv.invoiceType == InvoiceType.debit_note
-    ).toList();
-
-    final invoiceIds = billingInvoices.map((i) => i.id).toSet();
-    final allPayments = invoiceIds.isEmpty ? <Payment>[] : await (_db.select(_db.payments)..where((t) => t.invoiceId.isIn(invoiceIds))).get();
-    
-    double totalBilled = 0.0;
-    double totalPaid = 0.0;
-    double runningBalance = 0.0;
-    List<LedgerInvoiceRow> chronologicalRows = [];
-    
-    for (var inv in billingInvoices) {
-      final paymentsForInv = allPayments.where((p) => p.invoiceId == inv.id).fold<double>(0.0, (s, p) => s + p.amount);
-      final creditNotesForInv = allNotes
-          .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.credit_note)
-          .fold<double>(0.0, (s, n) => s + n.grandTotal);
-      final debitNotesForInv = allNotes
-          .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.debit_note)
-          .fold<double>(0.0, (s, n) => s + n.grandTotal);
-
-      final effectiveBilled = inv.grandTotal + debitNotesForInv;
-      final effectivePaid = paymentsForInv + creditNotesForInv;
-      final balanceDue = effectiveBilled - effectivePaid;
-
-      totalBilled += effectiveBilled;
-      totalPaid += effectivePaid;
-      runningBalance += balanceDue;
-      
-      chronologicalRows.add(LedgerInvoiceRow(
-        invoice: inv,
-        totalPaid: effectivePaid,
-        balanceDue: balanceDue,
-        runningBalance: runningBalance,
-      ));
-    }
-    
-    // Reverse so the screen shows newest first, while each row retains its chronological running balance
-    final displayRows = chronologicalRows.reversed.toList();
+    final statement = await getCustomerLedgerStatement(
+      customerId: customerId,
+      fromDate: null,
+      toDate: IstDateUtils.nowIst().add(const Duration(days: 365)),
+      filterOptions: const LedgerFilterOptions(),
+    );
 
     return CustomerLedgerResult(
-      customer: customer,
-      totalBilled: totalBilled,
-      totalPaid: totalPaid,
-      totalOutstanding: totalBilled - totalPaid,
-      invoices: displayRows,
+      customer: statement.customer,
+      totalBilled: statement.totalDebit,
+      totalPaid: statement.totalCredit,
+      totalOutstanding: statement.closingBalance,
+      entries: statement.entries.reversed.toList(),
+      documentCounts: statement.documentCounts,
     );
   }
 
@@ -857,19 +807,22 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     required int customerId,
     required DateTime? fromDate,
     required DateTime toDate,
+    LedgerFilterOptions filterOptions = const LedgerFilterOptions(),
   }) async {
     final customer = await (_db.select(_db.customers)..where((t) => t.id.equals(customerId))).getSingle();
     final normToDate = IstDateUtils.toMidnightIst(toDate);
     final endOfToDate = DateTime(normToDate.year, normToDate.month, normToDate.day, 23, 59, 59, 999);
     final normFromDate = fromDate != null ? IstDateUtils.toMidnightIst(fromDate) : null;
 
-    final query = _db.select(_db.invoices)..where((t) => t.customerId.equals(customerId))
+    // 1. Fetch Invoices, Notes, Challans, Purchase Vouchers for this customer (excluding drafts)
+    final invoiceQuery = _db.select(_db.invoices)
+      ..where((t) => t.customerId.equals(customerId) & t.status.isNotIn([InvoiceStatus.draft.name]))
       ..orderBy([
         (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
         (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
       ]);
       
-    final allInvoices = await query.get();
+    final allInvoices = await invoiceQuery.get();
     final billingInvoices = allInvoices.where((inv) =>
       inv.invoiceType == InvoiceType.serviceTaxInvoice ||
       inv.invoiceType == InvoiceType.salesTaxInvoice ||
@@ -881,17 +834,54 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       inv.invoiceType == InvoiceType.debit_note
     ).toList();
 
+    final deliveryChallans = allInvoices.where((inv) =>
+      inv.invoiceType == InvoiceType.deliveryChallan
+    ).toList();
+
+    final purchaseVouchers = allInvoices.where((inv) =>
+      inv.invoiceType == InvoiceType.purchaseVoucher
+    ).toList();
+
     final invoiceIds = billingInvoices.map((i) => i.id).toSet();
     final allPayments = invoiceIds.isEmpty
         ? <Payment>[]
         : await (_db.select(_db.payments)..where((t) => t.invoiceId.isIn(invoiceIds))).get();
 
+    final allInvIds = allInvoices.map((i) => i.id).toSet();
+    final allInvoiceItems = allInvIds.isEmpty
+        ? <InvoiceItem>[]
+        : await (_db.select(_db.invoiceItems)..where((t) => t.invoiceId.isIn(allInvIds))).get();
+
+    final Map<int, List<InvoiceItem>> itemsByInvoiceId = {};
+    for (final item in allInvoiceItems) {
+      itemsByInvoiceId.putIfAbsent(item.invoiceId, () => []).add(item);
+    }
+
+    // 2. Fetch Motor Jobs for this customer
+    final motorJobsQuery = _db.select(_db.motorJobs)
+      ..where((t) => t.customerId.equals(customerId))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.dateReceived, mode: OrderingMode.asc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
+      ]);
+    final customerMotorJobs = await motorJobsQuery.get();
+
+    // 3. Fetch Quotations for this customer (excluding drafts)
+    final quotationsQuery = _db.select(_db.quotations)
+      ..where((t) => t.customerId.equals(customerId) & t.status.isNotIn([QuotationStatus.draft.name]))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
+      ]);
+    final customerQuotations = await quotationsQuery.get();
+
     final Map<int, String> invoiceNoMap = {
       for (var inv in allInvoices) inv.id: inv.invoiceNo,
     };
 
+    final dateFmt = DateFormat('dd/MM/yyyy');
     final List<_LedgerTimelineEvent> events = [];
 
+    // Accounting Rows: Billing Invoices
     for (final inv in billingInvoices) {
       String typeLabel;
       switch (inv.invoiceType) {
@@ -933,42 +923,67 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
         }
       }
 
+      final items = itemsByInvoiceId[inv.id] ?? [];
+      final descList = items.map((i) => i.description.trim()).where((d) => d.isNotEmpty).toList();
+      final detailsText = descList.isNotEmpty ? descList.join(', ') : typeLabel;
+
       events.add(_LedgerTimelineEvent(
         date: IstDateUtils.toMidnightIst(inv.invoiceDate),
         createdAt: inv.createdAt,
+        documentType: typeLabel,
+        documentNo: inv.invoiceNo,
+        details: detailsText,
+        isAccounting: true,
         isDebit: true,
         amount: inv.grandTotal,
-        document: '$typeLabel - ${inv.invoiceNo}',
         status: statusLabel,
+        navigationRoute: '/invoices/${inv.id}',
+        invoice: inv,
       ));
     }
 
-    // Add Credit and Debit Notes to Ledger
+    // Accounting Rows: Credit and Debit Notes
     for (final note in notes) {
       final origNo = note.originalInvoiceId != null ? (invoiceNoMap[note.originalInvoiceId!] ?? '') : '';
-      final againstStr = origNo.isNotEmpty ? ' (against $origNo)' : '';
+      final againstStr = origNo.isNotEmpty ? 'Against $origNo' : '';
+      final reasonStr = note.noteReason != null ? ' (${note.noteReason!.displayName})' : '';
+      final reasonTextStr = note.noteReasonText != null && note.noteReasonText!.trim().isNotEmpty
+          ? ' - ${note.noteReasonText!.trim()}'
+          : '';
+      final detailsText = '$againstStr$reasonStr$reasonTextStr';
 
       if (note.invoiceType == InvoiceType.credit_note) {
         events.add(_LedgerTimelineEvent(
           date: IstDateUtils.toMidnightIst(note.invoiceDate),
           createdAt: note.createdAt,
+          documentType: 'Credit Note',
+          documentNo: note.invoiceNo,
+          details: detailsText,
+          isAccounting: true,
           isDebit: false, // Credit note appears in Credit column (reduces outstanding)
           amount: note.grandTotal,
-          document: 'Credit Note ${note.invoiceNo}$againstStr',
           status: null,
+          navigationRoute: '/invoices/${note.id}',
+          invoice: note,
         ));
       } else if (note.invoiceType == InvoiceType.debit_note) {
         events.add(_LedgerTimelineEvent(
           date: IstDateUtils.toMidnightIst(note.invoiceDate),
           createdAt: note.createdAt,
+          documentType: 'Debit Note',
+          documentNo: note.invoiceNo,
+          details: detailsText,
+          isAccounting: true,
           isDebit: true, // Debit note appears in Debit column (increases outstanding)
           amount: note.grandTotal,
-          document: 'Debit Note ${note.invoiceNo}$againstStr',
           status: null,
+          navigationRoute: '/invoices/${note.id}',
+          invoice: note,
         ));
       }
     }
 
+    // Accounting Rows: Payments
     for (final p in allPayments) {
       String modeStr;
       switch (p.paymentMode) {
@@ -991,22 +1006,156 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       events.add(_LedgerTimelineEvent(
         date: IstDateUtils.toMidnightIst(p.paymentDate),
         createdAt: p.createdAt,
+        documentType: 'Payment',
+        documentNo: (p.referenceNo != null && p.referenceNo!.trim().isNotEmpty) ? p.referenceNo!.trim() : '—',
+        details: 'Paid via $modeStr$refStr',
+        isAccounting: true,
         isDebit: false,
         amount: p.amount,
-        document: 'Payment Received - $modeStr$refStr',
         status: null,
+        navigationRoute: '/invoices/${p.invoiceId}',
+      ));
+    }
+
+    // Reference Rows: Delivery Challans
+    for (final dc in deliveryChallans) {
+      final parts = <String>[];
+      if (dc.gpNumber != null && dc.gpNumber!.trim().isNotEmpty) {
+        final gpDateStr = dc.gpDate != null ? ' dt ${dateFmt.format(dc.gpDate!)}' : '';
+        parts.add('GP No: ${dc.gpNumber!.trim()}$gpDateStr');
+      }
+      final itemsForDc = itemsByInvoiceId[dc.id] ?? [];
+      final itemDesc = itemsForDc.map((i) => i.description.trim()).where((d) => d.isNotEmpty).join(', ');
+      if (itemDesc.isNotEmpty) {
+        parts.add(itemDesc);
+      }
+      if (dc.deliveryCharge != null && dc.deliveryCharge! > 0) {
+        parts.add('Delivery Charge: ₹${dc.deliveryCharge!.toStringAsFixed(2)}');
+      }
+      final detailsText = parts.isNotEmpty ? parts.join('; ') : 'Delivery Challan';
+
+      String statusStr;
+      if (dc.status == InvoiceStatus.delivered) {
+        statusStr = 'Delivered';
+      } else if (dc.status == InvoiceStatus.sent) {
+        statusStr = 'Sent';
+      } else {
+        statusStr = dc.status.name[0].toUpperCase() + dc.status.name.substring(1);
+      }
+
+      events.add(_LedgerTimelineEvent(
+        date: IstDateUtils.toMidnightIst(dc.invoiceDate),
+        createdAt: dc.createdAt,
+        documentType: 'Delivery Challan',
+        documentNo: dc.invoiceNo,
+        details: detailsText,
+        isAccounting: false,
+        isDebit: false,
+        amount: 0.0,
+        status: statusStr,
+        navigationRoute: '/invoices/${dc.id}',
+        invoice: dc,
+      ));
+    }
+
+    // Reference Rows: Motor Jobs
+    for (final job in customerMotorJobs) {
+      final parts = <String>[];
+      parts.add(job.motorDescription.trim());
+      final recvStr = 'Recv: ${dateFmt.format(job.dateReceived)}';
+      final dispStr = job.dispatchDate != null ? 'Disp: ${dateFmt.format(job.dispatchDate!)}' : 'Disp: Pending';
+      parts.add('$recvStr, $dispStr');
+      final detailsText = parts.join('; ');
+
+      String statusStr;
+      switch (job.status) {
+        case MotorJobStatus.received:
+          statusStr = 'Received';
+          break;
+        case MotorJobStatus.inProgress:
+          statusStr = 'In Progress';
+          break;
+        case MotorJobStatus.rewound:
+          statusStr = 'Rewound';
+          break;
+        case MotorJobStatus.dispatched:
+          statusStr = 'Dispatched';
+          break;
+      }
+
+      events.add(_LedgerTimelineEvent(
+        date: IstDateUtils.toMidnightIst(job.dateReceived),
+        createdAt: job.createdAt,
+        documentType: 'Motor Job',
+        documentNo: job.jobNo,
+        details: detailsText,
+        isAccounting: false,
+        isDebit: false,
+        amount: 0.0,
+        status: statusStr,
+        navigationRoute: '/motor-jobs/${job.id}',
+      ));
+    }
+
+    // Reference Rows: Quotations
+    for (final quote in customerQuotations) {
+      final parts = <String>[];
+      parts.add('Amount: ₹${quote.estimatedAmount.toStringAsFixed(2)}');
+      if (quote.validUntil != null) {
+        parts.add('Valid until: ${dateFmt.format(quote.validUntil!)}');
+      }
+      if (quote.description.trim().isNotEmpty) {
+        parts.add(quote.description.trim());
+      }
+      final detailsText = parts.join('; ');
+
+      final statusStr = quote.status.name[0].toUpperCase() + quote.status.name.substring(1);
+
+      events.add(_LedgerTimelineEvent(
+        date: IstDateUtils.toMidnightIst(quote.createdAt),
+        createdAt: quote.createdAt,
+        documentType: 'Quotation',
+        documentNo: quote.quoteNo,
+        details: detailsText,
+        isAccounting: false,
+        isDebit: false,
+        amount: 0.0,
+        status: statusStr,
+        navigationRoute: '/quotations/${quote.id}',
+      ));
+    }
+
+    // Reference Rows: Purchase Vouchers
+    for (final pv in purchaseVouchers) {
+      final parts = <String>['Total: ₹${pv.grandTotal.toStringAsFixed(2)}'];
+      if (pv.notes != null && pv.notes!.trim().isNotEmpty) {
+        parts.add(pv.notes!.trim());
+      }
+      final detailsText = parts.join('; ');
+
+      final statusStr = pv.status.name[0].toUpperCase() + pv.status.name.substring(1);
+
+      events.add(_LedgerTimelineEvent(
+        date: IstDateUtils.toMidnightIst(pv.invoiceDate),
+        createdAt: pv.createdAt,
+        documentType: 'Purchase Voucher',
+        documentNo: pv.invoiceNo,
+        details: detailsText,
+        isAccounting: false,
+        isDebit: false,
+        amount: 0.0,
+        status: statusStr,
+        navigationRoute: '/invoices/${pv.id}',
+        invoice: pv,
       ));
     }
 
     // Sort chronologically:
     // 1. by date ASC
-    // 2. on same date: Invoices & Debit Notes (Debit) before Payments & Credit Notes (Credit)
-    // 3. then by createdAt ASC
+    // 2. ties by creation order (createdAt ASC)
     events.sort((a, b) {
       final dateCmp = a.date.compareTo(b.date);
       if (dateCmp != 0) return dateCmp;
-      final typeCmp = (a.isDebit ? 0 : 1).compareTo(b.isDebit ? 0 : 1);
-      if (typeCmp != 0) return typeCmp;
       return a.createdAt.compareTo(b.createdAt);
     });
 
@@ -1015,11 +1164,14 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
 
     for (final ev in events) {
       if (normFromDate != null && ev.date.isBefore(normFromDate)) {
-        if (ev.isDebit) {
-          openingBalance += ev.amount;
-        } else {
-          openingBalance -= ev.amount;
+        if (ev.isAccounting) {
+          if (ev.isDebit) {
+            openingBalance += ev.amount;
+          } else {
+            openingBalance -= ev.amount;
+          }
         }
+        // Reference rows before from-date are simply omitted
       } else if (!ev.date.isAfter(endOfToDate)) {
         inPeriodEvents.add(ev);
       }
@@ -1029,30 +1181,128 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     double totalDebit = 0.0;
     double totalCredit = 0.0;
     final List<CustomerLedgerStatementEntry> statementEntries = [];
+    final Map<String, int> docCounts = {};
 
     for (final ev in inPeriodEvents) {
-      if (ev.isDebit) {
-        totalDebit += ev.amount;
-        runningBalance += ev.amount;
-        statementEntries.add(CustomerLedgerStatementEntry(
-          date: ev.date,
-          document: ev.document,
-          status: ev.status,
-          debit: ev.amount,
-          credit: null,
-          runningBalance: runningBalance,
-        ));
+      bool isIncluded = true;
+      switch (ev.documentType) {
+        case 'Service Tax Invoice':
+        case 'Sales Tax Invoice':
+        case 'Bill of Supply':
+        case 'Invoice':
+          isIncluded = filterOptions.includeInvoices;
+          break;
+        case 'Payment':
+          isIncluded = filterOptions.includePayments;
+          break;
+        case 'Credit Note':
+        case 'Debit Note':
+          isIncluded = filterOptions.includeCreditDebitNotes;
+          break;
+        case 'Delivery Challan':
+          isIncluded = filterOptions.includeDeliveryChallans;
+          break;
+        case 'Motor Job':
+          isIncluded = filterOptions.includeMotorJobs;
+          break;
+        case 'Quotation':
+          isIncluded = filterOptions.includeQuotations;
+          break;
+        case 'Purchase Voucher':
+          isIncluded = filterOptions.includePurchaseVouchers;
+          break;
+      }
+
+      String getCategoryKey(String docType) {
+        switch (docType) {
+          case 'Service Tax Invoice':
+          case 'Sales Tax Invoice':
+          case 'Bill of Supply':
+          case 'Invoice':
+            return 'Invoices';
+          case 'Payment':
+            return 'Payments';
+          case 'Credit Note':
+            return 'Credit Notes';
+          case 'Debit Note':
+            return 'Debit Notes';
+          case 'Delivery Challan':
+            return 'Delivery Challans';
+          case 'Motor Job':
+            return 'Motor Jobs';
+          case 'Quotation':
+            return 'Quotations';
+          case 'Purchase Voucher':
+            return 'Purchase Vouchers';
+          default:
+            return docType;
+        }
+      }
+
+      if (ev.isAccounting) {
+        if (ev.isDebit) {
+          totalDebit += ev.amount;
+          runningBalance += ev.amount;
+          if (isIncluded) {
+            final categoryKey = getCategoryKey(ev.documentType);
+            docCounts[categoryKey] = (docCounts[categoryKey] ?? 0) + 1;
+            statementEntries.add(CustomerLedgerStatementEntry(
+              date: ev.date,
+              createdAt: ev.createdAt,
+              documentType: ev.documentType,
+              documentNo: ev.documentNo,
+              details: ev.details,
+              status: ev.status,
+              debit: ev.amount,
+              credit: null,
+              runningBalance: runningBalance,
+              isReference: false,
+              navigationRoute: ev.navigationRoute,
+              invoice: ev.invoice,
+            ));
+          }
+        } else {
+          totalCredit += ev.amount;
+          runningBalance -= ev.amount;
+          if (isIncluded) {
+            final categoryKey = getCategoryKey(ev.documentType);
+            docCounts[categoryKey] = (docCounts[categoryKey] ?? 0) + 1;
+            statementEntries.add(CustomerLedgerStatementEntry(
+              date: ev.date,
+              createdAt: ev.createdAt,
+              documentType: ev.documentType,
+              documentNo: ev.documentNo,
+              details: ev.details,
+              status: ev.status,
+              debit: null,
+              credit: ev.amount,
+              runningBalance: runningBalance,
+              isReference: false,
+              navigationRoute: ev.navigationRoute,
+              invoice: ev.invoice,
+            ));
+          }
+        }
       } else {
-        totalCredit += ev.amount;
-        runningBalance -= ev.amount;
-        statementEntries.add(CustomerLedgerStatementEntry(
-          date: ev.date,
-          document: ev.document,
-          status: null,
-          debit: null,
-          credit: ev.amount,
-          runningBalance: runningBalance,
-        ));
+        // Reference row: does not change runningBalance, totalDebit, or totalCredit
+        if (isIncluded) {
+          final categoryKey = getCategoryKey(ev.documentType);
+          docCounts[categoryKey] = (docCounts[categoryKey] ?? 0) + 1;
+          statementEntries.add(CustomerLedgerStatementEntry(
+            date: ev.date,
+            createdAt: ev.createdAt,
+            documentType: ev.documentType,
+            documentNo: ev.documentNo,
+            details: ev.details,
+            status: ev.status,
+            debit: null,
+            credit: null,
+            runningBalance: runningBalance,
+            isReference: true,
+            navigationRoute: ev.navigationRoute,
+            invoice: ev.invoice,
+          ));
+        }
       }
     }
 
@@ -1066,6 +1316,8 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       totalDebit: totalDebit,
       totalCredit: totalCredit,
       closingBalance: runningBalance,
+      documentCounts: docCounts,
+      filterOptions: filterOptions,
     );
   }
 
@@ -1076,7 +1328,8 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     final customer = await (_db.select(_db.customers)..where((t) => t.id.equals(customerId))).getSingle();
     final effectiveAsOfDate = IstDateUtils.toMidnightIst(asOfDate ?? IstDateUtils.nowIst());
 
-    final query = _db.select(_db.invoices)..where((t) => t.customerId.equals(customerId))
+    final query = _db.select(_db.invoices)
+      ..where((t) => t.customerId.equals(customerId) & t.status.isNotIn([InvoiceStatus.draft.name]))
       ..orderBy([
         (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.asc),
         (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc),
@@ -1243,6 +1496,43 @@ class OutstandingSummaryRow {
   });
 }
 
+class LedgerFilterOptions {
+  final bool includeInvoices;
+  final bool includePayments;
+  final bool includeCreditDebitNotes;
+  final bool includeDeliveryChallans;
+  final bool includeMotorJobs;
+  final bool includeQuotations;
+  final bool includePurchaseVouchers;
+
+  const LedgerFilterOptions({
+    this.includeInvoices = true,
+    this.includePayments = true,
+    this.includeCreditDebitNotes = true,
+    this.includeDeliveryChallans = true,
+    this.includeMotorJobs = true,
+    this.includeQuotations = true,
+    this.includePurchaseVouchers = true,
+  });
+
+  LedgerFilterOptions copyWith({
+    bool? includeDeliveryChallans,
+    bool? includeMotorJobs,
+    bool? includeQuotations,
+    bool? includePurchaseVouchers,
+  }) {
+    return LedgerFilterOptions(
+      includeInvoices: true,
+      includePayments: true,
+      includeCreditDebitNotes: true,
+      includeDeliveryChallans: includeDeliveryChallans ?? this.includeDeliveryChallans,
+      includeMotorJobs: includeMotorJobs ?? this.includeMotorJobs,
+      includeQuotations: includeQuotations ?? this.includeQuotations,
+      includePurchaseVouchers: includePurchaseVouchers ?? this.includePurchaseVouchers,
+    );
+  }
+}
+
 class LedgerInvoiceRow {
   final Invoice invoice;
   final double totalPaid;
@@ -1262,29 +1552,26 @@ class CustomerLedgerResult {
   final double totalBilled;
   final double totalPaid;
   final double totalOutstanding;
-  final List<LedgerInvoiceRow> invoices;
+  final List<CustomerLedgerStatementEntry> entries;
+  final Map<String, int> documentCounts;
 
   CustomerLedgerResult({
     required this.customer,
     required this.totalBilled,
     required this.totalPaid,
     required this.totalOutstanding,
-    required this.invoices,
+    required this.entries,
+    this.documentCounts = const {},
   });
+
+  List<CustomerLedgerStatementEntry> get invoices => entries;
 }
-
-
-
-
-
-
 
 class InvoiceWithCustomer {
   final Invoice invoice;
   final Customer customer;
   InvoiceWithCustomer({required this.invoice, required this.customer});
 }
-
 
 class GstSummaryRow {
   final String month;
@@ -1305,37 +1592,62 @@ class GstSummaryRow {
 class _LedgerTimelineEvent {
   final DateTime date;
   final DateTime createdAt;
+  final String documentType;
+  final String documentNo;
+  final String details;
+  final bool isAccounting;
   final bool isDebit;
   final double amount;
-  final String document;
   final String? status;
+  final String? navigationRoute;
+  final Invoice? invoice;
 
   _LedgerTimelineEvent({
     required this.date,
     required this.createdAt,
+    required this.documentType,
+    required this.documentNo,
+    required this.details,
+    required this.isAccounting,
     required this.isDebit,
     required this.amount,
-    required this.document,
     this.status,
+    this.navigationRoute,
+    this.invoice,
   });
 }
 
 class CustomerLedgerStatementEntry {
   final DateTime date;
-  final String document;
+  final DateTime createdAt;
+  final String documentType;
+  final String documentNo;
+  final String details;
   final String? status;
   final double? debit;
   final double? credit;
   final double runningBalance;
+  final bool isReference;
+  final String? navigationRoute;
+  final Invoice? _invoice;
 
   CustomerLedgerStatementEntry({
     required this.date,
-    required this.document,
+    required this.createdAt,
+    required this.documentType,
+    required this.documentNo,
+    required this.details,
     this.status,
     this.debit,
     this.credit,
     required this.runningBalance,
-  });
+    this.isReference = false,
+    this.navigationRoute,
+    Invoice? invoice,
+  }) : _invoice = invoice;
+
+  Invoice get invoice => _invoice!;
+  String get document => '$documentType - $documentNo';
 }
 
 class CustomerLedgerStatement {
@@ -1348,6 +1660,8 @@ class CustomerLedgerStatement {
   final double totalDebit;
   final double totalCredit;
   final double closingBalance;
+  final Map<String, int> documentCounts;
+  final LedgerFilterOptions filterOptions;
 
   CustomerLedgerStatement({
     required this.customer,
@@ -1359,6 +1673,8 @@ class CustomerLedgerStatement {
     required this.totalDebit,
     required this.totalCredit,
     required this.closingBalance,
+    this.documentCounts = const {},
+    this.filterOptions = const LedgerFilterOptions(),
   });
 }
 
