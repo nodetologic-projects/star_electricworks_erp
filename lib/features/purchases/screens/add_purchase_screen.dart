@@ -59,7 +59,7 @@ class _AddPurchaseScreenState extends ConsumerState<AddPurchaseScreen> {
 
     if (mounted) {
       setState(() {
-        _vendorController.text = purchase.vendorName ?? '';
+        _vendorController.text = purchase.vendorName;
         _notesController.text = purchase.notes ?? '';
         _purchaseDate = IstDateUtils.toMidnightIst(purchase.purchaseDate);
         _paymentMode = purchase.paymentMode;

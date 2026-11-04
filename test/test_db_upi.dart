@@ -1,5 +1,4 @@
 import 'package:starelectricerp/data/database.dart';
-import 'package:starelectricerp/data/tables/company_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
 import 'dart:io';

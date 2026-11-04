@@ -52,7 +52,7 @@ class UpdaterService {
         print("UpdaterService: HTTP Error ${response.statusCode}");
         throw Exception("HTTP Error ${response.statusCode}");
       }
-    } catch (e, st) {
+    } catch (e) {
       print("UpdaterService Error: $e");
       if (e is TimeoutException) {
         throw Exception("Update check timed out after 10 seconds. Check your connection.");

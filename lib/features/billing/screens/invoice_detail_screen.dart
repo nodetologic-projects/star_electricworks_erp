@@ -14,6 +14,9 @@ import 'package:pdf/pdf.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:starelectricerp/features/billing/pdf/invoice_pdf.dart';
 import 'package:starelectricerp/features/billing/providers/invoice_detail_provider.dart';
+import 'package:starelectricerp/features/billing/providers/invoices_provider.dart';
+import 'package:starelectricerp/features/dashboard/providers/dashboard_provider.dart';
+import 'package:starelectricerp/features/customers/providers/ledger_providers.dart';
 import 'package:starelectricerp/features/settings/dsc_signer.dart';
 import 'package:starelectricerp/features/billing/screens/record_payment_dialog.dart';
 import 'package:starelectricerp/core/widgets/status_badge.dart';
@@ -473,7 +476,6 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                               ),
                             ),
                           if (!data.invoice.invoiceType.isNote &&
-                              data.invoice.status != InvoiceStatus.draft &&
                               (data.invoice.invoiceType == InvoiceType.serviceTaxInvoice ||
                                data.invoice.invoiceType == InvoiceType.salesTaxInvoice ||
                                data.invoice.invoiceType == InvoiceType.billOfSupply)) ...[
@@ -583,6 +585,10 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                                 );
                                 if (res == true) {
                                   ref.invalidate(invoiceDetailProvider(widget.invoiceId));
+                                  ref.invalidate(filteredInvoicesProvider);
+                                  ref.invalidate(dashboardDataProvider);
+                                  ref.invalidate(outstandingSummaryProvider);
+                                  ref.invalidate(customerLedgerProvider(data.customer.id));
                                 }
                               },
                               icon: const Icon(Icons.payment),
@@ -646,26 +652,64 @@ Future<void> _signAndPrint(BuildContext context, InvoiceDetailData data) async {
                           leading: const Icon(Icons.check_circle, color: Colors.green),
                           title: Text('₹${p.amount.toStringAsFixed(2)} via ${p.paymentMode.name.toUpperCase()}'),
                           subtitle: Text('${DateFormat('dd/MM/yyyy').format(p.paymentDate)} ${p.referenceNo != null ? " | Ref: ${p.referenceNo}" : ""}'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.edit, size: 16),
-                            tooltip: 'Edit Payment',
-                            onPressed: () async {
-                              final totalPaidExcludingThis = data.payments
-                                  .where((item) => item.id != p.id)
-                                  .fold<double>(0, (s, x) => s + x.amount);
-                              final balanceDue = (data.invoice.grandTotal + data.totalDebitNotes - data.totalCreditNotes - totalPaidExcludingThis).clamp(0.0, double.infinity);
-                              final updated = await showDialog<bool>(
-                                context: context,
-                                builder: (_) => RecordPaymentDialog(
-                                  invoice: data.invoice,
-                                  balanceDue: balanceDue,
-                                  existingPayment: p,
-                                ),
-                              );
-                              if (updated == true) {
-                                ref.invalidate(invoiceDetailProvider(widget.invoiceId));
-                              }
-                            },
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, size: 16),
+                                tooltip: 'Edit Payment',
+                                onPressed: () async {
+                                  final totalPaidExcludingThis = data.payments
+                                      .where((item) => item.id != p.id)
+                                      .fold<double>(0, (s, x) => s + x.amount);
+                                  final balanceDue = (data.invoice.grandTotal + data.totalDebitNotes - data.totalCreditNotes - totalPaidExcludingThis).clamp(0.0, double.infinity);
+                                  final updated = await showDialog<bool>(
+                                    context: context,
+                                    builder: (_) => RecordPaymentDialog(
+                                      invoice: data.invoice,
+                                      balanceDue: balanceDue,
+                                      existingPayment: p,
+                                    ),
+                                  );
+                                  if (updated == true) {
+                                    ref.invalidate(invoiceDetailProvider(widget.invoiceId));
+                                    ref.invalidate(filteredInvoicesProvider);
+                                    ref.invalidate(dashboardDataProvider);
+                                    ref.invalidate(outstandingSummaryProvider);
+                                    ref.invalidate(customerLedgerProvider(data.customer.id));
+                                  }
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                tooltip: 'Delete Payment',
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Delete Payment?'),
+                                      content: Text('Are you sure you want to delete payment of ₹${p.amount.toStringAsFixed(2)}?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+                                        FilledButton(
+                                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          child: const Text('DELETE'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    await ref.read(invoicesRepositoryProvider).deletePayment(p.id);
+                                    ref.invalidate(invoiceDetailProvider(widget.invoiceId));
+                                    ref.invalidate(filteredInvoicesProvider);
+                                    ref.invalidate(dashboardDataProvider);
+                                    ref.invalidate(outstandingSummaryProvider);
+                                    ref.invalidate(customerLedgerProvider(data.customer.id));
+                                  }
+                                },
+                              ),
+                            ],
                           ),
                         )),
                       ],

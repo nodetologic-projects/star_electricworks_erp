@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:starelectricerp/core/routing/app_router.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
 import 'package:starelectricerp/features/auth/widgets/inactivity_wrapper.dart';
+import 'package:starelectricerp/data/repositories/invoices_repository.dart';
 
 
 import 'package:path_provider/path_provider.dart';
@@ -36,7 +37,15 @@ void main() async {
   
   final container = ProviderContainer();
   
-  // Non-blocking initialization
+  // Recompute status of all existing billing invoices on startup so paid ones stuck on Pending are corrected
+  try {
+    final updated = await container.read(invoicesRepositoryProvider).recomputeAllInvoiceStatuses();
+    if (updated > 0) {
+      debugPrint('Startup invoice status migration: corrected $updated invoice(s)');
+    }
+  } catch (e) {
+    debugPrint('Startup invoice status migration error: $e');
+  }
 
   runApp(
     UncontrolledProviderScope(

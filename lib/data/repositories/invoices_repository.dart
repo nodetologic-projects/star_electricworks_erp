@@ -6,6 +6,8 @@ import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:intl/intl.dart';
 import 'package:starelectricerp/core/financial_year.dart';
 import 'package:starelectricerp/core/ist_date_utils.dart';
+import 'package:starelectricerp/core/invoice_status_calculator.dart';
+export 'package:starelectricerp/core/invoice_status_calculator.dart';
 
 final invoicesRepositoryProvider = Provider((ref) {
   return InvoicesRepository(ref.watch(databaseProvider));
@@ -310,6 +312,7 @@ class InvoicesRepository {
       if (invoice.originalInvoiceId.present && invoice.originalInvoiceId.value != null) {
         await recomputeAndUpdateInvoiceStatus(invoice.originalInvoiceId.value!);
       }
+      await recomputeAndUpdateInvoiceStatus(invoiceId);
 
       return invoiceId;
     });
@@ -324,7 +327,11 @@ class InvoicesRepository {
   }) {
     return _db.transaction(() async {
       final existingInvoice = await (_db.select(_db.invoices)..where((t) => t.id.equals(invoiceId))).getSingle();
-      if (existingInvoice.status != InvoiceStatus.draft) {
+      if (existingInvoice.status == InvoiceStatus.sent ||
+          existingInvoice.status == InvoiceStatus.paid ||
+          existingInvoice.status == InvoiceStatus.partiallyPaid ||
+          existingInvoice.status == InvoiceStatus.delivered ||
+          (existingInvoice.signedPdfPath != null && existingInvoice.signedPdfPath!.isNotEmpty)) {
         throw Exception("Only draft invoices can be edited.");
       }
 
@@ -388,7 +395,7 @@ class InvoicesRepository {
 
       final updateCompanion = invoiceCompanion.copyWith(
         invoiceNo: invoiceNoToUpdate, 
-        invoiceDate: existingInvoice.status == InvoiceStatus.draft && invoiceCompanion.invoiceDate.present
+        invoiceDate: (existingInvoice.status == InvoiceStatus.draft || existingInvoice.status == InvoiceStatus.overdue) && invoiceCompanion.invoiceDate.present
             ? invoiceCompanion.invoiceDate
             : const Value.absent(),
       );
@@ -449,6 +456,7 @@ class InvoicesRepository {
       if (origId != null) {
         await recomputeAndUpdateInvoiceStatus(origId);
       }
+      await recomputeAndUpdateInvoiceStatus(invoiceId);
     });
   }
 
@@ -464,7 +472,11 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
 
     final totalSalesQuery = _db.select(_db.invoices)
       ..where((t) => t.invoiceDate.isBetweenValues(startOfMonth, endOfMonth) &
-                     t.status.isIn([InvoiceStatus.sent.name, InvoiceStatus.paid.name, InvoiceStatus.delivered.name, InvoiceStatus.partiallyPaid.name, InvoiceStatus.overdue.name]));
+                     t.invoiceType.isIn([
+                       InvoiceType.serviceTaxInvoice.name,
+                       InvoiceType.salesTaxInvoice.name,
+                       InvoiceType.billOfSupply.name,
+                     ]));
     final monthInvoices = await totalSalesQuery.get();
     
     double totalSales = 0.0;
@@ -475,13 +487,21 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     }
 
     final pendingQuery = _db.select(_db.invoices)
-      ..where((t) => t.status.isIn([InvoiceStatus.draft.name, InvoiceStatus.sent.name, InvoiceStatus.partiallyPaid.name, InvoiceStatus.overdue.name]));
+      ..where((t) => t.invoiceType.isIn([
+        InvoiceType.serviceTaxInvoice.name,
+        InvoiceType.salesTaxInvoice.name,
+        InvoiceType.billOfSupply.name,
+      ]) & t.status.isNotIn([InvoiceStatus.paid.name, InvoiceStatus.delivered.name]));
     final pendingInvoices = await pendingQuery.get();
     
-    int pendingCount = pendingInvoices.length;
+    int pendingCount = 0;
     double pendingAmount = 0.0;
     for (var inv in pendingInvoices) {
-      pendingAmount += inv.grandTotal;
+      final details = await getInvoiceBalanceDetails(inv.id);
+      if (toPaise(details.balanceDue) > 0) {
+        pendingCount++;
+        pendingAmount += details.balanceDue;
+      }
     }
 
     print('REPO: getDashboardStats returning');
@@ -600,6 +620,17 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     });
   }
 
+  Future<void> deletePayment(int paymentId) async {
+    await _db.transaction(() async {
+      final payment = await (_db.select(_db.payments)..where((t) => t.id.equals(paymentId))).getSingleOrNull();
+      if (payment != null) {
+        final invoiceId = payment.invoiceId;
+        await (_db.delete(_db.payments)..where((t) => t.id.equals(paymentId))).go();
+        await recomputeAndUpdateInvoiceStatus(invoiceId);
+      }
+    });
+  }
+
   Future<List<Invoice>> getNotesForInvoice(int invoiceId) {
     return (_db.select(_db.invoices)
           ..where((t) =>
@@ -668,33 +699,34 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       }
     }
 
-    final balanceDue = invoice.grandTotal + totalDebitNotes - totalCreditNotes - totalPaid;
-
-    InvoiceStatus computedStatus = invoice.status;
-    if (invoice.status != InvoiceStatus.draft) {
-      if (balanceDue <= 0.001) {
-        computedStatus = InvoiceStatus.paid;
-      } else if (totalPaid > 0.001) {
-        computedStatus = InvoiceStatus.partiallyPaid;
-      } else {
-        final now = IstDateUtils.nowIst();
-        final isOverdue = invoice.dueDate != null &&
-            IstDateUtils.toMidnightIst(invoice.dueDate!).isBefore(IstDateUtils.toMidnightIst(now));
-        if (isOverdue) {
-          computedStatus = InvoiceStatus.overdue;
-        } else {
-          computedStatus = InvoiceStatus.sent;
-        }
-      }
+    if (invoice.invoiceType == InvoiceType.deliveryChallan || invoice.invoiceType.isNote) {
+      return InvoiceBalanceDetails(
+        invoice: invoice,
+        totalPaid: totalPaid,
+        totalCreditNotes: totalCreditNotes,
+        totalDebitNotes: totalDebitNotes,
+        balanceDue: invoice.grandTotal,
+        computedStatus: invoice.status,
+      );
     }
+
+    final derived = deriveInvoiceStatus(
+      grandTotal: invoice.grandTotal,
+      totalPaid: totalPaid,
+      totalCreditNotes: totalCreditNotes,
+      totalDebitNotes: totalDebitNotes,
+      dueDate: invoice.dueDate,
+      currentStatus: invoice.status,
+      hasSignedPdf: invoice.signedPdfPath != null && invoice.signedPdfPath!.isNotEmpty,
+    );
 
     return InvoiceBalanceDetails(
       invoice: invoice,
       totalPaid: totalPaid,
       totalCreditNotes: totalCreditNotes,
       totalDebitNotes: totalDebitNotes,
-      balanceDue: balanceDue,
-      computedStatus: computedStatus,
+      balanceDue: derived.balanceDue,
+      computedStatus: derived.status,
     );
   }
 
@@ -703,6 +735,54 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
     if (details.computedStatus != details.invoice.status) {
       await updateInvoiceStatus(invoiceId, details.computedStatus);
     }
+  }
+
+  Future<int> recomputeAllInvoiceStatuses() async {
+    final allInvoices = await (_db.select(_db.invoices)
+      ..where((t) => t.invoiceType.isIn([
+        InvoiceType.serviceTaxInvoice.name,
+        InvoiceType.salesTaxInvoice.name,
+        InvoiceType.billOfSupply.name,
+      ]))).get();
+
+    int updatedCount = 0;
+    for (final inv in allInvoices) {
+      final details = await getInvoiceBalanceDetails(inv.id);
+      if (details.computedStatus != inv.status) {
+        await updateInvoiceStatus(inv.id, details.computedStatus);
+        updatedCount++;
+      }
+    }
+    return updatedCount;
+  }
+
+  Future<List<EligibleOriginalInvoice>> getEligibleOriginalInvoices(int customerId) async {
+    final invoices = await (_db.select(_db.invoices)
+      ..where((t) =>
+        t.customerId.equals(customerId) &
+        t.invoiceType.isIn([
+          InvoiceType.serviceTaxInvoice.name,
+          InvoiceType.salesTaxInvoice.name,
+          InvoiceType.billOfSupply.name,
+        ])
+      )
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.invoiceDate, mode: OrderingMode.desc),
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+      ])
+    ).get();
+
+    final result = <EligibleOriginalInvoice>[];
+    for (final inv in invoices) {
+      final details = await getInvoiceBalanceDetails(inv.id);
+      result.add(EligibleOriginalInvoice(
+        invoice: inv,
+        balanceDue: details.balanceDue,
+        grandTotal: inv.grandTotal,
+        computedStatus: details.computedStatus,
+      ));
+    }
+    return result;
   }
 
   Future<void> markReminderSent(int invoiceId) async {
@@ -749,7 +829,16 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       final debitNotes = allNotes
           .where((n) => n.originalInvoiceId == invoice.id && n.invoiceType == InvoiceType.debit_note)
           .fold<double>(0.0, (s, n) => s + n.grandTotal);
-      final balanceDue = invoice.grandTotal + debitNotes - creditNotes - invoicePayments;
+      
+      final derived = deriveInvoiceStatus(
+        grandTotal: invoice.grandTotal,
+        totalPaid: invoicePayments,
+        totalCreditNotes: creditNotes,
+        totalDebitNotes: debitNotes,
+        dueDate: invoice.dueDate,
+        currentStatus: invoice.status,
+      );
+      final balanceDue = derived.balanceDue;
       
       final current = summary[invoice.customerId]!;
       
@@ -757,10 +846,10 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       double addedOut = 0.0;
       DateTime? oldest = current.oldestOverdueDate;
       
-      if (balanceDue > 0.001) {
+      if (toPaise(balanceDue) > 0) {
         addedOpen = 1;
         addedOut = balanceDue;
-        if (invoice.status == InvoiceStatus.overdue || (invoice.dueDate != null && invoice.dueDate!.isBefore(DateTime.now()))) {
+        if (derived.status == InvoiceStatus.overdue || (invoice.dueDate != null && invoice.dueDate!.isBefore(DateTime.now()))) {
           if (oldest == null || invoice.invoiceDate.isBefore(oldest)) {
             oldest = invoice.invoiceDate;
           }
@@ -905,23 +994,18 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
       final debitNotesForInv = notes
           .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.debit_note)
           .fold<double>(0.0, (s, n) => s + n.grandTotal);
-      final balanceDue = inv.grandTotal + debitNotesForInv - creditNotesForInv - paymentsForInv;
-
-      String statusLabel;
-      if (balanceDue <= 0.001) {
-        statusLabel = 'Paid';
-      } else if (paymentsForInv > 0.001 || creditNotesForInv > 0.001) {
-        statusLabel = 'Partially Paid';
-      } else {
-        final now = IstDateUtils.nowIst();
-        final isOverdue = inv.status == InvoiceStatus.overdue ||
-            (inv.dueDate != null && IstDateUtils.toMidnightIst(inv.dueDate!).isBefore(IstDateUtils.toMidnightIst(now)));
-        if (isOverdue) {
-          statusLabel = 'Overdue';
-        } else {
-          statusLabel = 'Unpaid';
-        }
-      }
+      
+      final derived = deriveInvoiceStatus(
+        grandTotal: inv.grandTotal,
+        totalPaid: paymentsForInv,
+        totalCreditNotes: creditNotesForInv,
+        totalDebitNotes: debitNotesForInv,
+        dueDate: inv.dueDate,
+        currentStatus: inv.status,
+      );
+      final statusLabel = derived.status == InvoiceStatus.draft || derived.status == InvoiceStatus.sent
+          ? 'Unpaid'
+          : derived.statusLabel;
 
       final items = itemsByInvoiceId[inv.id] ?? [];
       final descList = items.map((i) => i.description.trim()).where((d) => d.isNotEmpty).toList();
@@ -1370,9 +1454,17 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
           .where((n) => n.originalInvoiceId == inv.id && n.invoiceType == InvoiceType.debit_note)
           .fold<double>(0.0, (s, n) => s + n.grandTotal);
 
-      final balanceDue = inv.grandTotal + debitNotesForInv - creditNotesForInv - paymentsForInv;
+      final derived = deriveInvoiceStatus(
+        grandTotal: inv.grandTotal,
+        totalPaid: paymentsForInv,
+        totalCreditNotes: creditNotesForInv,
+        totalDebitNotes: debitNotesForInv,
+        dueDate: inv.dueDate,
+        asOfDate: effectiveAsOfDate,
+        currentStatus: inv.status,
+      );
 
-      if (balanceDue > 0.001) {
+      if (toPaise(derived.balanceDue) > 0) {
         int daysOverdue = 0;
         if (inv.dueDate != null) {
           final due = IstDateUtils.toMidnightIst(inv.dueDate!);
@@ -1386,9 +1478,9 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
           invoiceNo: inv.invoiceNo,
           invoiceDate: IstDateUtils.toMidnightIst(inv.invoiceDate),
           dueDate: inv.dueDate != null ? IstDateUtils.toMidnightIst(inv.dueDate!) : null,
-          billAmount: inv.grandTotal + debitNotesForInv,
+          billAmount: derived.effectiveTotal,
           amountPaid: paymentsForInv + creditNotesForInv,
-          balanceDue: balanceDue,
+          balanceDue: derived.balanceDue,
           daysOverdue: daysOverdue,
         ));
       }
@@ -1470,6 +1562,20 @@ Future<List<InvoiceItem>> getItemsForInvoice(int invoiceId) {
 
 }
 
+
+class EligibleOriginalInvoice {
+  final Invoice invoice;
+  final double balanceDue;
+  final double grandTotal;
+  final InvoiceStatus computedStatus;
+
+  const EligibleOriginalInvoice({
+    required this.invoice,
+    required this.balanceDue,
+    required this.grandTotal,
+    required this.computedStatus,
+  });
+}
 
 class InvoiceBalanceDetails {
   final Invoice invoice;

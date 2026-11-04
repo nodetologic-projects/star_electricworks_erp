@@ -25,6 +25,11 @@ import 'package:starelectricerp/core/theme/app_theme.dart';
 import 'package:starelectricerp/core/widgets/app_date_field.dart';
 import 'package:starelectricerp/core/ist_date_utils.dart';
 import 'package:starelectricerp/core/financial_year.dart';
+import 'package:starelectricerp/features/billing/providers/invoice_detail_provider.dart';
+import 'package:starelectricerp/features/billing/providers/invoices_provider.dart';
+import 'package:starelectricerp/features/dashboard/providers/dashboard_provider.dart';
+import 'package:starelectricerp/features/customers/providers/ledger_providers.dart';
+import 'package:starelectricerp/core/widgets/status_badge.dart';
 
 class _LineItem {
   ItemSourceType type;
@@ -118,7 +123,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   final TextEditingController _noteReasonTextController = TextEditingController();
   bool _returnStockToInventory = false;
   double _remainingCreditableAmount = 0.0;
-  List<Invoice> _customerInvoices = [];
+  List<EligibleOriginalInvoice> _eligibleInvoices = [];
 
   static const Map<String, String> _gstStateCodes = {
     '01': 'Jammu & Kashmir',
@@ -321,23 +326,21 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   Future<void> _loadCustomerInvoices(int customerId, {int? preselectInvoiceId}) async {
     final repo = ref.read(invoicesRepositoryProvider);
-    final allInvoices = await repo.getAllInvoices();
-    final custInvoices = allInvoices.where((inv) =>
-      inv.customerId == customerId &&
-      inv.status != InvoiceStatus.draft &&
-      (inv.invoiceType == InvoiceType.serviceTaxInvoice ||
-       inv.invoiceType == InvoiceType.salesTaxInvoice ||
-       inv.invoiceType == InvoiceType.billOfSupply)
-    ).toList();
+    final eligible = await repo.getEligibleOriginalInvoices(customerId);
 
     if (mounted) {
       setState(() {
-        _customerInvoices = custInvoices;
+        _eligibleInvoices = eligible;
       });
       if (preselectInvoiceId != null) {
-        final match = custInvoices.where((i) => i.id == preselectInvoiceId).firstOrNull;
+        final match = eligible.where((i) => i.invoice.id == preselectInvoiceId).firstOrNull;
         if (match != null) {
-          await _onOriginalInvoiceSelected(match, prefillLines: _selectedType == InvoiceType.credit_note);
+          await _onOriginalInvoiceSelected(match.invoice, prefillLines: _selectedType == InvoiceType.credit_note);
+        } else {
+          try {
+            final directInv = await repo.getInvoiceById(preselectInvoiceId);
+            await _onOriginalInvoiceSelected(directInv, prefillLines: _selectedType == InvoiceType.credit_note);
+          } catch (_) {}
         }
       }
     }
@@ -386,8 +389,127 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   Future<void> _loadPrefillOriginalInvoice(int origId) async {
     final repo = ref.read(invoicesRepositoryProvider);
     final orig = await repo.getInvoiceById(origId);
+    await _loadPrefillCustomer(orig.customerId);
     await _loadCustomerInvoices(orig.customerId, preselectInvoiceId: orig.id);
-    await _onOriginalInvoiceSelected(orig, prefillLines: _selectedType == InvoiceType.credit_note);
+  }
+
+  void _showInvoiceSearchDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final query = searchQuery.toLowerCase().trim();
+            final filtered = _eligibleInvoices.where((item) {
+              if (query.isEmpty) return true;
+              final inv = item.invoice;
+              final invNo = inv.invoiceNo.toLowerCase();
+              final dateStr = DateFormat('dd/MM/yyyy').format(inv.invoiceDate);
+              final totalStr = inv.grandTotal.toStringAsFixed(2);
+              final balStr = item.balanceDue.toStringAsFixed(2);
+              return invNo.contains(query) ||
+                  dateStr.contains(query) ||
+                  totalStr.contains(query) ||
+                  balStr.contains(query);
+            }).toList();
+
+            return AlertDialog(
+              title: const Text('Select Original Invoice'),
+              content: SizedBox(
+                width: 520,
+                height: 440,
+                child: Column(
+                  children: [
+                    TextField(
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'Search by invoice no, date, or amount...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () => setDialogState(() => searchQuery = ''),
+                              )
+                            : null,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        isDense: true,
+                      ),
+                      onChanged: (val) => setDialogState(() => searchQuery = val),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Text(
+                                searchQuery.isEmpty
+                                    ? 'No eligible invoices available'
+                                    : 'No invoices matching "$searchQuery"',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final item = filtered[index];
+                                final inv = item.invoice;
+                                final isSelected = inv.id == _selectedOriginalInvoiceId;
+                                return ListTile(
+                                  selected: isSelected,
+                                  selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.08),
+                                  title: Row(
+                                    children: [
+                                      Text(inv.invoiceNo, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '(${DateFormat('dd/MM/yyyy').format(inv.invoiceDate)})',
+                                        style: const TextStyle(fontSize: 13, color: Colors.blueGrey),
+                                      ),
+                                      const Spacer(),
+                                      StatusBadge(
+                                        type: item.computedStatus == InvoiceStatus.paid
+                                            ? StatusBadgeType.paid
+                                            : item.computedStatus == InvoiceStatus.partiallyPaid
+                                                ? StatusBadgeType.partiallyPaid
+                                                : item.computedStatus == InvoiceStatus.overdue
+                                                    ? StatusBadgeType.overdue
+                                                    : StatusBadgeType.pending,
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Total: ₹${item.grandTotal.toStringAsFixed(2)} • Balance: ₹${item.balanceDue.toStringAsFixed(2)}',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.pop(dialogCtx);
+                                    _onOriginalInvoiceSelected(
+                                      inv,
+                                      prefillLines: _selectedType == InvoiceType.credit_note,
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _loadExistingInvoice(int id) async {
@@ -917,6 +1039,15 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
       }
 
       if (mounted) {
+        ref.invalidate(invoiceDetailProvider(savedInvoiceId));
+        if (_selectedOriginalInvoiceId != null) {
+          ref.invalidate(invoiceDetailProvider(_selectedOriginalInvoiceId!));
+        }
+        ref.invalidate(filteredInvoicesProvider);
+        ref.invalidate(dashboardDataProvider);
+        ref.invalidate(outstandingSummaryProvider);
+        ref.invalidate(customerLedgerProvider(finalCustomerId));
+
         String successMsg = 'Invoice saved successfully!';
         if (gapNote != null) {
           successMsg = 'Invoice saved! Note: $gapNote';
@@ -1702,48 +1833,128 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     runSpacing: 16,
                     children: [
                       SizedBox(
-                        width: isDesktop ? 340 : double.infinity,
-                        child: AppSelect<int?>(
-                          label: 'Original Invoice *',
-                          value: _selectedOriginalInvoiceId,
-                          helperText: _customerInvoices.isEmpty
-                              ? (_selectedCustomer == null
-                                  ? 'Select a customer above first'
-                                  : 'No finalized invoices found for this customer')
-                              : 'Must link to a finalized invoice',
-                          items: [
-                            const DropdownMenuItem(
-                              value: null,
-                              child: Text('-- Select Original Invoice --'),
-                            ),
-                            ..._customerInvoices.map(
-                              (inv) => DropdownMenuItem(
-                                value: inv.id,
+                        width: isDesktop ? 360 : double.infinity,
+                        child: Builder(
+                          builder: (context) {
+                            final isLocked = widget.prefillOriginalInvoiceId != null;
+
+                            // 1. If customer not selected yet
+                            if (_selectedCustomer == null) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info_outline, size: 20, color: Colors.blueGrey),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Select customer above first to link an invoice',
+                                        style: TextStyle(fontSize: 13, color: Colors.blueGrey),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            // 2. If locked (opened from Invoice View)
+                            if (isLocked) {
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey.shade400),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.lock, size: 20, color: Colors.blueGrey),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            'Original Invoice (Locked)',
+                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _originalInvoice != null
+                                                ? '${_originalInvoice!.invoiceNo} (${DateFormat('dd/MM/yyyy').format(_originalInvoice!.invoiceDate)}) • Total: ₹${_originalInvoice!.grandTotal.toStringAsFixed(2)} • Balance: ₹${_remainingCreditableAmount.toStringAsFixed(2)}'
+                                                : 'Loading linked invoice...',
+                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            // 3. Customer has no eligible invoices
+                            if (_eligibleInvoices.isEmpty) {
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.amber.shade300),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, size: 22, color: Colors.amber.shade900),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'No eligible invoices found for this customer. Only saved Service Tax Invoices, Sales Tax Invoices, or Bills of Supply can be linked.',
+                                        style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            // 4. Eligible invoices available: Searchable Picker
+                            final selectedMatch = _eligibleInvoices
+                                .where((i) => i.invoice.id == _selectedOriginalInvoiceId)
+                                .firstOrNull;
+
+                            return InkWell(
+                              onTap: () => _showInvoiceSearchDialog(context),
+                              borderRadius: BorderRadius.circular(8),
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Original Invoice *',
+                                  suffixIcon: const Icon(Icons.search),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  helperText: 'Search and link an eligible invoice',
+                                  helperMaxLines: 1,
+                                ),
                                 child: Text(
-                                  '${inv.invoiceNo} (${DateFormat('dd/MM/yyyy').format(inv.invoiceDate)}) - ₹${inv.grandTotal.toStringAsFixed(2)}',
+                                  selectedMatch != null
+                                      ? '${selectedMatch.invoice.invoiceNo} (${DateFormat('dd/MM/yyyy').format(selectedMatch.invoice.invoiceDate)}) • ₹${selectedMatch.grandTotal.toStringAsFixed(2)}'
+                                      : (_originalInvoice != null
+                                          ? '${_originalInvoice!.invoiceNo} (${DateFormat('dd/MM/yyyy').format(_originalInvoice!.invoiceDate)}) • ₹${_originalInvoice!.grandTotal.toStringAsFixed(2)}'
+                                          : '-- Click to Search & Select Invoice --'),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: selectedMatch != null || _originalInvoice != null ? FontWeight.w600 : FontWeight.normal,
+                                    color: selectedMatch != null || _originalInvoice != null ? Colors.black87 : Colors.grey.shade600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              final match = _customerInvoices
-                                  .where((i) => i.id == val)
-                                  .firstOrNull;
-                              if (match != null) {
-                                _onOriginalInvoiceSelected(
-                                  match,
-                                  prefillLines:
-                                      _selectedType == InvoiceType.credit_note,
-                                );
-                              }
-                            } else {
-                              setState(() {
-                                _selectedOriginalInvoiceId = null;
-                                _originalInvoice = null;
-                                _remainingCreditableAmount = 0.0;
-                              });
-                            }
+                            );
                           },
                         ),
                       ),

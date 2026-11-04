@@ -62,22 +62,36 @@ final invoiceDetailProvider = FutureProvider.autoDispose.family<InvoiceDetailDat
   double totalCreditNotes = 0.0;
   double totalDebitNotes = 0.0;
   double balanceDue = invoice.grandTotal - totalPaid;
+  Invoice displayInvoice = invoice;
 
   if (invoice.invoiceType.isNote) {
     if (invoice.originalInvoiceId != null) {
       originalInvoice = await invoiceRepo.getInvoiceById(invoice.originalInvoiceId!);
     }
+  } else if (invoice.invoiceType == InvoiceType.deliveryChallan) {
+    balanceDue = 0.0;
   } else {
     final notes = await invoiceRepo.getNotesForInvoice(invoiceId);
     creditNotes = notes.where((n) => n.invoiceType == InvoiceType.credit_note).toList();
     debitNotes = notes.where((n) => n.invoiceType == InvoiceType.debit_note).toList();
     totalCreditNotes = creditNotes.fold<double>(0.0, (s, n) => s + n.grandTotal);
     totalDebitNotes = debitNotes.fold<double>(0.0, (s, n) => s + n.grandTotal);
-    balanceDue = invoice.grandTotal + totalDebitNotes - totalCreditNotes - totalPaid;
+
+    final derived = deriveInvoiceStatus(
+      grandTotal: invoice.grandTotal,
+      totalPaid: totalPaid,
+      totalCreditNotes: totalCreditNotes,
+      totalDebitNotes: totalDebitNotes,
+      dueDate: invoice.dueDate,
+      currentStatus: invoice.status,
+      hasSignedPdf: invoice.signedPdfPath != null && invoice.signedPdfPath!.isNotEmpty,
+    );
+    balanceDue = derived.balanceDue;
+    displayInvoice = invoice.copyWith(status: derived.status);
   }
 
   return InvoiceDetailData(
-    invoice: invoice,
+    invoice: displayInvoice,
     items: items,
     customer: customer,
     companySetting: settings,

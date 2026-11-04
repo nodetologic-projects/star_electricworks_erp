@@ -9,6 +9,10 @@ import 'package:starelectricerp/data/database.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:starelectricerp/data/repositories/invoices_repository.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
+import 'package:starelectricerp/features/billing/providers/invoice_detail_provider.dart';
+import 'package:starelectricerp/features/billing/providers/invoices_provider.dart';
+import 'package:starelectricerp/features/dashboard/providers/dashboard_provider.dart';
+import 'package:starelectricerp/features/customers/providers/ledger_providers.dart';
 
 class RecordPaymentDialog extends ConsumerStatefulWidget {
   final Invoice invoice;
@@ -92,6 +96,12 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
         );
         await repo.addPayment(companion);
       }
+      ref.invalidate(invoiceDetailProvider(widget.invoice.id));
+      ref.invalidate(filteredInvoicesProvider);
+      ref.invalidate(dashboardDataProvider);
+      ref.invalidate(outstandingSummaryProvider);
+      ref.invalidate(customerLedgerProvider(widget.invoice.customerId));
+
       if (mounted) Navigator.pop(context, true);
     } finally {
       if (mounted) setState(() => _isLoading = false);

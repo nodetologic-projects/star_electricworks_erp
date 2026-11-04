@@ -11,6 +11,9 @@ import 'package:starelectricerp/core/widgets/app_layout.dart';
 import 'package:starelectricerp/core/widgets/status_badge.dart';
 import 'package:starelectricerp/data/tables/enums.dart';
 import 'package:starelectricerp/features/billing/providers/invoices_provider.dart';
+import 'package:starelectricerp/features/billing/providers/invoice_detail_provider.dart';
+import 'package:starelectricerp/features/dashboard/providers/dashboard_provider.dart';
+import 'package:starelectricerp/features/customers/providers/ledger_providers.dart';
 import 'package:starelectricerp/features/customers/providers/customers_provider.dart';
 import 'package:starelectricerp/core/theme/app_theme.dart';
 
@@ -62,6 +65,14 @@ class InvoicesListScreen extends ConsumerWidget {
       );
       if (res == true && context.mounted) {
         await ref.read(invoicesRepositoryProvider).deleteInvoice(invoice.id);
+        ref.invalidate(invoiceDetailProvider(invoice.id));
+        if (invoice.originalInvoiceId != null) {
+          ref.invalidate(invoiceDetailProvider(invoice.originalInvoiceId!));
+        }
+        ref.invalidate(filteredInvoicesProvider);
+        ref.invalidate(dashboardDataProvider);
+        ref.invalidate(outstandingSummaryProvider);
+        ref.invalidate(customerLedgerProvider(invoice.customerId));
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${invoice.invoiceNo} deleted.')));
       }
     } else {
